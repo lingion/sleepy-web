@@ -298,7 +298,8 @@ function splitRespectingEscape(body: string): string[] {
 }
 
 function toIntOrNull(s: string): number | null {
-  if (s === '') return null
+  // Kotlin String.toIntOrNull() 语义: 全串必须是合法整数, "12abc" → null (parseInt 会给 12)
+  if (!/^[+-]?\d+$/.test(s)) return null
   const n = parseInt(s, 10)
   return Number.isNaN(n) ? null : n
 }
