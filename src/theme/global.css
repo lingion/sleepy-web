@@ -1,0 +1,110 @@
+/* Sleepy Web 全局样式 — M3 token 消费 + 基础排版 */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--md-background);
+  color: var(--md-on-background);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* M3 类型标尺 (displayMedium 缩略集, 与 Android Type.kt 对齐) */
+.m3-display-medium {
+  font-size: 45px;
+  line-height: 52px;
+  font-weight: 400;
+}
+.m3-headline-small {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 400;
+}
+.m3-title-large {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 400;
+}
+.m3-title-medium {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: 0.15px;
+}
+.m3-title-small {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+.m3-body-medium {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: 0.25px;
+}
+.m3-label-large {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+.m3-label-medium {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+.m3-label-small {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* 通用表面卡 */
+.m3-card {
+  background: var(--md-surface-container-low);
+  border-radius: 12px;
+  color: var(--md-on-surface);
+}
+
+.m3-card-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.m3-card-clickable:hover {
+  background: var(--md-surface-container);
+}
+
+/* 滚动条弱化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--md-on-surface) 25%, transparent);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
