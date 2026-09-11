@@ -18,6 +18,7 @@ import {
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import type { Table } from '../data/types'
 import { ImportView } from './ImportView'
+import { EditTableView } from './EditTableView'
 
 export function ManageView() {
   const { t } = useTranslation()
@@ -31,8 +32,19 @@ export function ManageView() {
   const [renaming, setRenaming] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [importing, setImporting] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
 
   if (importing) return <ImportView onDone={() => setImporting(false)} />
+  if (editingId !== null) {
+    return (
+      <EditTableView
+        tableId={editingId}
+        onBack={() => setEditingId(null)}
+        onSaved={() => setEditingId(null)}
+        onDeleted={() => setEditingId(null)}
+      />
+    )
+  }
 
   async function handleNewTable() {
     const n = (tables?.length ?? 0) + 1
@@ -133,6 +145,13 @@ export function ManageView() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
+            <SmallBtn
+              label={t('edit_table_title')}
+              onClick={(e) => {
+                e.stopPropagation()
+                setEditingId(tb.id)
+              }}
+            />
             <SmallBtn
               label={t('rename')}
               onClick={(e) => {

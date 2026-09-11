@@ -71,17 +71,7 @@ function uniqueImportedTableName(base: string, existingNames: string[], defaultN
   return `${effective}${index}`
 }
 
-/** normalizeStartDate — DateUtils.kt: 手填任意日期归一到该周周一 */
-function normalizeStartDate(raw: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
-  if (!m) return raw
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  if (Number.isNaN(d.getTime())) return raw
-  const shift = (d.getDay() + 6) % 7 // 周一=0 … 周日=6
-  d.setDate(d.getDate() - shift)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
+import { normalizeStartDateToMonday as normalizeStartDate } from './importExportUtils'
 
 /** ParsedCourse → Course 落库映射 — 补 Course 独有默认字段 */
 function toCourse(pc: ParsedCourse, tableId: number): Course {

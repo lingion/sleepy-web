@@ -6,7 +6,7 @@
 import { db, nextTableId, nextCourseId } from './db'
 import { undoManager } from './undoStore'
 import type { Course, Table } from './types'
-import { reclaimUnusedEdgeNodes } from '../domain/timeTable'
+import { reclaimUnusedEdgeNodes, remapCourseNodes, timeToNode } from '../domain/timeTable'
 import { pruneConflictDefaultTop } from '../domain/conflictLayout'
 import { loadPrefs, savePrefs } from './db'
 
@@ -65,15 +65,22 @@ export async function updateTable(table: Table): Promise<void> {
 /** 3. updateTableRemappingCourses — 作息变更后课程节次自适应 (issue#28 P3) */
 export async function updateTableRemappingCourses(
   table: Table,
-  remapFn: (startNode: number, step: number, oldTimeJson: string, newTimeJson: string) => [number, number]
+  remapFn?: (startNode: number, step: number, oldTimeJson: string, newTimeJson: string) => [number, number]
 ): Promise<void> {
   await undoManager.capture('updateTableRemappingCourses')
   const old = await db.timetables.get(table.id)
   await db.timetables.put(table)
   if (!old || old.timeJson === table.timeJson) return
   const courses = await getCourses(table.id)
+  // Kotlin ScheduleRepository.updateTableRemappingCourses: ownTime 课按时间反算等效节次
+  // (timeToNode), 其余按 remapCourseNodes; remapFn 未传时默认 remapCourseNodes
   const remapped = courses.map((c) => {
-    const [startNode, step] = remapFn(c.startNode, c.step, old.timeJson, table.timeJson)
+    if (c.ownTime) {
+      const mapped = timeToNode(c.startTime, c.endTime, table.timeJson)
+      return mapped ? { ...c, startNode: mapped[0], step: mapped[1] } : c
+    }
+    const fn = remapFn ?? remapCourseNodes
+    const [startNode, step] = fn(c.startNode, c.step, old.timeJson, table.timeJson)
     return { ...c, startNode, step }
   })
   await db.courses.bulkPut(remapped)
