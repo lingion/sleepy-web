@@ -17,6 +17,7 @@ import {
 } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import type { Table } from '../data/types'
+import { ImportView } from './ImportView'
 
 export function ManageView() {
   const { t } = useTranslation()
@@ -29,6 +30,9 @@ export function ManageView() {
   }, [])
   const [renaming, setRenaming] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [importing, setImporting] = useState(false)
+
+  if (importing) return <ImportView onDone={() => setImporting(false)} />
 
   async function handleNewTable() {
     const n = (tables?.length ?? 0) + 1
@@ -149,21 +153,40 @@ export function ManageView() {
         </div>
       ))}
 
-      <button
-        onClick={() => void handleNewTable()}
-        style={{
-          padding: 16,
-          borderRadius: 16,
-          border: 'none',
-          background: 'var(--md-primary-container)',
-          color: 'var(--md-on-primary-container)',
-          fontSize: 15,
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        + {t('manage_new_table')}
-      </button>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <button
+          onClick={() => setImporting(true)}
+          style={{
+            padding: 16,
+            borderRadius: 16,
+            border: 'none',
+            background: 'var(--md-secondary-container)',
+            color: 'var(--md-on-secondary-container)',
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: 'pointer',
+            flex: 1,
+          }}
+        >
+          {t('manage_import')}
+        </button>
+        <button
+          onClick={() => void handleNewTable()}
+          style={{
+            padding: 16,
+            borderRadius: 16,
+            border: 'none',
+            background: 'var(--md-primary-container)',
+            color: 'var(--md-on-primary-container)',
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: 'pointer',
+            flex: 1,
+          }}
+        >
+          + {t('manage_new_table')}
+        </button>
+      </div>
     </div>
   )
 }

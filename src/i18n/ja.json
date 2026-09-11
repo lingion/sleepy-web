@@ -633,5 +633,9 @@
 "金",
 "土",
 "日"
-]
+],
+"import_three_layers_kept": "ヒント：%1$sに3層以上の重複授業がありますが、保持しました（分割表示は未対応）",
+"import_three_layers_dropped": "以下の曜日に3層を超える衝突授業があったため、スキップしました：%1$s",
+"import_multi_location_warning": "複数の教室を持つ授業があります",
+"import_multi_location_warning_detail": "「%1$s」に%2$dつの異なる教室があり、インポート後は独立したコマとして表示されます"
 }

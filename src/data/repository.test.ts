@@ -191,12 +191,13 @@ describe('undo/redo — 撤回链', () => {
     await insertCourse(mkCourse({ tableId, courseName: '二' }))
     await insertCourse(mkCourse({ tableId, courseName: '三' }))
     await useUndoStore.getState().endBatch()
-    // 一次 undo 撤回整批
+    // Android UndoManager: 批内 capture 全部静默 → 栈里只有批外 insertTable 的动作前快照
+    expect(useUndoStore.getState().undoStack.length).toBe(1)
+    // 一次 undo 回到建表+插课之前 (快照=动作前时点=空库)
     await useUndoStore.getState().undo()
     expect(await db.courses.count()).toBe(0)
-    // 批前快照在 (首表插入), 再 undo 撤掉表
-    expect(await useUndoStore.getState().undo()).toBe(true)
     expect(await db.timetables.count()).toBe(0)
+    expect(await useUndoStore.getState().undo()).toBe(false)
   })
 
   it('undo 到空后返回 false', async () => {

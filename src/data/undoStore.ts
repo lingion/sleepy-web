@@ -53,8 +53,9 @@ export const useUndoStore = create<UndoState & UndoActions>((set, get) => ({
 
   capture: async (label) => {
     const { batchDepth, undoStack } = get()
-    // 批内只保首个快照=动作前时点 (Android beginBatch 契约)
-    if (batchDepth > 0 && undoStack.length > 0 && get().lastLabel === label) return
+    // 批内只保首个快照=动作前时点 (Android beginBatch 契约:
+    // UndoManager.beginBatch 后所有 capture 静默, 一次 undo 回退整批)
+    if (batchDepth > 0 && undoStack.length > 0) return
     const snapshot: Snapshot = {
       tables: await db.timetables.toArray(),
       courses: await db.courses.toArray(),

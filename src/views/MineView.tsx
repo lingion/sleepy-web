@@ -14,9 +14,10 @@ import { usePrefsStore } from '../state/prefsStore'
 import { computeCurrentWeek } from './ScheduleView'
 import { localizedDay } from '../components/schedule/CardsGridView'
 import { THEME_PRESETS } from '../theme/themes'
+import { ExportView } from './ExportView'
 import type { Course, Prefs } from '../data/types'
 
-type Page = 'main' | 'general' | 'appearance'
+type Page = 'main' | 'general' | 'appearance' | 'export'
 
 export function MineView() {
   const [page, setPage] = useState<Page>('main')
@@ -26,8 +27,16 @@ export function MineView() {
       return <GeneralSettingsPage onBack={() => setPage('main')} />
     case 'appearance':
       return <AppearancePage onBack={() => setPage('main')} />
+    case 'export':
+      return <ExportView onBack={() => setPage('main')} />
     default:
-      return <MineMainPage onOpenGeneral={() => setPage('general')} onOpenAppearance={() => setPage('appearance')} />
+      return (
+        <MineMainPage
+          onOpenGeneral={() => setPage('general')}
+          onOpenAppearance={() => setPage('appearance')}
+          onOpenExport={() => setPage('export')}
+        />
+      )
   }
 }
 
@@ -36,9 +45,11 @@ export function MineView() {
 function MineMainPage({
   onOpenGeneral,
   onOpenAppearance,
+  onOpenExport,
 }: {
   onOpenGeneral: () => void
   onOpenAppearance: () => void
+  onOpenExport: () => void
 }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
@@ -77,7 +88,7 @@ function MineMainPage({
       <div className="m3-card" style={{ padding: 0 }}>
         <SettingsItem icon="✎" label={t('all_tables')} onClick={() => {}} />
         <HDiv inset={72} />
-        <SettingsItem icon="⇪" label={t('mine_export')} onClick={() => {}} />
+        <SettingsItem icon="⇪" label={t('mine_export')} onClick={onOpenExport} />
         <HDiv inset={72} />
         <SettingsItem icon="✦" label={t('mine_appearance')} onClick={onOpenAppearance} />
         <HDiv inset={72} />

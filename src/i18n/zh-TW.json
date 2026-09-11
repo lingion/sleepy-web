@@ -633,5 +633,9 @@
 "週五",
 "週六",
 "週日"
-]
+],
+"import_three_layers_kept": "提示：%1$s存在超過兩層重疊的課程，已保留（課表暫不支援分欄顯示）",
+"import_three_layers_dropped": "以下日期存在超過兩層的衝突課程，已跳過：%1$s",
+"import_multi_location_warning": "部分課程存在多個上課地點",
+"import_multi_location_warning_detail": "「%1$s」有 %2$d 個不同上課地點，導入後會作為獨立節次顯示"
 }

@@ -622,5 +622,9 @@
 "周五",
 "周六",
 "周日"
-]
+],
+"import_three_layers_kept": "提示：%1$s存在超过两层重叠的课程，已保留（课表暂不支持分栏展示）",
+"import_three_layers_dropped": "以下日期存在超过两层的冲突课程，已跳过：%1$s",
+"import_multi_location_warning": "部分课程存在多个上课地点",
+"import_multi_location_warning_detail": "「%1$s」有 %2$d 个不同上课地点,导入后会作为独立节次展示"
 }

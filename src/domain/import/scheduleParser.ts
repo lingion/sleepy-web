@@ -219,7 +219,7 @@ function parseWakeUpShareText(text: string, defaultTableId: number): ParseResult
   }
 
   const [timeJson, nodesPerDay] = harvestTimeJsonFromTableInfo(root)
-  return lossless(name, startDate, courses, timeJson, nodesPerDay, true)
+  return lossless(name, startDate, courses, timeJson, nodesPerDay, false)
 }
 
 function parseWakeUpJson(text: string, defaultTableId: number, defaultColor: string): ParseResult {
@@ -230,7 +230,7 @@ function parseWakeUpJson(text: string, defaultTableId: number, defaultColor: str
   if (!arr) throw new Error('找不到 courses 数组')
   const courses = arr.map((o) => courseFromJson(o, defaultTableId, defaultColor, ''))
   const [timeJson, nodesPerDay] = harvestTimeJsonFromTableInfo(root)
-  return lossless(name, startDate, courses, timeJson, nodesPerDay, true)
+  return lossless(name, startDate, courses, timeJson, nodesPerDay, false)
 }
 
 /** 从 tableInfo 收割节次时间表: Sleepy 导出 time=原文 / WakeUp 原生 timeList 逐条转 */
@@ -413,7 +413,7 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
       droppedLines: [],
       warnings: [],
       maxWeek: 0,
-      groupIdsAuthoritative: true,
+      groupIdsAuthoritative: false,
     }
   }
 
@@ -484,7 +484,7 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
     courses,
     buildTimeJson(timeMap),
     timeMap.size === 0 ? 0 : Math.max(...timeMap.keys()),
-    true,
+    false,
   )
 }
 
@@ -797,7 +797,7 @@ function parseSimpleText(text: string, defaultTableId: number, defaultColor: str
     droppedLines: [...dropped, ...timeBlockDropped],
     warnings: [],
     maxWeek: 0,
-    groupIdsAuthoritative: true,
+    groupIdsAuthoritative: false,
   }
 }
 
@@ -1049,7 +1049,7 @@ function parseCsv(text: string, defaultTableId: number, defaultColor: string): P
     droppedLines: [],
     warnings: [],
     maxWeek: 0,
-    groupIdsAuthoritative: true,
+    groupIdsAuthoritative: false,
   }
 }
 
@@ -1075,7 +1075,7 @@ function parseHtml(text: string, defaultTableId: number, defaultColor: string): 
     courses.push(...parseHtmlTableRows(rows, defaultTableId, defaultColor))
   }
   if (courses.length === 0) throw new Error('HTML 中未能解析出任何课程')
-  return lossless('导入的 HTML 课表', todayISO(), courses, '', 0, true)
+  return lossless('导入的 HTML 课表', todayISO(), courses, '', 0, false)
 }
 
 function extractHtmlTables(html: string): string[][][] {
