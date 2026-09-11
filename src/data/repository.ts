@@ -1,0 +1,275 @@
+/**
+ * ScheduleRepository — ScheduleRepository.kt 344 行 1:1
+ * 14 写方法全部 captureForUndo; 复合动作 beginBatch/endBatch。
+ */
+
+import { db, nextTableId, nextCourseId } from './db'
+import { undoManager } from './undoStore'
+import type { Course, Table } from './types'
+import { reclaimUnusedEdgeNodes } from '../domain/timeTable'
+import { pruneConflictDefaultTop } from '../domain/conflictLayout'
+import { loadPrefs, savePrefs } from './db'
+
+// ---- 读 ---------------------------------------------------------------
+
+export async function observeAllTables(): Promise<Table[]> {
+  return db.timetables.toArray()
+}
+
+export async function getTable(id: number): Promise<Table | undefined> {
+  return db.timetables.get(id)
+}
+
+export async function getDefaultTable(): Promise<Table | undefined> {
+  return db.timetables.where('isDefault').equals(1).first()
+}
+
+export async function getCourses(tableId: number): Promise<Course[]> {
+  return db.courses.where('tableId').equals(tableId).toArray()
+}
+
+export async function getCourse(id: number): Promise<Course | undefined> {
+  return db.courses.get(id)
+}
+
+export async function getGroupCourses(tableId: number, groupId: string): Promise<Course[]> {
+  return db.courses.where('tableId').equals(tableId).and((c) => c.groupId === groupId).toArray()
+}
+
+export async function tableCount(): Promise<number> {
+  return db.timetables.count()
+}
+
+export async function countCourses(tableId: number): Promise<number> {
+  return db.courses.where('tableId').equals(tableId).count()
+}
+
+// ---- 写 (14 方法, 全部 captureForUndo) ---------------------------------
+
+/** 1. insertTable */
+export async function insertTable(table: Omit<Table, 'id'> & { id?: number }): Promise<number> {
+  await undoManager.capture('insertTable')
+  const id = table.id && table.id > 0 ? table.id : await nextTableId()
+  const isFirst = (await tableCount()) === 0
+  const full: Table = { ...table, id, isDefault: isFirst ? 1 : table.isDefault }
+  await db.timetables.put(full)
+  return id
+}
+
+/** 2. updateTable */
+export async function updateTable(table: Table): Promise<void> {
+  await undoManager.capture('updateTable')
+  await db.timetables.put(table)
+}
+
+/** 3. updateTableRemappingCourses — 作息变更后课程节次自适应 (issue#28 P3) */
+export async function updateTableRemappingCourses(
+  table: Table,
+  remapFn: (startNode: number, step: number, oldTimeJson: string, newTimeJson: string) => [number, number]
+): Promise<void> {
+  await undoManager.capture('updateTableRemappingCourses')
+  const old = await db.timetables.get(table.id)
+  await db.timetables.put(table)
+  if (!old || old.timeJson === table.timeJson) return
+  const courses = await getCourses(table.id)
+  const remapped = courses.map((c) => {
+    const [startNode, step] = remapFn(c.startNode, c.step, old.timeJson, table.timeJson)
+    return { ...c, startNode, step }
+  })
+  await db.courses.bulkPut(remapped)
+}
+
+/** 4. deleteTable (CASCADE 删课 + 边缘节点回收绕过 capture) */
+export async function deleteTable(id: number): Promise<void> {
+  await undoManager.capture('deleteTable')
+  await db.transaction('rw', db.timetables, db.courses, async () => {
+    await db.courses.where('tableId').equals(id).delete()
+    await db.timetables.delete(id)
+  })
+  await reassignDefaultIfEmpty()
+  await pruneDefaultTopPrefs()
+}
+
+/** 5. setDefault — 直接走表更新, 不捕获 (Android 同: 撤回不含默认表切换) */
+export async function setDefault(id: number): Promise<void> {
+  await db.transaction('rw', db.timetables, async () => {
+    await db.timetables.toCollection().modify({ isDefault: 0 })
+    await db.timetables.update(id, { isDefault: 1 })
+  })
+}
+
+/** 6. insertCourse */
+export async function insertCourse(course: Omit<Course, 'id'> & { id?: number }): Promise<number> {
+  await undoManager.capture('insertCourse')
+  // id=0 = 未分配 (Room autoGenerate 语义: 0 触发自增)
+  const id = course.id && course.id > 0 ? course.id : await nextCourseId()
+  const full = { ...course, id }
+  await db.courses.put(full)
+  await reclaimUnusedEdgeNodesForTable(course.tableId)
+  await pruneDefaultTopPrefs()
+  return id
+}
+
+/** 7. insertCourses (批量, assignGroupIds 语义由调用方保证) */
+export async function insertCourses(courses: Omit<Course, 'id'>[]): Promise<number[]> {
+  await undoManager.capture('insertCourses')
+  let next = await nextCourseId()
+  const full = courses.map((c) => ({ ...c, id: next++ }))
+  await db.courses.bulkPut(full)
+  return full.map((c) => c.id)
+}
+
+/** 8. insertCoursesKeepingGroups — 导入保留原 groupId */
+export async function insertCoursesKeepingGroups(courses: Course[]): Promise<number[]> {
+  await undoManager.capture('insertCoursesKeepingGroups')
+  let next = await nextCourseId()
+  const full = courses.map((c) => ({ ...c, id: next++ }))
+  await db.courses.bulkPut(full)
+  return full.map((c) => c.id)
+}
+
+/** 9. replaceCoursesKeepingGroups — 覆盖导入: 清空表内课程再灌入 */
+export async function replaceCoursesKeepingGroups(tableId: number, courses: Course[]): Promise<void> {
+  await undoManager.capture('replaceCoursesKeepingGroups')
+  await db.transaction('rw', db.courses, async () => {
+    await db.courses.where('tableId').equals(tableId).delete()
+    let next = await nextCourseId()
+    const full = courses.map((c) => ({ ...c, id: next++, tableId }))
+    await db.courses.bulkPut(full)
+  })
+  await pruneDefaultTopPrefs()
+}
+
+/** 10. updateCourse */
+export async function updateCourse(course: Course): Promise<void> {
+  await undoManager.capture('updateCourse')
+  await db.courses.put(course)
+}
+
+/** 11. updateCourseGroup — 整组覆盖 (编辑页保存路径) */
+export async function updateCourseGroup(
+  tableId: number,
+  groupId: string,
+  newCourses: Omit<Course, 'id'>[]
+): Promise<void> {
+  await undoManager.capture('updateCourseGroup')
+  await db.transaction('rw', db.courses, async () => {
+    await db.courses
+      .where('tableId')
+      .equals(tableId)
+      .and((c) => c.groupId === groupId)
+      .delete()
+    let next = await nextCourseId()
+    const full = newCourses.map((c) => ({ ...c, id: next++, tableId, groupId }))
+    await db.courses.bulkPut(full)
+  })
+  await pruneDefaultTopPrefs()
+}
+
+/** 12. deleteCourse + 未引用边缘节点回收 */
+export async function deleteCourse(id: number): Promise<void> {
+  await undoManager.capture('deleteCourse')
+  const course = await db.courses.get(id)
+  await db.courses.delete(id)
+  if (course) {
+    await reclaimUnusedEdgeNodesForTable(course.tableId)
+    await pruneDefaultTopPrefs()
+  }
+}
+
+/** 13. deleteCourseGroup */
+export async function deleteCourseGroup(tableId: number, groupId: string): Promise<void> {
+  await undoManager.capture('deleteCourseGroup')
+  await db.courses
+    .where('tableId')
+    .equals(tableId)
+    .and((c) => c.groupId === groupId)
+    .delete()
+  await reclaimUnusedEdgeNodesForTable(tableId)
+  await pruneDefaultTopPrefs()
+}
+
+/** 14a. applyDiff — issue#22 契约: 方法内建 capture (调用方无须预捕获) */
+export async function applyDiff(
+  tableId: number,
+  diff: { toAdd: Omit<Course, 'id'>[]; toUpdate: Course[]; toDeleteIds: number[] }
+): Promise<void> {
+  await undoManager.capture('applyDiff')
+  await db.transaction('rw', db.courses, async () => {
+    if (diff.toDeleteIds.length > 0) {
+      await db.courses.bulkDelete(diff.toDeleteIds)
+    }
+    if (diff.toUpdate.length > 0) {
+      await db.courses.bulkPut(diff.toUpdate)
+    }
+    if (diff.toAdd.length > 0) {
+      let next = await nextCourseId()
+      const full = diff.toAdd.map((c) => ({ ...c, id: next++, tableId }))
+      await db.courses.bulkPut(full)
+    }
+  })
+  await pruneDefaultTopPrefs()
+}
+
+/** 14b. replaceCourses */
+export async function replaceCourses(tableId: number, courses: Omit<Course, 'id'>[]): Promise<void> {
+  await undoManager.capture('replaceCourses')
+  await db.transaction('rw', db.courses, async () => {
+    await db.courses.where('tableId').equals(tableId).delete()
+    let next = await nextCourseId()
+    const full = courses.map((c) => ({ ...c, id: next++, tableId }))
+    await db.courses.bulkPut(full)
+  })
+  await pruneDefaultTopPrefs()
+}
+
+// ---- 内部 -------------------------------------------------------------
+
+/** 删课后全部课变空 → 首表设默认 (Room 端 onDeleteTable 后同语义) */
+async function reassignDefaultIfEmpty(): Promise<void> {
+  const tables = await db.timetables.toArray()
+  if (tables.length === 0) return
+  if (!tables.some((t) => t.isDefault === 1)) {
+    await db.timetables.update(tables[0].id, { isDefault: 1 })
+  }
+}
+
+/** 直接走 updateTable 内部路径回收边缘节点 — 撤回快照含表本体 */
+async function reclaimUnusedEdgeNodesForTable(tableId: number): Promise<void> {
+  const table = await db.timetables.get(tableId)
+  if (!table) return
+  const courses = await getCourses(tableId)
+  const usedNodes = new Set<number>()
+  for (const c of courses) {
+    for (let n = c.startNode; n <= c.startNode + c.step - 1; n++) usedNodes.add(n)
+  }
+  const cleaned = reclaimUnusedEdgeNodes(table.timeJson, usedNodes)
+  if (cleaned !== table.timeJson) {
+    await db.timetables.put({ ...table, timeJson: cleaned })
+  }
+}
+
+/** 清理指向已失效课程的置顶偏好 (v7.10.16p) */
+async function pruneDefaultTopPrefs(): Promise<void> {
+  const prefs = await loadPrefs()
+  const stored = prefs.conflictDefaultTop
+  if (Object.keys(stored).length === 0) return
+  const courses = await db.courses.toArray()
+  const pruned = pruneConflictDefaultTop(stored, courses)
+  if (Object.keys(pruned).length !== Object.keys(stored).length) {
+    await savePrefs({ ...prefs, conflictDefaultTop: pruned })
+  }
+}
+
+/** assignGroupIds — 同名课同 groupId (导入路径) */
+export function assignGroupIds(courses: Omit<Course, 'id'>[]): Omit<Course, 'id'>[] {
+  const nameToGroup = new Map<string, string>()
+  return courses.map((c) => {
+    let groupId = nameToGroup.get(c.courseName)
+    if (!groupId) {
+      groupId = `group_${c.courseName}_${Math.random().toString(36).slice(2, 8)}`
+      nameToGroup.set(c.courseName, groupId)
+    }
+    return { ...c, groupId }
+  })
+}
