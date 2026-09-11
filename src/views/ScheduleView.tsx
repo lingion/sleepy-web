@@ -29,7 +29,9 @@ export function computeCurrentWeek(startDate: string, maxWeek: number): number {
 export function ScheduleView() {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
-  const updatePrefs = usePrefsStore((s) => s.update)
+  // 视图模式: 会话级 state, 初始值取 startView 偏好 — 手动切换不写回 (Android MainActivity
+  // ViewMode 同语义: getStartView 只决定启动进入哪一视图)
+  const [viewMode, setViewMode] = useState<'full' | 'cards' | null>(null)
   const [week, setWeek] = useState<number | null>(null)
   const [containerWidth, setContainerWidth] = useState(800)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -58,7 +60,7 @@ export function ScheduleView() {
     return () => ro.disconnect()
   }, [])
 
-  const display = prefs.displayMode
+  const display = viewMode ?? prefs.startView
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }} ref={containerRef}>
@@ -105,10 +107,10 @@ export function ScheduleView() {
             ›
           </IconBtn>
         </div>
-        {/* 视图切换: full=周视图 / cards=网格 */}
+        {/* 视图切换: full=周视图 / cards=网格 — 会话级, 不写回偏好 */}
         <IconBtn
-          title={display === 'full' ? t('display_cards', '网格视图') : t('display_full', '周视图')}
-          onClick={() => void updatePrefs({ displayMode: display === 'full' ? 'cards' : 'full' })}
+          title={display === 'full' ? t('settings_start_view_cards') : t('settings_start_view_full')}
+          onClick={() => setViewMode(display === 'full' ? 'cards' : 'full')}
         >
           {display === 'full' ? '▦' : '☰'}
         </IconBtn>

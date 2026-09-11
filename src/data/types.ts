@@ -94,30 +94,40 @@ export interface Holiday {
   tableId: number
 }
 
-/** App 偏好 — AppPrefs.kt 22 keys 1:1 */
+/**
+ * App 偏好 — AppPrefs.kt 1:1
+ * 默认值全部以 AppPrefs.kt getter 兜底值为准 (2026-09-12 逐项核对):
+ * displayMode=node, gridSubInfo=room, conflictStyle=rail, conflictStackInset/RailInset=7,
+ * showDate=false, navDock=false, lang=zh-CN, widgetSeparator=true。
+ */
 export interface Prefs {
   dark: boolean
   themeMode: 'system' | 'light' | 'dark'
   theme: 'default' | 'spring' | 'ocean' | 'peach' | 'slate'
   lang: 'system' | 'en' | 'zh-CN' | 'zh-TW' | 'ja' | 'es' | 'en-GB'
-  displayMode: 'full' | 'cards'
-  gridSubInfo: 'teacher' | 'room' | 'both' | 'none'
+  /** 课程时间显示: node=第N节 / time=HH:mm-HH:mm (非视图切换!) */
+  displayMode: 'node' | 'time'
+  gridSubInfo: 'teacher' | 'room' | 'none'
   conflictStyle: ConflictStyle
-  /** 4-20 dp */
+  /** CONFLICT_TOP_INSET_RANGE 4-20 dp, 默认 7 */
   conflictStackInset: number
   conflictRailInset: number
-  /** 8-28 dp */
+  /** CONFLICT_FOLD_SIZE_RANGE 8-28 dp, 默认 16 */
   conflictFoldSize: number
   startView: 'full' | 'cards'
   showDate: boolean
-  /** 可见天集合 (bitmask 或数组) */
+  /** 可见天集合 1-7 */
   visibleDays: number[]
-  /** 0.7-1.3 */
+  /** 0.7-1.3, 默认 1.0 */
   gridScale: number
   weekScale: number
-  /** 0-2 圆角比例 */
+  /** 0-2 圆角比例, 默认 1.0 */
   gridCornerRatio: number
   weekTwoColumn: boolean
+  /** 周视图两栏分栏标准: days=按天对半分 / balance=按课程数平衡 */
+  weekTwoColumnMode: 'days' | 'balance'
+  /** 周视图隐藏无课日 (仅两栏下生效) */
+  weekHideEmptyDays: boolean
   /** issue#26 别名显示开关 */
   weekUseAlias: boolean
   gridUseAlias: boolean
@@ -126,6 +136,14 @@ export interface Prefs {
   conflictDefaultTop: Record<string, number>
   navDock: boolean
   highRefresh: boolean
+  /** 小组件竖排标点优化, 默认 false */
+  vertPunct: boolean
+  /** 小组件无色模式, 默认 false */
+  widgetColorless: boolean
+  /** App 课程胶囊无色模式, 默认 false */
+  courseColorless: boolean
+  /** WeekView 小组件课程间分隔线, 默认 true */
+  widgetSeparator: boolean
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -133,25 +151,31 @@ export const DEFAULT_PREFS: Prefs = {
   themeMode: 'system',
   theme: 'default',
   lang: 'system',
-  displayMode: 'full',
-  gridSubInfo: 'teacher',
-  conflictStyle: 'stack',
-  conflictStackInset: 12,
-  conflictRailInset: 6,
+  displayMode: 'node',
+  gridSubInfo: 'room',
+  conflictStyle: 'rail',
+  conflictStackInset: 7,
+  conflictRailInset: 7,
   conflictFoldSize: 16,
   startView: 'full',
-  showDate: true,
+  showDate: false,
   visibleDays: [1, 2, 3, 4, 5, 6, 7],
   gridScale: 1.0,
   weekScale: 1.0,
   gridCornerRatio: 1.0,
   weekTwoColumn: false,
+  weekTwoColumnMode: 'days',
+  weekHideEmptyDays: false,
   weekUseAlias: false,
   gridUseAlias: false,
   widgetUseAlias: false,
   conflictDefaultTop: {},
-  navDock: true,
+  navDock: false,
   highRefresh: true,
+  vertPunct: false,
+  widgetColorless: false,
+  courseColorless: false,
+  widgetSeparator: true,
 }
 
 /** inWeek(week) — CourseEntity.kt L125-134 1:1 */
