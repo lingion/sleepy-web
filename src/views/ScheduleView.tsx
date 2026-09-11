@@ -14,6 +14,7 @@ import { CardsGridView } from '../components/schedule/CardsGridView'
 import { FullWeekView } from '../components/schedule/FullWeekView'
 import { CourseDetailSheet } from '../components/CourseDetailSheet'
 import { AddCourseView } from './AddCourseView'
+import { ImportView } from './ImportView'
 import type { Course } from '../data/types'
 
 /** 周次计算 — startDate (周一) 起 currentWeek = floor(diff/7)+1, clamp 1..maxWeek */
@@ -38,6 +39,7 @@ export function ScheduleView() {
   const [containerWidth, setContainerWidth] = useState(800)
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -66,6 +68,10 @@ export function ScheduleView() {
   }, [])
 
   const display = viewMode ?? prefs.startView
+
+  if (importing) {
+    return <ImportView onDone={() => setImporting(false)} />
+  }
 
   if (adding || editingCourse) {
     return (
@@ -134,7 +140,44 @@ export function ScheduleView() {
       {/* 主体 */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {!defaultTable ? (
-          <EmptyHint text={t('schedule_empty_create_table')} />
+          <div
+            style={{
+              margin: '0 22px',
+              background: 'var(--md-surface-container)',
+              borderRadius: 20,
+              padding: '24px 22px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12,
+              textAlign: 'center',
+            }}
+          >
+            <div className="m3-title-large" style={{ fontWeight: 600 }}>{t('schedule_empty')}</div>
+            <div className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>
+              {t('schedule_empty_hint')}
+            </div>
+            <button
+              onClick={() => setImporting(true)}
+              style={{
+                width: '100%', padding: 14, borderRadius: 14, border: 'none', cursor: 'pointer',
+                background: 'var(--md-primary)', color: 'var(--md-on-primary)',
+                fontSize: 15, fontWeight: 600,
+              }}
+            >
+              {t('schedule_empty_import')}
+            </button>
+            <button
+              onClick={() => setImporting(true)}
+              style={{
+                width: '100%', padding: 14, borderRadius: 14, border: 'none', cursor: 'pointer',
+                background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+                fontSize: 15, fontWeight: 600,
+              }}
+            >
+              {t('schedule_empty_create_table')}
+            </button>
+          </div>
         ) : display === 'full' ? (
           <FullWeekView
             courses={courses ?? []}
@@ -224,21 +267,3 @@ function IconBtn({
   )
 }
 
-function EmptyHint({ text }: { text: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 48,
-        gap: 12,
-        color: 'var(--md-on-surface-variant)',
-      }}
-    >
-      <span style={{ fontSize: 48, opacity: 0.4 }}>📅</span>
-      <span className="m3-body-medium">{text}</span>
-    </div>
-  )
-}

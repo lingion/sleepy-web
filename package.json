@@ -11,26 +11,27 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
     "dexie": "^4.0.8",
     "dexie-react-hooks": "^1.1.7",
-    "zustand": "^4.5.5",
-    "immer": "^10.1.1",
     "i18next": "^23.15.1",
+    "ics": "^3.8.1",
+    "immer": "^10.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-i18next": "^15.0.2",
-    "ics": "^3.8.1"
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.5.1",
+    "@testing-library/react": "^16.0.1",
     "@types/react": "^18.3.8",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "fake-indexeddb": "^6.0.0",
+    "jsdom": "^25.0.0",
+    "playwright-core": "^1.63.0",
     "typescript": "^5.6.2",
     "vite": "^5.4.7",
-    "vitest": "^2.1.1",
-    "@testing-library/react": "^16.0.1",
-    "@testing-library/jest-dom": "^6.5.1",
-    "jsdom": "^25.0.0",
-    "fake-indexeddb": "^6.0.0"
+    "vitest": "^2.1.1"
   }
 }
