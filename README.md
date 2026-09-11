@@ -6,7 +6,7 @@ Sleepy 课程表 Android 应用 (~/sleepy) 的 Web 端 1:1 复刻。部署目标
 
 ```bash
 npm install        # 安装依赖 (npmmirror)
-npm test           # vitest 单测 (159 用例)
+npm test           # vitest 单测 (494 用例, 24 文件)
 npm run build      # tsc + vite 生产构建 → dist/
 npm run dev        # 本地开发 (注意: 用户偏好静态验证, 跑 dev server 前先问)
 ```
@@ -23,6 +23,11 @@ npm run dev        # 本地开发 (注意: 用户偏好静态验证, 跑 dev ser
 | ThemePresets 5 套 × light/dark | `src/theme/themes.ts` |
 | res/values-* 6 语言 | `src/i18n/*.json` (619 keys 基准) |
 | MainActivity 4 Tab | `src/App.tsx` |
+
+## 教务解析 (16 协议族)
+
+粘贴教务 HTML/JSON → 16 协议族解析器 (正方双代 / 强智家族 / 强智App 等)， 覆盖 163/185 校。
+CORS 中转 Worker 代码在 `worker/` (部署属外部发布动作)。
 
 ## 测试规则
 
