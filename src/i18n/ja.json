@@ -637,5 +637,13 @@
 "import_three_layers_kept": "ヒント：%1$sに3層以上の重複授業がありますが、保持しました（分割表示は未対応）",
 "import_three_layers_dropped": "以下の曜日に3層を超える衝突授業があったため、スキップしました：%1$s",
 "import_multi_location_warning": "複数の教室を持つ授業があります",
-"import_multi_location_warning_detail": "「%1$s」に%2$dつの異なる教室があり、インポート後は独立したコマとして表示されます"
+"import_multi_location_warning_detail": "「%1$s」に%2$dつの異なる教室があり、インポート後は独立したコマとして表示されます",
+"irregular_time_format": "非常規の開始/終了時刻は HH:mm 形式で入力してください",
+"irregular_time_order": "非常規の開始時刻は終了時刻より早くなければなりません",
+"color_follow_group": "グループ色に従う",
+"color_auto": "自動",
+"color_custom": "カスタム",
+"color_use_different": "別の色を使う",
+"color_refresh": "自動色を変更",
+"color_toast_last_group": "最後のコマはグループ色に従います"
 }

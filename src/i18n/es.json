@@ -637,5 +637,13 @@
 "import_three_layers_kept": "Nota: hay cursos superpuestos en más de dos capas en %1$s y se han mantenido (la vista dividida aún no es compatible)",
 "import_three_layers_dropped": "Los cursos en conflicto de más de dos capas en los siguientes días se omitieron: %1$s",
 "import_multi_location_warning": "Algunos cursos tienen varias ubicaciones",
-"import_multi_location_warning_detail": "\"%1$s\" tiene %2$d ubicaciones diferentes; se mostrarán como períodos independientes después de la importación"
+"import_multi_location_warning_detail": "\"%1$s\" tiene %2$d ubicaciones diferentes; se mostrarán como períodos independientes después de la importación",
+"irregular_time_format": "La hora de inicio/fin irregular debe estar en formato HH:mm",
+"irregular_time_order": "La hora de inicio irregular debe ser anterior a la de fin",
+"color_follow_group": "Seguir el color del grupo",
+"color_auto": "Automático",
+"color_custom": "Personalizado",
+"color_use_different": "Usar un color diferente",
+"color_refresh": "Cambiar color automático",
+"color_toast_last_group": "El último horario seguirá el color del grupo"
 }

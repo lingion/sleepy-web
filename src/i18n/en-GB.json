@@ -644,5 +644,11 @@
 "import_three_layers_kept": "Note: overlapping courses on %1$s exceed two layers and are kept (split view not supported yet)",
 "import_three_layers_dropped": "Conflicting courses exceeding two layers on the following days were skipped: %1$s",
 "import_multi_location_warning": "Some courses have multiple locations",
-"import_multi_location_warning_detail": "\"%1$s\" has %2$d different locations; they will show as separate periods after import"
+"import_multi_location_warning_detail": "\"%1$s\" has %2$d different locations; they will show as separate periods after import",
+"color_follow_group": "Follow group color",
+"color_auto": "Auto",
+"color_custom": "Custom",
+"color_use_different": "Use a different color",
+"color_refresh": "Shuffle auto color",
+"color_toast_last_group": "The last slot will follow the group color"
 }

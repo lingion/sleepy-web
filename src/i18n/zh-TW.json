@@ -637,5 +637,13 @@
 "import_three_layers_kept": "提示：%1$s存在超過兩層重疊的課程，已保留（課表暫不支援分欄顯示）",
 "import_three_layers_dropped": "以下日期存在超過兩層的衝突課程，已跳過：%1$s",
 "import_multi_location_warning": "部分課程存在多個上課地點",
-"import_multi_location_warning_detail": "「%1$s」有 %2$d 個不同上課地點，導入後會作為獨立節次顯示"
+"import_multi_location_warning_detail": "「%1$s」有 %2$d 個不同上課地點，導入後會作為獨立節次顯示",
+"irregular_time_format": "非常規開始/結束時間格式應為 HH:mm",
+"irregular_time_order": "非常規開始時間必須早於結束時間",
+"color_follow_group": "跟隨組色",
+"color_auto": "自動",
+"color_custom": "自訂",
+"color_use_different": "使用不同顏色",
+"color_refresh": "換自動色",
+"color_toast_last_group": "最後一節將跟隨組色"
 }

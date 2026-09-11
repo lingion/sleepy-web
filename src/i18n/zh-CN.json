@@ -626,5 +626,13 @@
 "import_three_layers_kept": "提示：%1$s存在超过两层重叠的课程，已保留（课表暂不支持分栏展示）",
 "import_three_layers_dropped": "以下日期存在超过两层的冲突课程，已跳过：%1$s",
 "import_multi_location_warning": "部分课程存在多个上课地点",
-"import_multi_location_warning_detail": "「%1$s」有 %2$d 个不同上课地点,导入后会作为独立节次展示"
+"import_multi_location_warning_detail": "「%1$s」有 %2$d 个不同上课地点,导入后会作为独立节次展示",
+"irregular_time_format": "非常规开始/结束时间格式应为 HH:mm",
+"irregular_time_order": "非常规开始时间必须早于结束时间",
+"color_follow_group": "跟随组色",
+"color_auto": "自动",
+"color_custom": "自定义",
+"color_use_different": "使用不同颜色",
+"color_refresh": "换自动色",
+"color_toast_last_group": "最后一节将跟随组色"
 }
