@@ -429,7 +429,7 @@ function DayHeadCell({
         </span>
       ) : (
         <span className="m3-label-small" style={{ fontSize: 9 * scale, lineHeight: `${11 * scale}px`, color: subFg }}>
-          {courseCount === 0 ? t('no_course') : t('course_count_format', { count: courseCount })}
+          {courseCount === 0 ? t('no_course') : t('course_count_format', { v1: courseCount })}
         </span>
       )}
     </div>
