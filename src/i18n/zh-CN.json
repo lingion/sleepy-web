@@ -634,5 +634,6 @@
 "color_custom": "自定义",
 "color_use_different": "使用不同颜色",
 "color_refresh": "换自动色",
-"color_toast_last_group": "最后一节将跟随组色"
+"color_toast_last_group": "最后一节将跟随组色",
+"conflict_default_top_title": "选择默认置顶课程"
 }

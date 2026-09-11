@@ -650,5 +650,6 @@
 "color_custom": "Custom",
 "color_use_different": "Use a different color",
 "color_refresh": "Shuffle auto color",
-"color_toast_last_group": "The last slot will follow the group color"
+"color_toast_last_group": "The last slot will follow the group color",
+"conflict_default_top_title": "Choose the default top course"
 }

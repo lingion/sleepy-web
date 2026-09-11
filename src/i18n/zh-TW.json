@@ -645,5 +645,6 @@
 "color_custom": "自訂",
 "color_use_different": "使用不同顏色",
 "color_refresh": "換自動色",
-"color_toast_last_group": "最後一節將跟隨組色"
+"color_toast_last_group": "最後一節將跟隨組色",
+"conflict_default_top_title": "選擇預設置頂課程"
 }

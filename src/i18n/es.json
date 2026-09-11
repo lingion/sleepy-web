@@ -645,5 +645,6 @@
 "color_custom": "Personalizado",
 "color_use_different": "Usar un color diferente",
 "color_refresh": "Cambiar color automático",
-"color_toast_last_group": "El último horario seguirá el color del grupo"
+"color_toast_last_group": "El último horario seguirá el color del grupo",
+"conflict_default_top_title": "Elegir el curso predeterminado en primer plano"
 }

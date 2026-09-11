@@ -645,5 +645,6 @@
 "color_custom": "カスタム",
 "color_use_different": "別の色を使う",
 "color_refresh": "自動色を変更",
-"color_toast_last_group": "最後のコマはグループ色に従います"
+"color_toast_last_group": "最後のコマはグループ色に従います",
+"conflict_default_top_title": "デフォルトで前面に表示する授業を選択"
 }

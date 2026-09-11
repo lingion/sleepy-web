@@ -12,6 +12,8 @@ import { usePrefsStore } from '../state/prefsStore'
 import { undoManager, useUndoStore } from '../data/undoStore'
 import { CardsGridView } from '../components/schedule/CardsGridView'
 import { FullWeekView } from '../components/schedule/FullWeekView'
+import { CourseDetailSheet } from '../components/CourseDetailSheet'
+import { AddCourseView } from './AddCourseView'
 import type { Course } from '../data/types'
 
 /** 周次计算 — startDate (周一) 起 currentWeek = floor(diff/7)+1, clamp 1..maxWeek */
@@ -34,6 +36,9 @@ export function ScheduleView() {
   const [viewMode, setViewMode] = useState<'full' | 'cards' | null>(null)
   const [week, setWeek] = useState<number | null>(null)
   const [containerWidth, setContainerWidth] = useState(800)
+  const [detailCourse, setDetailCourse] = useState<Course | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
@@ -62,8 +67,18 @@ export function ScheduleView() {
 
   const display = viewMode ?? prefs.startView
 
+  if (adding || editingCourse) {
+    return (
+      <AddCourseView
+        editingCourse={editingCourse}
+        onBack={() => { setAdding(false); setEditingCourse(null) }}
+        onSaved={() => { setAdding(false); setEditingCourse(null) }}
+      />
+    )
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }} ref={containerRef}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }} ref={containerRef}>
       {/* 顶栏: 课表名 + 撤回 + 周选择器 + 视图切换 */}
       <div
         style={{
@@ -124,7 +139,7 @@ export function ScheduleView() {
           <FullWeekView
             courses={courses ?? []}
             timeJson={defaultTable.timeJson}
-            onCourseClick={() => {}}
+            onCourseClick={(c) => setDetailCourse(c)}
           />
         ) : (
           <div style={{ padding: '0 8px 8px' }}>
@@ -134,11 +149,42 @@ export function ScheduleView() {
               startDate={defaultTable.startDate}
               currentWeek={currentWeek}
               containerWidth={containerWidth - 16}
-              onCourseClick={() => {}}
+              onCourseClick={(c) => setDetailCourse(c)}
             />
           </div>
         )}
       </div>
+
+      {/* 添加课程入口 — AddCourseScreen 入口 (schedule_add_course) */}
+      {defaultTable && (
+        <button
+          onClick={() => setAdding(true)}
+          style={{
+            position: 'absolute', right: 20, bottom: 96, zIndex: 100,
+            width: 52, height: 52, borderRadius: 16, border: 'none', cursor: 'pointer',
+            background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)',
+            fontSize: 26, boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          }}
+          aria-label={t('schedule_add_course')}
+          title={t('schedule_add_course')}
+        >
+          +
+        </button>
+      )}
+
+      {/* 课程详情弹层 */}
+      {detailCourse && defaultTable && (
+        <CourseDetailSheet
+          course={detailCourse}
+          allCourses={courses ?? []}
+          timeJson={defaultTable.timeJson}
+          onDismiss={() => setDetailCourse(null)}
+          onEdit={(c) => {
+            setDetailCourse(null)
+            setEditingCourse(c)
+          }}
+        />
+      )}
     </div>
   )
 }
