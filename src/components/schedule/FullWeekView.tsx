@@ -401,7 +401,7 @@ export function DetailDayCard({
                 <LessonRow
                   key={ri}
                   course={c}
-                  displayMode={prefs.displayMode === 'cards' ? 'node' : 'node'}
+                  displayMode={prefs.displayMode}
                   timeJson={timeJson}
                   isGrey={isGrey}
                   scale={scale}
@@ -437,7 +437,7 @@ export function DetailDayCard({
                           <LessonRow
                             key={laneCourse.id}
                             course={laneCourse}
-                            displayMode="node"
+                            displayMode={prefs.displayMode}
                             timeJson={timeJson}
                             isGrey={isGrey}
                             scale={scale}
