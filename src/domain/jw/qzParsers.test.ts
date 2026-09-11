@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { JwQzParser } from './qzParser'
 import { JwQzCrazyParser, JwQzBrParser, JwQzWithNodeParser, JwOldQzParser } from './qzVariants'
 import { JwParseException } from './jwFetchError'
-import type { JwParser } from './jwCourse'
+import type { JwCourse, JwParser } from './jwCourse'
 
 const HERE = import.meta.dirname
 
