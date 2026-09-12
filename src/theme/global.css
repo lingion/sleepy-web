@@ -81,6 +81,45 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* 缺档补齐 — Theme.kt:206-216,242-253 官方值 (37 处消费此前落浏览器默认) */
+.m3-headline-medium {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 400;
+}
+.m3-body-large {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+.m3-body-small {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: 0.4px;
+}
+
+/* 扩展字号 — Theme.kt SleepyTextStyle (295-300) 函数式四档 */
+.m3-micro {
+  font-size: 9px;
+  line-height: 11px;
+}
+.m3-small-meta {
+  font-size: 10px;
+  line-height: 14px;
+}
+.m3-day-label {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+.m3-section-head {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+}
+
 /* 通用表面卡 */
 .m3-card {
   background: var(--md-surface-container-low);
@@ -102,9 +141,41 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--md-on-surface) 25%, transparent);
+  background: color-mix(in srgb, var(--md-on-surface) 30%, transparent);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Alpha 档位 — Theme.kt Alpha (325-337) 1:1, CSS 端单源,
+   配合 themes.ts ALPHA 形成 JS/CSS 双端一致; 计算时
+   color-mix(in srgb, var(--md-on-surface) calc(var(--alpha-hairline) * 100%), transparent) */
+:root {
+  --alpha-high-content: 0.8;
+  --alpha-hairline: 0.3;
+  --alpha-tinted: 0.12;
+  --alpha-inactive: 0.6;
+}
+
+/* scrim 遮罩工具类 — 替代散落硬编码 rgba(0,0,0,0.4),
+   通过 var(--md-scrim) 绑定, 改主题时跟手。
+   颜色一律 var(--md-*) token — Theme.kt:107,145 scrim=#000000 */
+.m3-scrim-overlay {
+  background: color-mix(in srgb, var(--md-scrim) 40%, transparent);
+}
+
+/* 形状档位 — Theme.kt SleepyShapes (280-286) shapes.large=16dp */
+.m3-card-shape-large {
+  border-radius: 16px;
+}
+
+/* 按钮档位 — Theme.kt Buttons (343-350) 常规 48dp / CTA 56dp, 形状统一 large */
+.m3-btn-regular {
+  height: 48px;
+  border-radius: 16px;
+}
+.m3-btn-cta {
+  height: 56px;
+  border-radius: 16px;
 }
