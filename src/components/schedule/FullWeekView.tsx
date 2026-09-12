@@ -504,13 +504,16 @@ export function LessonRow({
   useAlias: boolean
   onClick?: () => void
 }) {
+  const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const isDark = prefs.themeMode === 'dark'
   const effScale = scale * laneScale
   const name = useAlias && course.alias ? course.alias : course.courseName
-  const neutral = isDark ? '#49454F' : '#E7E0EC'
-  const bg = pickCourseColorWithGroupRows(course, groupRows, isDark, neutral, false)
-  const onSurface = isDark ? '#E6E0E9' : '#1D1B20'
+  // surfaceVariant 取自当前主题 (CourseTableView.kt:441-447 colors.surfaceVariant 同构) —
+  // themeMode=system 走 isDark 同源码路径; 用 token 而非硬编码 hex (TaskBook 硬约束)
+  const neutral = 'var(--md-surface-variant)'
+  const bg = pickCourseColorWithGroupRows(course, groupRows, isDark, neutral, prefs.courseColorless)
+  const onSurface = 'var(--md-on-surface)'
   const fgHex = textColorOn(parseHex(bg) ?? [0, 0, 0], isDark, parseHex(onSurface) ?? [0, 0, 0])
   const fg = '#' + fgHex.map((v) => v.toString(16).padStart(2, '0')).join('')
 
@@ -519,9 +522,15 @@ export function LessonRow({
     displayMode === 'time' && timeJson
       ? courseTimeParts(course.startNode, course.step, timeJson, course.ownTime, course.startTime, course.endTime)
       : null
+  // nodeLabel 走 i18n: course_period_range %1$d-%2$d节 (Android 同源,
+  // i18nnext 未 init 时 t() 返 undefined, fallback 中文默认)
   const nodeLabel = course.ownTime && course.startTime && course.endTime
     ? `${course.startTime}-${course.endTime}`
-    : `${course.startNode}-${course.startNode + course.step - 1}节`
+    : t('course_period_range', {
+        v1: course.startNode,
+        v2: course.startNode + course.step - 1,
+        defaultValue: `${course.startNode}-${course.startNode + course.step - 1}节`,
+      })
 
   const meta = [
     course.teacher,
