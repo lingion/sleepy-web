@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowBack } from '../components/icons'
+import { IconArrowBack, IconCheck, IconClose, IconDelete } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import {
@@ -17,6 +17,7 @@ import {
 import {
   parseTimeSlotRows,
   buildTimeJsonFromRows,
+  removeAndRenumber,
   type TimeSlotRow,
 } from '../domain/timeTable'
 import { normalizeStartDateToMonday } from './importExportUtils'
@@ -89,9 +90,10 @@ export function EditTableView({
       return
     }
     setError(null)
+    const trimmedName = tableName.trim()
     void updateTableRemappingCourses({
       ...tbl,
-      name: tableName.trim() === '' ? tbl.name : tableName,
+      name: trimmedName === '' ? tbl.name : trimmedName,
       startDate: normalizeStartDate(tableStart),
       maxWeek,
       timeJson: buildTimeJsonFromRows(newRows),
@@ -121,6 +123,7 @@ export function EditTableView({
           label={t('edit_table_max_week')}
           value={maxWeekText}
           onChange={(v) => setMaxWeekText(v.replace(/\D/g, ''))}
+          inputMode="numeric"
         />
       </div>
 
@@ -145,7 +148,7 @@ export function EditTableView({
           fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}
       >
-        ✓ {t('edit_table_save')}
+        <IconCheck size={18} /> {t('edit_table_save')}
       </button>
 
       {/* 删除 — 最后一张表也可删 (用户 2026-09-03), 空态由 Schedule 兜底 */}
@@ -157,7 +160,7 @@ export function EditTableView({
           fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}
       >
-        ✕ {t('edit_table_delete')}
+        <IconClose size={18} /> {t('edit_table_delete')}
       </button>
 
       {showDeleteConfirm && (
@@ -223,19 +226,21 @@ function TimeSlotSection({
             {t('n_periods', { v1: draft.length })} · {expanded ? t('collapse') : t('expand')}
           </div>
         </div>
-        <span style={{ fontSize: 18, color: 'var(--md-on-surface-variant)' }}>{expanded ? '⌃' : '⌄'}</span>
+        <span style={{ fontSize: 18, color: 'var(--md-on-surface-variant)', display: 'inline-flex', transition: 'transform 0.18s', transform: expanded ? 'rotate(180deg)' : 'none' }}>
+          <ChevronDownIcon />
+        </span>
       </div>
       {expanded && (
         <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {draft.map((r, i) => (
             <div key={r.node} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span className="m3-label-medium" style={{ width: 28, color: 'var(--md-on-surface-variant)' }}>
-                {r.node}
+                {t('course_node_format', { v1: r.node })}
               </span>
               <input
                 type="time"
                 value={r.start}
-                aria-label={`${t('edit_table_time_slots')} ${r.node} start`}
+                aria-label={`${t('start_label')} ${t('course_node_format', { v1: r.node })}`}
                 onChange={(e) => {
                   const next = [...draft]
                   next[i] = { ...r, start: e.target.value }
@@ -247,7 +252,7 @@ function TimeSlotSection({
               <input
                 type="time"
                 value={r.end}
-                aria-label={`${t('edit_table_time_slots')} ${r.node} end`}
+                aria-label={`${t('end_label')} ${t('course_node_format', { v1: r.node })}`}
                 onChange={(e) => {
                   const next = [...draft]
                   next[i] = { ...r, end: e.target.value }
@@ -255,6 +260,21 @@ function TimeSlotSection({
                 }}
                 style={{ ...fieldStyle, flex: 1 }}
               />
+              {draft.length > 1 ? (
+                <button
+                  type="button"
+                  aria-label={t('delete_period')}
+                  onClick={() => update(removeAndRenumber(draft, r.node))}
+                  style={{
+                    background: 'transparent', border: 'none', cursor: 'pointer', padding: 4,
+                    color: 'var(--md-error)', display: 'inline-flex', alignItems: 'center',
+                  }}
+                >
+                  <IconDelete size={18} />
+                </button>
+              ) : (
+                <span style={{ width: 26 }} />
+              )}
             </div>
           ))}
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -272,7 +292,7 @@ function TimeSlotSection({
               }
               style={{ ...ghostBtnStyle, flex: 1 }}
             >
-              + {t('add_node', '加一节')}
+              + {t('add_period')}
             </button>
             <button onClick={() => onSave(draft)} style={{ ...ghostBtnStyle, flex: 1, color: 'var(--md-primary)' }}>
               {t('apply_to_all_slots')}
@@ -305,11 +325,31 @@ const ghostBtnStyle: React.CSSProperties = {
   fontSize: 13,
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function ChevronDownIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41Z" />
+    </svg>
+  )
+}
+
+function Field({
+  label, value, onChange, inputMode,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  inputMode?: 'numeric' | 'text'
+}) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} style={fieldStyle} />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode={inputMode}
+        style={fieldStyle}
+      />
     </label>
   )
 }
