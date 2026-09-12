@@ -12,8 +12,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const PORT = 4179
-const BASE = `http://localhost:${PORT}/sleepy/`
+// 随机端口 — 防残留进程占位 / 并行运行撞 strictPort
+const PORT = 30000 + Math.floor(Math.random() * 20000)
+const BASE = `http://localhost:${PORT}/sleepy-web/`
 
 let server: ChildProcess | null = null
 let context: Awaited<ReturnType<typeof chromium.launchPersistentContext>> | null = null
@@ -31,10 +32,11 @@ const WAKEUP_SHARE = (() => {
 
 beforeAll(async () => {
   // 起 preview (dist 已由 vite build 产出)
-  server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
+  // 直接 spawn node_modules/.bin/vite (绕开 npx 包装进程), 非 detached —
+  // 上会话 detached + kill(-pid) 杀不穿 npm exec 包装层 → 残留 preview 进程泄漏
+  server = spawn(join(process.cwd(), 'node_modules', '.bin', 'vite'), ['preview', '--port', String(PORT), '--strictPort'], {
     cwd: process.cwd(),
     stdio: 'ignore',
-    detached: true,
   })
   // 轮询等就绪
   const deadline = Date.now() + 15000
@@ -63,7 +65,7 @@ afterAll(async () => {
   if (context) await context.close()
   if (server && server.pid) {
     try {
-      process.kill(-server.pid)
+      server.kill('SIGTERM')
     } catch {
       /* already dead */
     }

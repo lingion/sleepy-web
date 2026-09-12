@@ -1,6 +1,6 @@
 # Sleepy Web
 
-Sleepy 课程表 Android 应用 (~/sleepy) 的 Web 端 1:1 复刻。部署目标: `https://lingion.github.io/sleepy/`
+Sleepy 课程表 Android 应用 (~/sleepy) 的 Web 端 1:1 复刻。部署目标: `https://lingion.github.io/sleepy-web/`
 
 ## 命令
 
