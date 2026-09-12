@@ -5,8 +5,8 @@
  * 设计原则: 通用透传, 不解析教务协议 (解码语义唯一落点 = web 端 jw parser,
  * 跨语言 invariant 与 Android QZ_APP_FETCH_JS 同规)。
  *
- * ⚠ 部署属外部发布动作 — 归用户批准 (memory: 回复/推送须明示指令)。
- * 本文件仅为代码交付, 未部署, 无 wrangler 配置绑定。
+ * ⚠ 部署属外部发布动作 — 2026-09-12 用户批准后已上线:
+ *   https://sleepy-jw-proxy.lingion04.workers.dev
  *
  * 部署方式 (用户手动):
  *   cd worker && npx wrangler deploy --name sleepy-jw-proxy

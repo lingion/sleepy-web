@@ -27,7 +27,7 @@ npm run dev        # 本地开发 (注意: 用户偏好静态验证, 跑 dev ser
 ## 教务解析 (16 协议族)
 
 粘贴教务 HTML/JSON → 16 协议族解析器 (正方双代 / 强智家族 / 强智App 等)， 覆盖 163/185 校。
-CORS 中转 Worker 代码在 `worker/` (部署属外部发布动作)。
+CORS 中转 Worker: `worker/` → https://sleepy-jw-proxy.lingion04.workers.dev (浏览器跨校抓取用)。
 
 ## 测试规则
 

@@ -1,7 +1,8 @@
 # sleepy-jw-proxy — CORS 中转 Worker
-# 部署属外部发布动作, 归用户批准; 本配置不绑定真实账户
-# 部署: cd worker && npx wrangler deploy --name sleepy-jw-proxy
+# 已部署: https://sleepy-jw-proxy.lingion04.workers.dev (2026-09-12)
+# 重部署: cd worker && CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy
+#   (token 位置: ~/.cloudflare-token; wrangler 复用 ~/proxy/node_modules)
+# account_id 不写入此文件 — 部署时由 wrangler 从 token 推断
 name = "sleepy-jw-proxy"
 main = "sleepy-jw-proxy.ts"
 compatibility_date = "2024-09-01"
-account_id = ""  # 部署时填
