@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { IconArrowBack } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import {
@@ -736,7 +737,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
           background: 'transparent', color: 'var(--md-on-surface)', fontSize: 18,
         }}
       >
-        ‹
+        <IconArrowBack size={20} />
       </button>
       <h1 className="m3-headline-medium" style={{ margin: 0 }}>{title}</h1>
     </div>

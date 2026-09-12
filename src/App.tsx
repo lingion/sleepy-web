@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from './state/prefsStore'
+import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/icons'
 import { ScheduleView } from './views/ScheduleView'
 import { TodayView } from './views/TodayView'
 import { ManageView } from './views/ManageView'
@@ -13,11 +14,12 @@ import { MineView } from './views/MineView'
 
 type Tab = 'schedule' | 'today' | 'manage' | 'mine'
 
-const TAB_ICONS: Record<Tab, string> = {
-  schedule: '📅',
-  today: '🕐',
-  manage: '🗂️',
-  mine: '👤',
+// MainActivity.kt:171 Tab 枚举图标 1:1 (Icons.Outlined.*)
+const TAB_ICONS: Record<Tab, (p: { size?: number }) => JSX.Element> = {
+  schedule: IconCalendarMonth,
+  today: IconToday,
+  manage: IconSettings,
+  mine: IconPerson,
 }
 
 export function App() {
@@ -57,7 +59,9 @@ export function App() {
               ['manage', t('tab_manage')],
               ['mine', t('tab_mine')],
             ] as [Tab, string][]
-          ).map(([key, label]) => (
+          ).map(([key, label]) => {
+            const Icon = TAB_ICONS[key]
+            return (
             <button
               key={key}
               onClick={() => setTab(key)}
@@ -84,14 +88,15 @@ export function App() {
                     lineHeight: '24px',
                   }}
                 >
-                  {TAB_ICONS[key]}
+                  <Icon size={22} />
                 </span>
               ) : (
-                <span style={{ fontSize: 18, lineHeight: '28px' }}>{TAB_ICONS[key]}</span>
+                <span style={{ lineHeight: 0 }}><Icon size={22} /></span>
               )}
               <span className="m3-label-medium">{label}</span>
             </button>
-          ))}
+            )
+          })}
         </nav>
       ) : (
         // 悬浮胶囊 (PillNavigationBar dock=false): 居中悬浮胶囊条, 贴内容之上
@@ -126,7 +131,9 @@ export function App() {
                 ['manage', t('tab_manage')],
                 ['mine', t('tab_mine')],
               ] as [Tab, string][]
-            ).map(([key, label]) => (
+            ).map(([key, label]) => {
+            const Icon = TAB_ICONS[key]
+            return (
               <button
                 key={key}
                 onClick={() => setTab(key)}
@@ -143,10 +150,11 @@ export function App() {
                   color: tab === key ? 'var(--md-on-secondary-container)' : 'var(--md-on-surface-variant)',
                 }}
               >
-                <span style={{ fontSize: 18, lineHeight: '24px' }}>{TAB_ICONS[key]}</span>
+                <Icon size={20} />
                 {tab === key && <span className="m3-label-medium">{label}</span>}
               </button>
-            ))}
+              )
+            })}
           </div>
         </nav>
       )}

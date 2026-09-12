@@ -6,6 +6,7 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { IconGridView, IconViewList, IconChevronLeft, IconChevronRight } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
@@ -112,7 +113,7 @@ export function ScheduleView() {
             disabled={currentWeek <= 1}
             title={t('schedule_undo')}
           >
-            ‹
+            <IconChevronLeft size={20} />
           </IconBtn>
           <span
             className="m3-label-large"
@@ -125,7 +126,7 @@ export function ScheduleView() {
             disabled={currentWeek >= maxWeek}
             title={t('schedule_current_week', { v1: currentWeek })}
           >
-            ›
+            <IconChevronRight size={20} />
           </IconBtn>
         </div>
         {/* 视图切换: full=周视图 / cards=网格 — 会话级, 不写回偏好 */}
@@ -133,7 +134,7 @@ export function ScheduleView() {
           title={display === 'full' ? t('settings_start_view_cards') : t('settings_start_view_full')}
           onClick={() => setViewMode(display === 'full' ? 'cards' : 'full')}
         >
-          {display === 'full' ? '▦' : '☰'}
+          {display === 'full' ? <IconGridView size={20} /> : <IconViewList size={20} />}
         </IconBtn>
       </div>
 

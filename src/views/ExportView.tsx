@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { IconStar, IconCode, IconShare, IconCalendarMonth, IconArrowBack } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { getCourses, getDefaultTable } from '../data/repository'
@@ -135,22 +136,22 @@ export function ExportView({ onBack }: { onBack: () => void }) {
       {/* 格式选项 */}
       <div className="m3-card" style={{ padding: 0, overflow: 'hidden' }}>
         <ExportItem
-          icon="◇" title={t('export_json_title')} subtitle={t('export_json_subtitle')}
+          icon={<IconCode size={20} />} title={t('export_json_title')} subtitle={t('export_json_subtitle')}
           onClick={() => { void handleJson() }}
         />
         <Hairline />
         <ExportItem
-          icon="↗" title={t('export_share_title')} subtitle={t('export_share_subtitle')}
+          icon={<IconShare size={20} />} title={t('export_share_title')} subtitle={t('export_share_subtitle')}
           onClick={() => { void handleShareText() }}
         />
         <Hairline />
         <ExportItem
-          icon="◷" title={t('export_ics_title')} subtitle={t('export_ics_subtitle')}
+          icon={<IconCalendarMonth size={20} />} title={t('export_ics_title')} subtitle={t('export_ics_subtitle')}
           onClick={() => { void handleIcs() }}
         />
         <Hairline />
         <ExportItem
-          icon="★" title={t('export_native_title')} subtitle={t('export_native_subtitle')}
+          icon={<IconStar size={20} />} title={t('export_native_title')} subtitle={t('export_native_subtitle')}
           onClick={() => { void handleNative() }}
         />
       </div>
@@ -197,17 +198,17 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
         aria-label="back"
         style={{
           padding: '8px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
-          background: 'transparent', color: 'var(--md-on-surface)', fontSize: 18,
+          background: 'transparent', color: 'var(--md-on-surface)',
         }}
       >
-        ‹
+        <IconArrowBack size={20} />
       </button>
       <h1 className="m3-headline-medium" style={{ margin: 0 }}>{title}</h1>
     </div>
   )
 }
 
-function ExportItem({ icon, title, subtitle, onClick }: { icon: string; title: string; subtitle: string; onClick: () => void }) {
+function ExportItem({ icon, title, subtitle, onClick }: { icon: React.ReactNode; title: string; subtitle: string; onClick: () => void }) {
   return (
     <button
       type="button"

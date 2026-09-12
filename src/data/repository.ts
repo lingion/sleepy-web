@@ -268,6 +268,38 @@ async function pruneDefaultTopPrefs(): Promise<void> {
   }
 }
 
+/** duplicateTable — Android ScheduleViewModel.duplicateTable (v7.10.15/16w) 1:1
+ *  全量复制表配置+课程; 副本不接管默认表不切选中; 命名去重 原名+"2"/"3"...;
+ *  建表+插课一个撤回动作 (beginBatch 保首快照); groupId 整组映射新 UUID */
+export async function duplicateTable(id: number): Promise<number> {
+  const source = await getTable(id)
+  if (!source) return -1
+  const courses = await getCourses(id)
+  const existing = await db.timetables.toArray()
+  const existingNames = new Set(existing.map((tb) => tb.name))
+  let index = 2
+  let name = `${source.name}2`
+  while (existingNames.has(name)) { index++; name = `${source.name}${index}` }
+  const { beginBatch, endBatch } = undoManager
+  let newId = -1
+  beginBatch()
+  try {
+    newId = await insertTable({ ...source, id: undefined, name, isDefault: 0, createdAt: Date.now() })
+    if (courses.length > 0) {
+      const groupMap = new Map<string, string>()
+      const mapped = courses.map((c) => {
+        if (!groupMap.has(c.groupId)) groupMap.set(c.groupId, crypto.randomUUID())
+        const { id: _drop, ...rest } = c
+        return { ...rest, groupId: groupMap.get(c.groupId)!, tableId: newId }
+      })
+      await insertCoursesKeepingGroups(mapped as Course[])
+    }
+  } finally {
+    await endBatch()
+  }
+  return newId
+}
+
 /** assignGroupIds — 同名课同 groupId (导入路径) */
 export function assignGroupIds(courses: Omit<Course, 'id'>[]): Omit<Course, 'id'>[] {
   const nameToGroup = new Map<string, string>()

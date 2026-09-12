@@ -6,6 +6,7 @@
 
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { IconSchedule } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
@@ -225,7 +226,7 @@ function EmptyToday({ semesterStatus }: { semesterStatus: SemesterStatus }) {
         textAlign: 'center',
       }}
     >
-      <span style={{ fontSize: 48, opacity: 0.5 }}>🕐</span>
+      <span style={{ lineHeight: 0, opacity: 0.5 }}><IconSchedule size={48} /></span>
       {semesterStatus === 'BEFORE_START' ? (
         <>
           <span className="m3-title-medium">{t('semester_not_started')}</span>

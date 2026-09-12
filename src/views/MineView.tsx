@@ -8,6 +8,7 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import i18next from 'i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
@@ -15,9 +16,17 @@ import { computeCurrentWeek } from './ScheduleView'
 import { localizedDay } from '../components/schedule/CardsGridView'
 import { THEME_PRESETS } from '../theme/themes'
 import { ExportView } from './ExportView'
-import type { Course, Prefs } from '../data/types'
+import {IconEdit, IconShare, IconPalette, IconTune, IconInfo, IconAutoAwesome,
+  IconCheckCircle, IconContentCopy, IconAdd,
+  IconCalendarMonth, IconSettings,
+  IconArrowBack,
+} from '../components/icons'
+import { duplicateTable, setDefault, insertTable } from '../data/repository'
+import { DEFAULT_TIME_JSON } from '../domain/timeTable'
+import { EditTableView } from './EditTableView'
+import type { Course, Prefs, Table } from '../data/types'
 
-type Page = 'main' | 'general' | 'appearance' | 'export'
+type Page = 'main' | 'general' | 'appearance' | 'export' | 'alltables' | 'about'
 
 export function MineView() {
   const [page, setPage] = useState<Page>('main')
@@ -29,12 +38,18 @@ export function MineView() {
       return <AppearancePage onBack={() => setPage('main')} />
     case 'export':
       return <ExportView onBack={() => setPage('main')} />
+    case 'alltables':
+      return <AllTablesPage onBack={() => setPage('main')} />
+    case 'about':
+      return <AboutPage onBack={() => setPage('main')} />
     default:
       return (
         <MineMainPage
           onOpenGeneral={() => setPage('general')}
           onOpenAppearance={() => setPage('appearance')}
           onOpenExport={() => setPage('export')}
+          onOpenAllTables={() => setPage('alltables')}
+          onOpenAbout={() => setPage('about')}
         />
       )
   }
@@ -46,10 +61,14 @@ function MineMainPage({
   onOpenGeneral,
   onOpenAppearance,
   onOpenExport,
+  onOpenAllTables,
+  onOpenAbout,
 }: {
   onOpenGeneral: () => void
   onOpenAppearance: () => void
   onOpenExport: () => void
+  onOpenAllTables: () => void
+  onOpenAbout: () => void
 }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
@@ -86,15 +105,15 @@ function MineMainPage({
 
       {/* 设置入口列表 — SettingsItem 序列 1:1 */}
       <div className="m3-card" style={{ padding: 0 }}>
-        <SettingsItem icon="✎" label={t('all_tables')} onClick={() => {}} />
+        <SettingsItem icon={<IconEdit size={20} />} label={t('all_tables')} onClick={onOpenAllTables} />
         <HDiv inset={72} />
-        <SettingsItem icon="⇪" label={t('mine_export')} onClick={onOpenExport} />
+        <SettingsItem icon={<IconShare size={20} />} label={t('mine_export')} onClick={onOpenExport} />
         <HDiv inset={72} />
-        <SettingsItem icon="✦" label={t('mine_appearance')} onClick={onOpenAppearance} />
+        <SettingsItem icon={<IconPalette size={20} />} label={t('mine_appearance')} onClick={onOpenAppearance} />
         <HDiv inset={72} />
-        <SettingsItem icon="⚙" label={t('mine_general')} onClick={onOpenGeneral} />
+        <SettingsItem icon={<IconTune size={20} />} label={t('mine_general')} onClick={onOpenGeneral} />
         <HDiv inset={72} />
-        <SettingsItem icon="ⓘ" label={t('about_title')} onClick={() => {}} />
+        <SettingsItem icon={<IconInfo size={20} />} label={t('about_title')} onClick={onOpenAbout} />
       </div>
     </div>
   )
@@ -113,7 +132,7 @@ function VDivider() {
   return <div style={{ height: 36, width: 1, background: 'color-mix(in srgb, var(--md-outline) 30%, transparent)' }} />
 }
 
-function SettingsItem({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+function SettingsItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <div
       onClick={onClick}
@@ -447,7 +466,7 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
           width: 56, height: 56, borderRadius: 16, background: 'var(--md-primary-container)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
           color: 'var(--md-on-primary-container)', flexShrink: 0,
-        }}>✦</div>
+        }}><IconAutoAwesome size={26} /></div>
         <div style={{ flex: 1 }}>
           <div className="m3-title-medium">{t('theme_system')}</div>
           <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('theme_system_desc')}</div>
@@ -519,6 +538,204 @@ function Swatch({ color }: { color: string }) {
   return <div style={{ width: 28, height: 28, borderRadius: 8, background: color }} />
 }
 
+// ── 全部课表 — AllTablesScreen.kt 1:1 ───────────────────────────────────
+
+function AllTablesPage({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation()
+  const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) ?? []
+  const selectedId = useLiveQuery(async () => (await db.timetables.where('isDefault').equals(1).first())?.id)
+  const [editingId, setEditingId] = useState<number | null>(null)
+
+  if (editingId !== null) {
+    return (
+      <EditTableView
+        tableId={editingId}
+        onBack={() => setEditingId(null)}
+        onSaved={() => setEditingId(null)}
+        onDeleted={() => setEditingId(null)}
+      />
+    )
+  }
+
+  return (
+    <SettingsScaffold title={t('all_tables')} onBack={onBack}>
+      {tables.map((tb: Table) => {
+        const isCurrent = tb.id === selectedId
+        return (
+          <div
+            key={tb.id}
+            onClick={() => {
+              if (!isCurrent) void setDefault(tb.id)
+            }}
+            className="m3-card"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: 14, cursor: 'pointer',
+              background: isCurrent ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
+            }}
+          >
+            {isCurrent ? (
+              <span style={{ color: 'var(--md-primary)', flexShrink: 0 }}><IconCheckCircle size={24} /></span>
+            ) : (
+              <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--md-outline-variant)', flexShrink: 0 }} />
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="m3-title-small" style={{ fontWeight: 600 }}>{tb.name}</div>
+              <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+                {isCurrent ? formatWeekLine(tb) : startDateLine(tb)}
+              </div>
+              {tb.createdAt > 0 && (
+                <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+                  {formatCreatedAt(tb.createdAt)}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); void duplicateTable(tb.id) }}
+              aria-label={t('all_tables_duplicate')}
+              style={iconBtnStyle}
+            >
+              <IconContentCopy size={20} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setEditingId(tb.id) }}
+              aria-label={t('action_settings')}
+              style={iconBtnStyle}
+            >
+              <IconSettings size={20} />
+            </button>
+          </div>
+        )
+      })}
+      <button
+        onClick={() => {
+          const n = tables.length + 1
+          void insertTable({ name: `课表 ${n}`, startDate: '', timeJson: DEFAULT_TIME_JSON, isDefault: tables.length === 0 ? 1 : 0, maxWeek: 20, createdAt: Date.now(), smartConfigJson: '', nodeCount: 12 })
+        }}
+        className="m3-card"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          padding: 14, cursor: 'pointer', border: 'none', width: '100%',
+          background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+        }}
+      >
+        <IconAdd size={20} />
+        <span className="m3-label-large">{t('all_tables_new')}</span>
+      </button>
+    </SettingsScaffold>
+  )
+}
+
+const iconBtnStyle: React.CSSProperties = {
+  width: 36, height: 36, borderRadius: 18, border: 'none', background: 'transparent',
+  color: 'var(--md-on-surface-variant)', cursor: 'pointer', display: 'flex',
+  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+}
+
+function formatWeekLine(tb: Table): string {
+  return t2('current_table_week', { v1: computeCurrentWeek(tb.startDate, tb.maxWeek || 20) })
+}
+function startDateLine(tb: Table): string {
+  return t2('table_start_date', { v1: tb.startDate || '—' })
+}
+function formatCreatedAt(ms: number): string {
+  const d = new Date(ms)
+  const p = (x: number) => String(x).padStart(2, '0')
+  return t2('table_created_at', { v1: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}` })
+}
+/** AllTables 行副标题专用 — 组件顶层外禁 hook, 用 i18next 实例轻量包装 */
+function t2(key: string, opts?: Record<string, unknown>): string {
+  return i18next.t(key, opts)
+}
+
+// ── 关于 — AboutScreen.kt 1:1 核心 (web 无应用内更新检查, 省更新卡) ────
+
+function AboutPage({ onBack }: { onBack: () => void }) {
+  const t = useTranslation().t
+  const version = '1.0.53'
+
+  return (
+    <SettingsScaffold title={t('about_title')} onBack={onBack}>
+      <div className="m3-card" style={{ padding: 20, textAlign: 'center' }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: 18, margin: '0 auto 12px',
+          background: 'var(--md-primary)', color: 'var(--md-on-primary)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <IconCalendarMonth size={32} />
+        </div>
+        <div className="m3-headline-small" style={{ fontWeight: 700 }}>{t('app_name')}</div>
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>
+          {t('about_version_detail', { v1: '1.0.53', v2: '53' })}
+        </div>
+      </div>
+
+      <div className="m3-card" style={{ padding: 0 }}>
+        <InfoRow label={t('about_version')} value={`${version} (53)`} />
+        <HDiv inset={16} />
+        <InfoRow label={t('about_author')} value={t('about_author_name')} />
+        <HDiv inset={16} />
+        <InfoRow
+          label={t('about_source')}
+          value={t('about_source_url')}
+          href={`https://${t('about_source_url')}`}
+        />
+      </div>
+
+      <div className="m3-card" style={{ padding: 16 }}>
+        <div className="m3-title-medium" style={{ marginBottom: 8 }}>{t('about_feedback')}</div>
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+          {t('about_feedback_detail')}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <a
+            href="https://github.com/lingion/sleepy/issues"
+            target="_blank" rel="noreferrer"
+            className="m3-label-large"
+            style={{
+              flex: 1, textAlign: 'center', padding: '10px 0', borderRadius: 20,
+              background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+              textDecoration: 'none',
+            }}
+          >
+            {t('about_feedback_github')}
+          </a>
+          <a
+            href="mailto:lingion@hrbeu.edu.cn?subject=%5BSleepy%20%E5%8F%8D%E9%A6%88%5D"
+            className="m3-label-large"
+            style={{
+              flex: 1, textAlign: 'center', padding: '10px 0', borderRadius: 20,
+              background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+              textDecoration: 'none',
+            }}
+          >
+            {t('about_feedback_email')}
+ </a>
+        </div>
+      </div>
+
+      <div className="m3-card" style={{ padding: 16 }}>
+        <div className="m3-title-medium" style={{ marginBottom: 8 }}>{t('about_license_title')}</div>
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', whiteSpace: 'pre-line' }}>
+          {t('about_license_body')}
+        </div>
+      </div>
+    </SettingsScaffold>
+  )
+}
+
+function InfoRow({ label, value, href }: { label: string; value: string; href?: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', gap: 12 }}>
+      <span className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)', flexShrink: 0 }}>{label}</span>
+      {href ? (
+        <a href={href} target="_blank" rel="noreferrer" className="m3-body-medium" style={{ color: 'var(--md-primary)', textAlign: 'right' }}>{value}</a>
+      ) : (
+        <span className="m3-body-medium" style={{ textAlign: 'right' }}>{value}</span>
+      )}
+    </div>
+  )
+}
+
 // ── 通用组件 — SettingsCards.kt 1:1 ────────────────────────────────────
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7]
@@ -532,10 +749,10 @@ function SettingsScaffold({ title, onBack, children }: { title: string; onBack: 
           aria-label={title}
           style={{
             width: 40, height: 40, borderRadius: 20, border: 'none', background: 'transparent',
-            color: 'var(--md-on-background)', fontSize: 20, cursor: 'pointer',
+            color: 'var(--md-on-background)', cursor: 'pointer',
           }}
         >
-          ‹
+          <IconArrowBack size={20} />
         </button>
         <span className="m3-title-large">{title}</span>
       </div>
