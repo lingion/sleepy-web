@@ -635,5 +635,8 @@
 "color_use_different": "使用不同颜色",
 "color_refresh": "换自动色",
 "color_toast_last_group": "最后一节将跟随组色",
-"conflict_default_top_title": "选择默认置顶课程"
+"conflict_default_top_title": "选择默认置顶课程",
+"sample_table_name": "示例课表",
+"sample_table_banner": "这是一张示例课表, 供你了解 Sleepy 的显示效果。可编辑、删除, 或直接导入你自己的课表。",
+"sample_table_dismiss": "我知道了"
 }

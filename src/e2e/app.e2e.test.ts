@@ -74,7 +74,7 @@ afterAll(async () => {
 })
 
 describe('Sleepy Web E2E — 全链路冒烟', () => {
-  it('空态 → 建表 → 导入 → 课表渲染 → 课程详情', async () => {
+  it('首访示例课表渲染 → 关提示条 → 课程详情', async () => {
     if (!context) throw new Error('browser 未初始化')
     const page = await context.newPage()
     page.on('pageerror', (err) => {
@@ -83,32 +83,46 @@ describe('Sleepy Web E2E — 全链路冒烟', () => {
 
     await page.goto(BASE, { waitUntil: 'networkidle' })
 
-    // 1. 首屏: 课表 tab 空态 (空态文案 = schedule_empty_create_table)
-    await page.getByText('手动创建第一张课表').first().waitFor({ state: 'visible', timeout: 8000 })
+    // 1. 首访: seed 示例课表 → 表名 + 示例 banner + 课程网格直接渲染
+    await page.getByText('示例课表').first().waitFor({ state: 'visible', timeout: 8000 })
+    await page.getByText('高等数学').first().waitFor({ state: 'visible', timeout: 8000 })
+    await page.getByText('数据结构').first().waitFor({ state: 'visible', timeout: 8000 })
 
-    // 2. 空态主按钮「导入第一张课表」 → ImportView (空库 ImportAsNew 自动建表)
-    await page.getByText('导入第一张课表').click()
+    // 2. 示例提示条可见 → 关闭
+    await page.getByText('这是一张示例课表').first().waitFor({ state: 'visible', timeout: 8000 })
+    await page.getByRole('button', { name: '我知道了' }).click()
+
+    // 3. 点课程 → 详情弹层
+    await page.getByText('高等数学').first().click()
+    await page.getByText('课程详情').or(page.getByText('王教授')).waitFor({ state: 'visible', timeout: 8000 })
+    await page.keyboard.press('Escape')
+  }, 60000)
+
+  it('导入 WakeUp 分享 → 新课表渲染', async () => {
+    if (!context) throw new Error('browser 未初始化')
+    const page = await context.newPage()
+    await page.goto(BASE, { waitUntil: 'networkidle' })
+
+    // 导入入口: nav「课表管理」tab → 「导入课表」按钮
+    await page.locator('nav').getByRole('button', { name: '课表管理' }).click()
+    await page.getByRole('button', { name: '导入课表' }).click()
     await page.getByLabel('粘贴课表文本').fill(WAKEUP_SHARE)
     await page.getByRole('button', { name: '预览导入' }).click()
 
-    // 4. 预览对话框: 2 门课 0 冲突
     await page.getByText('导入预览').waitFor({ state: 'visible', timeout: 8000 })
     await page.getByRole('button', { name: '导入为新课表' }).first().click()
 
-    // 5. 确认对话框: 填起始日期 → 确认导入
     await page.getByText('导入前确认').waitFor({ state: 'visible', timeout: 8000 })
     const dateInput = page.locator('input[type="date"]')
     await dateInput.fill('2026-09-07')
     await page.getByRole('button', { name: '确认导入' }).click()
 
-    // 6. 导入完成自动回课表 tab (onDone), 看渲染
-    await page.getByText('高等数学').first().waitFor({ state: 'visible', timeout: 8000 })
-    await page.getByText('大学英语').first().waitFor({ state: 'visible', timeout: 8000 })
+    // 导入完成回管理页 → 新表「E2E课表」在列表中
+    await page.getByText('E2E课表').first().waitFor({ state: 'visible', timeout: 8000 })
 
-    // 7. 点课程 → 详情弹层
-    await page.getByText('高等数学').first().click()
-    await page.getByText('课程详情').or(page.getByText('高等数学').nth(1)).waitFor({ state: 'visible', timeout: 8000 })
-    await page.keyboard.press('Escape')
+    // 切回课表 tab 看渲染 (当前默认表 = 示例课表, 导入不切默认)
+    await page.locator('nav').getByRole('button', { name: '课表', exact: true }).click()
+    await page.getByText('张三').first().waitFor({ state: 'visible', timeout: 8000 })
   }, 60000)
 
   it('导出页可开 (悬浮导航 → Mine → 导出课表)', async () => {

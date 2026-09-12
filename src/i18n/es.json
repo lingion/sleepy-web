@@ -646,5 +646,8 @@
 "color_use_different": "Usar un color diferente",
 "color_refresh": "Cambiar color automático",
 "color_toast_last_group": "El último horario seguirá el color del grupo",
-"conflict_default_top_title": "Elegir el curso predeterminado en primer plano"
+"conflict_default_top_title": "Elegir el curso predeterminado en primer plano",
+"sample_table_name": "Horario de ejemplo",
+"sample_table_banner": "Este es un horario de ejemplo para ver cómo funciona Sleepy. Edítalo, bórralo o importa tu propio horario.",
+"sample_table_dismiss": "Entendido"
 }

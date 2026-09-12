@@ -6,7 +6,9 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconGridView, IconViewList, IconChevronLeft, IconChevronRight } from '../components/icons'
+import { IconGridView, IconViewList, IconChevronLeft, IconChevronRight,
+  IconClose,
+} from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
@@ -42,9 +44,15 @@ export function ScheduleView() {
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
+  const [sampleBannerOff, setSampleBannerOff] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
+  // 示例课表提示: seed 时记 sampleTableId; 用户关掉提示条 (sampleBannerDismissed) 后不再显示
+  const sampleMeta = useLiveQuery(async () => ({
+    id: (await db.prefs.get('sampleTableId'))?.value,
+    dismissed: (await db.prefs.get('sampleBannerDismissed'))?.value,
+  }))
   const courses = useLiveQuery(
     async () =>
       defaultTable ? await db.courses.where('tableId').equals(defaultTable.id).toArray() : ([] as Course[]),
@@ -137,6 +145,32 @@ export function ScheduleView() {
           {display === 'full' ? <IconGridView size={20} /> : <IconViewList size={20} />}
         </IconBtn>
       </div>
+
+      {/* 示例课表提示条 — 首访教学, 关闭即永久 (Android 无此概念, web 特有) */}
+      {defaultTable && !sampleBannerOff && sampleMeta?.id === String(defaultTable.id) && !sampleMeta.dismissed && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, margin: '0 16px 4px',
+            padding: '10px 14px', borderRadius: 14,
+            background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+          }}
+        >
+          <span className="m3-body-small" style={{ flex: 1 }}>{t('sample_table_banner')}</span>
+          <button
+            onClick={() => {
+              setSampleBannerOff(true)
+              void db.prefs.put({ key: 'sampleBannerDismissed', value: '1' })
+            }}
+            aria-label={t('sample_table_dismiss')}
+            style={{
+              border: 'none', cursor: 'pointer', flexShrink: 0, padding: 4,
+              background: 'transparent', color: 'inherit', display: 'flex',
+            }}
+          >
+            <IconClose size={18} />
+          </button>
+        </div>
+      )}
 
       {/* 主体 */}
       <div style={{ flex: 1, overflow: 'auto' }}>

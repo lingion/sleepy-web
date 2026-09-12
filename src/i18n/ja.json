@@ -646,5 +646,8 @@
 "color_use_different": "別の色を使う",
 "color_refresh": "自動色を変更",
 "color_toast_last_group": "最後のコマはグループ色に従います",
-"conflict_default_top_title": "デフォルトで前面に表示する授業を選択"
+"conflict_default_top_title": "デフォルトで前面に表示する授業を選択",
+"sample_table_name": "サンプル時間割",
+"sample_table_banner": "これは Sleepy の表示を確認するためのサンプル時間割です。編集・削除、または自分の時間割のインポートができます。",
+"sample_table_dismiss": "OK"
 }

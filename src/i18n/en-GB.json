@@ -651,5 +651,8 @@
 "color_use_different": "Use a different color",
 "color_refresh": "Shuffle auto color",
 "color_toast_last_group": "The last slot will follow the group color",
-"conflict_default_top_title": "Choose the default top course"
+"conflict_default_top_title": "Choose the default top course",
+"sample_table_name": "Sample Timetable",
+"sample_table_banner": "This is a sample timetable to show how Sleepy works. Edit it, delete it, or import your own timetable.",
+"sample_table_dismiss": "Got it"
 }
