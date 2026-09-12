@@ -172,6 +172,15 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
   const { t, i18n } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
+  // 折叠卡展开态跨页保真 — 局部 useState 离页即丢, 提升到页级 (audit 偏好默认值 low)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const toggleExpanded = (title: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(title)) next.delete(title)
+      else next.add(title)
+      return next
+    })
 
   const languages: Array<[Prefs['lang'], string]> = [
     ['zh-CN', '简体中文'],
@@ -203,7 +212,7 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
       />
 
       {/* 主页显示(issue#8): 缩放/圆角/两栏/别名/表头日期 */}
-      <FoldCard title={t('settings_pill')}>
+      <FoldCard title={t('settings_pill')} expanded={expanded.has('settings_pill')} onToggle={() => toggleExpanded('settings_pill')}>
         <SliderRow
           label={t('settings_pill_scale')}
           value={prefs.gridScale}
@@ -278,7 +287,7 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
       </FoldCard>
 
       {/* 冲突课程样式: 叠层/折角/竖轨 + 各自专属滑杆 */}
-      <FoldCard title={t('settings_conflict_style')}>
+      <FoldCard title={t('settings_conflict_style')} expanded={expanded.has('settings_conflict_style')} onToggle={() => toggleExpanded('settings_conflict_style')}>
         <OptionRow
           label={t('settings_conflict_stack')}
           subtitle={t('settings_conflict_stack_sub')}
@@ -305,7 +314,7 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
             <SliderRow
               label={t('settings_conflict_fold_size')}
               value={prefs.conflictFoldSize}
-              min={8} max={28}
+              min={8} max={28} step={1}
               format={(v) => `${Math.round(v)}dp`}
               onChange={(v) => void update({ conflictFoldSize: v })}
             />
@@ -317,7 +326,7 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
             <SliderRow
               label={t('settings_conflict_stack_inset')}
               value={prefs.conflictStackInset}
-              min={4} max={20}
+              min={4} max={20} step={1}
               format={(v) => `${Math.round(v)}dp`}
               onChange={(v) => void update({ conflictStackInset: v })}
             />
@@ -329,7 +338,7 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
             <SliderRow
               label={t('settings_conflict_rail_inset')}
               value={prefs.conflictRailInset}
-              min={4} max={20}
+              min={4} max={20} step={1}
               format={(v) => `${Math.round(v)}dp`}
               onChange={(v) => void update({ conflictRailInset: v })}
             />
@@ -338,7 +347,7 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
       </FoldCard>
 
       {/* 显示星期: 周一~周日多选, 禁止全取消(GeneralSettingsScreen L437) */}
-      <FoldCard title={t('settings_visible_days')}>
+      <FoldCard title={t('settings_visible_days')} expanded={expanded.has('settings_visible_days')} onToggle={() => toggleExpanded('settings_visible_days')}>
         <p className="m3-body-small" style={{ margin: '0 0 8px', color: 'var(--md-on-surface-variant)' }}>
           {t('settings_visible_days_sub')}
         </p>
@@ -393,7 +402,7 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
       {/* ── 分组② 小组件 ── */}
       <SectionHeader title={t('appearance_section_widget')} />
 
-      <FoldCard title={t('settings_widget')}>
+      <FoldCard title={t('settings_widget')} expanded={expanded.has('settings_widget')} onToggle={() => toggleExpanded('settings_widget')}>
         <ToggleRow
           label={t('settings_widget_colorless')}
           subtitle={t('settings_widget_colorless_sub')}
@@ -421,6 +430,7 @@ function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; on
       {/* ── 分组③ 画面 ── */}
       <SectionHeader title={t('settings_section_display')} />
 
+      {/* web no-op: 浏览器刷新率由系统/显示器控制, 无等价 API — 保留 1:1 形态, 防误判漏接 */}
       <SingleToggleCard
         title={t('settings_high_refresh')}
         checked={prefs.highRefresh}
@@ -550,7 +560,7 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
               key={mode}
               onClick={() => void update({ themeMode: mode })}
               style={{
-                flex: 1, textAlign: 'center', padding: '12px 0', borderRadius: 12,
+                flex: 1, textAlign: 'center', padding: '12px 0', borderRadius: 9,
                 background: sel ? 'var(--md-primary)' : 'transparent',
                 color: sel ? 'var(--md-on-primary)' : 'var(--md-on-surface-variant)',
                 fontWeight: sel ? 600 : 500,
@@ -680,36 +690,50 @@ function t2(key: string, opts?: Record<string, unknown>): string {
   return i18next.t(key, opts)
 }
 
-// ── 节假日灰显 — HolidaySettingsScreen.kt (二级页骨架) ──────────────────
-// 全屏 HolidayRuleEditor 本体属节假日规则域另立文件(HolidayEditorView.tsx) + prefsStore
-// courseColorless 同组出借, 跨出 T10-T13 MineView 分区边界, 待对应分区移植后补齐。
-// 此处先落同构顶栏骨架 + 灰显开关 (GSS L496-522 入口行实验): 余白承载后续 editor。
+// ── 节假日灰显 — HolidaySettingsScreen.kt 1:1 (三开关 + 样式分段) ──────
+// 开关接 prefs 独立 4 键 holidayGreyHoliday/GreyWeekend/IgnoreWorkday/Style
+// (此前 conflation courseColorless = 已知 P3; HolidayRuleEditor 本体属节假日规则域另立文件)
+// 灰显样式: grey=半透明 / strikethrough=删除线 (ScheduleView greyDays 消费方)
 
 function HolidayPage({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
-  const holidayGreyEnabled = prefs.courseColorless
   return (
     <SettingsScaffold title={t('settings_holiday_title')} onBack={onBack}>
-      <div className="m3-card" style={{ padding: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div className="m3-title-medium">{t('settings_holiday_title')}</div>
-            <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 2 }}>
-              {t('settings_holiday_desc', { defaultValue: '遇节假日课程灰显显示' })}
-            </div>
-          </div>
-          <Switch
-            checked={holidayGreyEnabled}
-            onChange={(v) => void update({ courseColorless: v })}
-          />
-        </div>
+      {/* 三开关卡 (HolidaySettingsScreen.kt:276-307 同构) */}
+      <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <ToggleRow
+          label={t('settings_holiday_holiday')}
+          subtitle={t('settings_holiday_holiday_sub')}
+          checked={prefs.holidayGreyHoliday}
+          onChange={(v) => void update({ holidayGreyHoliday: v })}
+        />
         <HDiv />
-        {/* editor 本体占位 — 落后于 HolidaySettingsScreen.kt, 待移植 */}
-        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 8 }}>
-          {t('settings_holiday_editor_placeholder', { defaultValue: '节假日规则编辑器尚未移植' })}
-        </div>
+        <ToggleRow
+          label={t('settings_holiday_weekend')}
+          subtitle={t('settings_holiday_weekend_sub')}
+          checked={prefs.holidayGreyWeekend}
+          onChange={(v) => void update({ holidayGreyWeekend: v })}
+        />
+        <HDiv />
+        <ToggleRow
+          label={t('settings_holiday_workday')}
+          subtitle={t('settings_holiday_workday_sub')}
+          checked={prefs.holidayIgnoreWorkday}
+          onChange={(v) => void update({ holidayIgnoreWorkday: v })}
+        />
+      </div>
+      {/* 灰显样式分段 (HolidaySettingsScreen.kt:309-321 同构) */}
+      <FlatCard
+        title={t('settings_holiday_style')}
+        options={[t('settings_holiday_style_grey'), t('settings_holiday_style_strikethrough')]}
+        selectedKey={prefs.holidayStyle === 'strikethrough' ? 1 : 0}
+        onSelect={(i) => void update({ holidayStyle: i === 1 ? 'strikethrough' : 'grey' })}
+      />
+      {/* HolidayRuleEditor 本体占位 — 用户范围化覆盖 (KEY_HOLIDAY_OVERRIDES), 另立分区移植 */}
+      <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 8 }}>
+        {t('settings_holiday_editor_placeholder', { defaultValue: '节假日规则编辑器尚未移植' })}
       </div>
     </SettingsScaffold>
   )
@@ -853,12 +877,11 @@ function FlatCard({
 }
 
 /** 折叠设置卡 (SettingsCard) — 默认收起, 箭头随展开旋转 */
-function FoldCard({ title, children }: { title: string; children: React.ReactNode }) {
-  const [expanded, setExpanded] = useState(false)
+function FoldCard({ title, expanded, onToggle, children }: { title: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
     <div className="m3-card" style={{ padding: 16 }}>
       <div
-        onClick={() => setExpanded(!expanded)}
+        onClick={onToggle}
         style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
       >
         <span className="m3-title-small" style={{ fontWeight: 600, flex: 1 }}>{title}</span>
@@ -941,12 +964,13 @@ function OptionRow({
 
 /** 滑杆行 — label + 百分比/dp 值 + input[range]; 5% 步进对应 Android roundToInt(v*20)/20 */
 function SliderRow({
-  label, value, min, max, format, onChange,
+  label, value, min, max, step, format, onChange,
 }: {
   label: string
   value: number
   min: number
   max: number
+  step?: number
   format: (v: number) => string
   onChange: (v: number) => void
 }) {
@@ -959,7 +983,7 @@ function SliderRow({
         <span className="m3-label-large" style={{ minWidth: 52, color: 'var(--md-primary)' }}>{format(shown)}</span>
         <input
           type="range"
-          min={min} max={max} step={(max - min) / 20}
+          min={min} max={max} step={step ?? (max - min) / 20}
           value={shown}
           style={{ flex: 1, accentColor: 'var(--md-primary)' }}
           onChange={(e) => setLocal(Number(e.target.value))}

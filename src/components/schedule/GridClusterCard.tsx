@@ -6,6 +6,7 @@
 
 import type { Course } from '../../data/types'
 import type { LaidOutCourse } from '../../domain/conflictLayout'
+import { usePrefsStore } from '../../state/prefsStore'
 import {
   hiddenLayerCount,
   overrideAwareLayerOrder,
@@ -52,6 +53,8 @@ export function GridClusterCard(props: GridClusterCardProps) {
     yOfRowsFn,
   } = props
 
+  const prefs = usePrefsStore((s) => s.prefs)
+
   // N≥3 气泡徽标: 层数 - 2 (按层计, 轮换中恒定)
   const layerCount = cluster.courses.length >= 2 ? countLayers(laidOut) : 1
   const badge = hiddenLayerCount(layerCount)
@@ -65,7 +68,10 @@ export function GridClusterCard(props: GridClusterCardProps) {
     })
   )
   const clusterH = yOfRowsFn(maxEnd) - gapH
-  const inset = Math.min(12, Math.max(4, 12)) // STACK_INSET 默认 12dp
+  // 顶卡收窄量按 style 分流 (ConflictCard.kt:591-593 同构: RAIL→RailInset, else→StackInset);
+  // 折角幅度走用户拖杆 (ConflictCard.kt:596 foldSize)。此前硬编码 12/16 = 滑杆零消费 (audit 偏好默认值 high)
+  const inset = style === 'rail' ? prefs.conflictRailInset : prefs.conflictStackInset
+  const foldSize = prefs.conflictFoldSize
 
   return (
     <div style={{ position: 'absolute', left: offsetX, top: offsetY, width: colW, height: clusterH }}>
@@ -81,6 +87,7 @@ export function GridClusterCard(props: GridClusterCardProps) {
           isGrey={isGrey}
           containerWidth={containerWidth}
           inset={inset}
+          foldSize={foldSize}
           allCourses={cluster.courses}
           onCourseClick={onCourseClick}
           onRotate={onRotate}
@@ -129,6 +136,7 @@ function ClusterItem({
   isGrey,
   containerWidth,
   inset,
+  foldSize,
   allCourses,
   onCourseClick,
   onRotate,
@@ -141,6 +149,7 @@ function ClusterItem({
   isGrey: boolean
   containerWidth: number
   inset: number
+  foldSize: number
   allCourses: Course[]
   onCourseClick?: (c: Course) => void
   onRotate: () => void
@@ -182,8 +191,8 @@ function ClusterItem({
               position: 'absolute',
               top: 0,
               right: 0,
-              width: 16,
-              height: 16,
+              width: foldSize,
+              height: foldSize,
               background: 'var(--md-surface-container-high)',
               borderBottomLeftRadius: 12,
               boxShadow: '-1px 1px 2px rgba(0,0,0,0.12)',
