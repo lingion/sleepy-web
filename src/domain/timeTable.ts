@@ -87,24 +87,45 @@ function minutesBetween(a: string, b: string): number {
 
 // ---- 解析与查询 -------------------------------------------------------
 
-/** parseNodes — 解析 timeJson → 按 node 排序; 异常返回空 */
+/** 严格 "HH:mm" (两位小时两位分) — 等价 Android LocalTime.parse (ISO_LOCAL_TIME) 的容差 */
+function isStrictHHmm(s: string): boolean {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(s)
+  return m !== null
+}
+
+/**
+ * parseNodes — 解析 timeJson → 按 node 排序; 异常返回空。
+ *
+ * 1:1 对齐 TimeTableUtils.kt parseNodes (L41-56): Android 用 LocalTime.parse
+ * 严格校验 HH:mm (单数字小时 "8:00" 即抛异常), 任意行非法 → 整表抛异常 →
+ * emptyList()。Web 此前宽容透传原始串, 在脏数据下与 Android 行为不一致
+ * (audit T17 finding #14)。
+ */
 export function parseNodes(timeJson: string): NodeTime[] {
   try {
     const arr = JSON.parse(timeJson)
     if (!Array.isArray(arr)) return []
-    return arr
-      .map((o: { node: number; start: string; end: string }) => ({
-        node: Number(o.node),
-        start: String(o.start),
-        end: String(o.end),
-      }))
-      .sort((a, b) => a.node - b.node)
+    const out: NodeTime[] = []
+    for (const o of arr as Array<{ node: unknown; start: unknown; end: unknown }>) {
+      const start = String(o.start)
+      const end = String(o.end)
+      // 与 Android LocalTime.parse 等价: 任一行 HH:mm 非法即整表返 []
+      if (!isStrictHHmm(start) || !isStrictHHmm(end)) return []
+      out.push({ node: Number(o.node), start, end })
+    }
+    return out.sort((a, b) => a.node - b.node)
   } catch {
     return []
   }
 }
 
-/** timeSlotsFor — timeJson → 每节独立 TimeSlot */
+/**
+ * timeSlotsFor — timeJson → 每节独立 TimeSlot。
+ *
+ * displayStart/displayEnd 对齐 Android TimeTableUtils.kt L72-73:
+ * 走 formatTime = "%02d:%02d" 零填充, 即使 timeJson 源串是 "8:00"
+ * 也会归一为 "08:00"。
+ */
 export function timeSlotsFor(timeJson: string): TimeSlot[] {
   const nodes = parseNodes(timeJson)
   if (nodes.length === 0) return []
@@ -112,8 +133,8 @@ export function timeSlotsFor(timeJson: string): TimeSlot[] {
     label: String(n.node),
     start: n.start,
     end: n.end,
-    displayStart: n.start,
-    displayEnd: n.end,
+    displayStart: formatHM(parseHM(n.start)),
+    displayEnd: formatHM(parseHM(n.end)),
     nodeStart: n.node,
     nodeEnd: n.node,
   }))
@@ -525,7 +546,8 @@ export function effectiveCourseTime(
     const s = startTime.trim()
     const e = endTime.trim()
     if (isNaN(parseHM(s)) || isNaN(parseHM(e))) return null
-    return [s, e]
+    // 对齐 Android TimeTableUtils.kt L546-548: LocalTime.toString() 零填充归一
+    return [formatHM(parseHM(s)), formatHM(parseHM(e))]
   }
   const rows = parseTimeSlotRows(timeJson)
   const first = rows.find((r) => r.node === startNode)
