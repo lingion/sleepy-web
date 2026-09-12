@@ -8,7 +8,7 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Course } from '../../data/types'
-import { usePrefsStore } from '../../state/prefsStore'
+import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
 import { weekLaneRows } from '../../domain/conflictLayout'
 import { courseTimeParts } from '../../domain/timeTable'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
@@ -506,15 +506,27 @@ export function LessonRow({
 }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
-  const isDark = prefs.themeMode === 'dark'
+  // themeMode='system' 分支同源 TodayScreen.kt:315 (resolveIsDark 统一解析)
+  const isDark = resolveIsDark(prefs)
   const effScale = scale * laneScale
   const name = useAlias && course.alias ? course.alias : course.courseName
-  // surfaceVariant 取自当前主题 (CourseTableView.kt:441-447 colors.surfaceVariant 同构) —
-  // themeMode=system 走 isDark 同源码路径; 用 token 而非硬编码 hex (TaskBook 硬约束)
-  const neutral = 'var(--md-surface-variant)'
-  const bg = pickCourseColorWithGroupRows(course, groupRows, isDark, neutral, prefs.courseColorless)
-  const onSurface = 'var(--md-on-surface)'
-  const fgHex = textColorOn(parseHex(bg) ?? [0, 0, 0], isDark, parseHex(onSurface) ?? [0, 0, 0])
+  // surfaceVariant 取自当前主题 (CourseTableView.kt:441-447 colors.surfaceVariant 同构)。
+  // parseHex 拒 CSS var 字符串 → fg 落 [0,0,0] 白字浅底不可读 (评审 P3), 故运行时
+  // getComputedStyle 解析真实 hex + 硬编码兜底 (与 TodayView.tsx:338-350 同一既定模式)
+  const tokens = useMemo(() => {
+    let neutral = isDark ? '#49454F' : '#E7E0EC'
+    let onSurface = isDark ? '#E6E0E9' : '#1D1B20'
+    if (typeof document !== 'undefined') {
+      const cs = getComputedStyle(document.documentElement)
+      const nv = cs.getPropertyValue('--md-surface-variant').trim()
+      if (nv) neutral = nv
+      const ov = cs.getPropertyValue('--md-on-surface').trim()
+      if (ov) onSurface = ov
+    }
+    return { neutral, onSurface }
+  }, [isDark, prefs.theme])
+  const bg = pickCourseColorWithGroupRows(course, groupRows, isDark, tokens.neutral, prefs.courseColorless)
+  const fgHex = textColorOn(parseHex(bg) ?? [0, 0, 0], isDark, parseHex(tokens.onSurface) ?? [0, 0, 0])
   const fg = '#' + fgHex.map((v) => v.toString(16).padStart(2, '0')).join('')
 
   // time 模式: 时间段在连字符后折行
