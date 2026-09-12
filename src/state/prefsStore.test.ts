@@ -6,8 +6,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
+import 'fake-indexeddb/auto'
 import { DEFAULT_PREFS } from '../data/types'
-import { resolveIsDark } from './prefsStore'
+import { usePrefsStore, resolveIsDark } from './prefsStore'
 
 describe('DEFAULT_PREFS 对齐 AppPrefs.kt 兜底值', () => {
   it('displayMode 默认 node (getDisplayMode → "node")', () => {
@@ -65,9 +66,32 @@ describe('DEFAULT_PREFS 对齐 AppPrefs.kt 兜底值', () => {
     expect(DEFAULT_PREFS.courseColorless).toBe(false)
   })
 
-  it('语言默认跟随系统, 高刷新默认 true', () => {
-    expect(DEFAULT_PREFS.lang).toBe('system')
+  it('语言默认 zh-CN (Android AppPrefs KEY_LANG 兜底), 高刷新默认 true', () => {
+    expect(DEFAULT_PREFS.lang).toBe('zh-CN')
     expect(DEFAULT_PREFS.highRefresh).toBe(true)
+  })
+
+  it('补齐键: 节假日灰显 4 键默认 greyHoliday/GreyWeekend=true, Style=grey, IgnoreWorkday=true', () => {
+    expect(DEFAULT_PREFS.holidayGreyHoliday).toBe(true)
+    expect(DEFAULT_PREFS.holidayGreyWeekend).toBe(true)
+    expect(DEFAULT_PREFS.holidayStyle).toBe('grey')
+    expect(DEFAULT_PREFS.holidayIgnoreWorkday).toBe(true)
+  })
+
+  it('clampPrefs: update() 值域校验 (scale 0.7-1.3 / corner 0-2 / inset 4-20 / fold 8-28)', async () => {
+    // jsdom 无 matchMedia — 桩可控行为 (与 resolveIsDark describe 同)
+    ;(window as unknown as { matchMedia: (q: string) => { matches: boolean } }).matchMedia = (q: string) => ({
+      matches: q.includes('dark'),
+    })
+    await usePrefsStore.getState().update({ gridScale: 5, weekScale: 0.1, gridCornerRatio: 99, conflictStackInset: 1, conflictRailInset: 99, conflictFoldSize: 0, visibleDays: [1, 9, 0, 3] })
+    const p = usePrefsStore.getState().prefs
+    expect(p.gridScale).toBe(1.3)
+    expect(p.weekScale).toBe(0.7)
+    expect(p.gridCornerRatio).toBe(2)
+    expect(p.conflictStackInset).toBe(4)
+    expect(p.conflictRailInset).toBe(20)
+    expect(p.conflictFoldSize).toBe(8)
+    expect(p.visibleDays).toEqual([1, 3])
   })
 })
 

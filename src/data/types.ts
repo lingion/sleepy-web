@@ -101,7 +101,6 @@ export interface Holiday {
  * showDate=false, navDock=false, lang=zh-CN, widgetSeparator=true。
  */
 export interface Prefs {
-  dark: boolean
   themeMode: 'system' | 'light' | 'dark'
   theme: 'default' | 'spring' | 'ocean' | 'peach' | 'slate'
   lang: 'system' | 'en' | 'zh-CN' | 'zh-TW' | 'ja' | 'es' | 'en-GB'
@@ -144,13 +143,20 @@ export interface Prefs {
   courseColorless: boolean
   /** WeekView 小组件课程间分隔线, 默认 true */
   widgetSeparator: boolean
+  /** 法定节假日灰显开关 — 默认 true (AppPrefs KEY_HOLIDAY_GREY_HOLIDAY) */
+  holidayGreyHoliday: boolean
+  /** 周末灰显开关 — 默认 true (AppPrefs KEY_HOLIDAY_GREY_WEEKEND) */
+  holidayGreyWeekend: boolean
+  /** 灰显样式: grey=半透明 / strikethrough=删除线 (AppPrefs KEY_HOLIDAY_STYLE, 默认 grey) */
+  holidayStyle: 'grey' | 'strikethrough'
+  /** 补班日忽略 — 默认 true (AppPrefs KEY_HOLIDAY_IGNORE_WORKDAY) */
+  holidayIgnoreWorkday: boolean
 }
 
 export const DEFAULT_PREFS: Prefs = {
-  dark: false,
   themeMode: 'system',
   theme: 'default',
-  lang: 'system',
+  lang: 'zh-CN',
   displayMode: 'node',
   gridSubInfo: 'room',
   conflictStyle: 'rail',
@@ -176,6 +182,10 @@ export const DEFAULT_PREFS: Prefs = {
   widgetColorless: false,
   courseColorless: false,
   widgetSeparator: true,
+  holidayGreyHoliday: true,
+  holidayGreyWeekend: true,
+  holidayStyle: 'grey',
+  holidayIgnoreWorkday: true,
 }
 
 /** inWeek(week) — CourseEntity.kt L125-134 1:1 */
