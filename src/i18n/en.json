@@ -669,5 +669,6 @@
 ],
 "sample_table_name": "Sample Schedule",
 "sample_table_banner": "This is a sample schedule to show how Sleepy works. Edit it, delete it, or import your own schedule.",
-"sample_table_dismiss": "Got it"
+"sample_table_dismiss": "Got it",
+"manage_empty_hint": "No timetable yet. Create or import with the buttons below"
 }

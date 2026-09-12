@@ -638,5 +638,14 @@
 "conflict_default_top_title": "选择默认置顶课程",
 "sample_table_name": "示例课表",
 "sample_table_banner": "这是一张示例课表, 供你了解 Sleepy 的显示效果。可编辑、删除, 或直接导入你自己的课表。",
-"sample_table_dismiss": "我知道了"
+"sample_table_dismiss": "我知道了",
+"about_feedback": "反馈与建议",
+"about_feedback_detail": "提交 Bug 或新想法到 GitHub Issue，或通过邮件联系作者",
+"about_feedback_email": "邮件反馈",
+"about_feedback_github": "GitHub Issue",
+"edge_node_label": "第 %1$d 节",
+"edge_insert_start_label": "起始时间",
+"edge_insert_end_label": "结束时间",
+"edge_insert_ok": "添加",
+"manage_empty_hint": "还没有课表，点击下方按钮创建或导入"
 }
