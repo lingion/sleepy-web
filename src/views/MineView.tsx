@@ -4,6 +4,15 @@
  * 二级页 = 通用(课程显示/小组件/画面/语言) + 外观(主题色彩/外观模式)。
  * Web 无小组件 → refreshWidgets 动作与 widget 分组保留开关本体(widgetSeparator/colorless/vertPunct),
  * 「管理桌面小组件」入口与「刷新小组件」按钮省略(无小组件可管, 后续发布浏览器扩展时恢复)。
+ *
+ * 通用设置页对齐备注 (GeneralSettingsScreen.kt):
+ * - 节假日课程灰显入口行已接导航(page='holiday'); HolidayPage 本体(年份/数据源/灰显规则/区段编辑)
+ *   属灰显规则域 1:1 另立任务, 此处先落同构顶栏骨架。
+ * - 本页卡片(FoldCard/FlatCard/SingleToggleCard/语言卡)在组件 style 覆盖 .m3-card 默认 →
+ *   surface-container + 16px 圆角 (SettingsCards.kt L71/L117 = surfaceContainer + shapes.large 16dp);
+ *   禁改共享 global.css, 故覆盖落在组件层, 其余页卡片不受影响。
+ * - FoldCard 折叠触发: Android SettingsCard 整卡可点折叠(展开态点内容空白区也收起);
+ *   web 维持仅标题行可点(web 惯例, 误触折叠更少) — 有意取舍非遗漏。
  */
 
 import { useMemo, useState } from 'react'
@@ -17,23 +26,26 @@ import { localizedDay } from '../components/schedule/CardsGridView'
 import { THEME_PRESETS } from '../theme/themes'
 import { ExportView } from './ExportView'
 import {IconEdit, IconShare, IconPalette, IconTune, IconInfo, IconAutoAwesome,
-  IconCheckCircle, IconContentCopy, IconAdd,
+  IconCheck, IconCheckCircle, IconContentCopy, IconAdd,
   IconCalendarMonth, IconSettings,
-  IconArrowBack,
+  IconArrowBack, IconChevronRight,
 } from '../components/icons'
 import { duplicateTable, setDefault, insertTable } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import { EditTableView } from './EditTableView'
 import type { Course, Prefs, Table } from '../data/types'
 
-type Page = 'main' | 'general' | 'appearance' | 'export' | 'alltables' | 'about'
+type Page = 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about'
 
 export function MineView() {
   const [page, setPage] = useState<Page>('main')
 
   switch (page) {
     case 'general':
-      return <GeneralSettingsPage onBack={() => setPage('main')} />
+      return <GeneralSettingsPage onBack={() => setPage('main')} onOpenHoliday={() => setPage('holiday')} />
+    case 'holiday':
+      // HolidaySettingsScreen 的 back 回通用设置页(GSS 的二级页), 非回主页
+      return <HolidayPage onBack={() => setPage('general')} />
     case 'appearance':
       return <AppearancePage onBack={() => setPage('main')} />
     case 'export':
@@ -156,7 +168,7 @@ function SettingsItem({ icon, label, onClick }: { icon: React.ReactNode; label: 
 
 // ── 通用设置 — GeneralSettingsScreen.kt ────────────────────────────────
 
-function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
+function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; onOpenHoliday: () => void }) {
   const { t, i18n } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
@@ -360,6 +372,22 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
         onChange={(v) => void update({ courseColorless: v })}
       />
 
+      {/* 节假日课程灰显: 入口行 → 二级页 (GSS L496-522; HolidayPage 本体按 HolidaySettingsScreen.kt) */}
+      <div
+        onClick={onOpenHoliday}
+        className="m3-card"
+        style={{
+          background: 'var(--md-surface-container)', borderRadius: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 16px', cursor: 'pointer',
+        }}
+      >
+        <span className="m3-title-small">{t('settings_holiday_title')}</span>
+        <span style={{ color: 'var(--md-on-surface-variant)', display: 'inline-flex' }}>
+          <IconChevronRight size={20} />
+        </span>
+      </div>
+
       <HDiv />
 
       {/* ── 分组② 小组件 ── */}
@@ -453,30 +481,34 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
     <SettingsScaffold title={t('mine_appearance')} onBack={onBack}>
       <SectionHeader title={t('appearance_section_theme')} />
 
-      {/* 跟随系统卡 (SystemThemeCard) */}
+      {/* 跟随系统卡 (SystemThemeCard) — 独立语义 KEY_SYSTEM, 不落 default 预设;
+          web 无壁纸取色, applyTheme('system') 回落默认色板 = Android Material You 平台最近等价 */}
       <div
-        onClick={() => void update({ theme: 'default' })}
+        onClick={() => void update({ theme: 'system' as Prefs['theme'] })}
         className="m3-card"
         style={{
-          background: prefs.theme === 'default' ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
+          borderRadius: 16,
+          background: (prefs.theme as string) === 'system' ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
           display: 'flex', alignItems: 'center', gap: 16, padding: 16, cursor: 'pointer',
         }}
       >
         <div style={{
           width: 56, height: 56, borderRadius: 16, background: 'var(--md-primary-container)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
           color: 'var(--md-on-primary-container)', flexShrink: 0,
-        }}><IconAutoAwesome size={26} /></div>
+        }}><IconAutoAwesome size={28} /></div>
         <div style={{ flex: 1 }}>
           <div className="m3-title-medium">{t('theme_system')}</div>
-          <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('theme_system_desc')}</div>
+          <div className="m3-body-small" style={{ marginTop: 2, color: 'var(--md-on-surface-variant)' }}>{t('theme_system_desc')}</div>
         </div>
-        {prefs.theme === 'default' && <CheckIcon size={24} />}
+        {(prefs.theme as string) === 'system' && <CheckIcon size={24} />}
       </div>
 
-      {/* 2 列网格 5 套预设 (custom 主题暂缺, 加号入口省略至 CustomThemeEditor 移植) */}
+      {/* 2 列网格 — 5 预设卡(default 淡紫 + spring/ocean/peach/slate, AppearanceScreen.kt:132-137)
+          自定义卡与加号尾位卡省略: CustomSchemeDeriver/customSchemeDeriver.ts + CustomThemeEditor
+          属 src/theme/ 与 prefsStore 配套改动, 跨出本分区文件边界, 待对应区 agent 移植后补齐 */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {Object.values(THEME_PRESETS).filter((p) => p.key !== 'default').map((preset) => {
+        {Object.values(THEME_PRESETS).map((preset) => {
           const selected = prefs.theme === preset.key
           const scheme = isDark ? preset.dark : preset.light
           return (
@@ -487,6 +519,7 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
               style={{
                 flex: '1 1 calc(50% - 6px)',
                 boxSizing: 'border-box',
+                borderRadius: 16,
                 background: selected ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
                 padding: 16, cursor: 'pointer',
               }}
@@ -506,10 +539,10 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
         })}
       </div>
 
-      {/* 外观模式三态分段 */}
+      {/* 外观模式三态分段 — clip(shapes.medium)=12dp 外层 */}
       <div className="m3-title-small" style={{ fontWeight: 600 }}>{t('theme_appearance')}</div>
       <div style={{ height: 8 }} />
-      <div style={{ display: 'flex', gap: 3, padding: 3, borderRadius: 14, background: 'var(--md-surface-container)' }}>
+      <div style={{ display: 'flex', gap: 3, padding: 3, borderRadius: 12, background: 'var(--md-surface-container)' }}>
         {modes.map(([mode, label]) => {
           const sel = mode === prefs.themeMode
           return (
@@ -645,6 +678,41 @@ function formatCreatedAt(ms: number): string {
 /** AllTables 行副标题专用 — 组件顶层外禁 hook, 用 i18next 实例轻量包装 */
 function t2(key: string, opts?: Record<string, unknown>): string {
   return i18next.t(key, opts)
+}
+
+// ── 节假日灰显 — HolidaySettingsScreen.kt (二级页骨架) ──────────────────
+// 全屏 HolidayRuleEditor 本体属节假日规则域另立文件(HolidayEditorView.tsx) + prefsStore
+// courseColorless 同组出借, 跨出 T10-T13 MineView 分区边界, 待对应分区移植后补齐。
+// 此处先落同构顶栏骨架 + 灰显开关 (GSS L496-522 入口行实验): 余白承载后续 editor。
+
+function HolidayPage({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation()
+  const prefs = usePrefsStore((s) => s.prefs)
+  const update = usePrefsStore((s) => s.update)
+  const holidayGreyEnabled = prefs.courseColorless
+  return (
+    <SettingsScaffold title={t('settings_holiday_title')} onBack={onBack}>
+      <div className="m3-card" style={{ padding: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div className="m3-title-medium">{t('settings_holiday_title')}</div>
+            <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 2 }}>
+              {t('settings_holiday_desc', { defaultValue: '遇节假日课程灰显显示' })}
+            </div>
+          </div>
+          <Switch
+            checked={holidayGreyEnabled}
+            onChange={(v) => void update({ courseColorless: v })}
+          />
+        </div>
+        <HDiv />
+        {/* editor 本体占位 — 落后于 HolidaySettingsScreen.kt, 待移植 */}
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 8 }}>
+          {t('settings_holiday_editor_placeholder', { defaultValue: '节假日规则编辑器尚未移植' })}
+        </div>
+      </div>
+    </SettingsScaffold>
+  )
 }
 
 // ── 关于 — AboutScreen.kt 1:1 核心 (web 无应用内更新检查, 省更新卡) ────
@@ -932,8 +1000,11 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 function CheckIcon({ size = 20 }: { size?: number }) {
+  // Icons.Outlined.Check 对应 — 矢量图标, tint=primary (禁文本符号)
   return (
-    <span style={{ color: 'var(--md-primary)', fontSize: size, lineHeight: 1 }}>✓</span>
+    <span style={{ color: 'var(--md-primary)', lineHeight: 1, display: 'inline-flex' }}>
+      <IconCheck size={size} />
+    </span>
   )
 }
 
