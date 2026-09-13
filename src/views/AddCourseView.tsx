@@ -76,7 +76,8 @@ export function AddCourseView({
     Array<{ node: number; start: string; end: string }>
   >([])
 
-  const baseTimeJson = defaultTable?.timeJson ?? '[]'
+  // 兜底 DEFAULT_TIME_JSON (TimeTableEntity.kt:30 单一来源, timeJson 永不空串) — 禁 '[]'
+  const baseTimeJson = defaultTable?.timeJson ?? DEFAULT_TIME_JSON
   // issue#9/23: 生效时间表 = 课表 timeJson + 暂存槽位 — 候选/校验/落库唯一依据
   const effectiveTimeJson = (() => {
     let json = baseTimeJson
