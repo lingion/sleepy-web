@@ -138,4 +138,35 @@ describe('Sleepy Web E2E — 全链路冒烟', () => {
     await page.getByText('分享文本').waitFor({ state: 'visible', timeout: 8000 })
     await page.getByText('ICS 日历').waitFor({ state: 'visible', timeout: 8000 })
   }, 30000)
+
+  it('主页触摸滑动切换周次 (HorizontalPager 同构, CDP 真触摸)', async () => {
+    if (!context) throw new Error('browser 未初始化')
+    const page = await context.newPage()
+    page.on('pageerror', (err) => {
+      throw new Error(`页面 JS 错误: ${err.message}`)
+    })
+    try {
+      await page.goto(BASE, { waitUntil: 'networkidle' })
+      await page.getByText('高等数学').first().waitFor({ state: 'visible', timeout: 8000 })
+
+      const weekLabel = () =>
+        page.evaluate(() => document.querySelector('span[role="button"][aria-label*="周"]')?.textContent)
+      const before = await weekLabel()
+
+      // 左滑 = 下一周 (HorizontalPager currentPage+1 同向)。
+      // CDP Input.dispatchTouchEvent: touchEnd 必须带 touchPoints (终点坐标), 空=
+      // dx=0 判定不翻页 — dispatchEvent TouchEvent 合成走不通 (React 委托丢失), CDP 真事件链路通
+      const cdp = await context.newCDPSession(page)
+      const dims = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }))
+      const cy = Math.floor(dims.h / 2)
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 350, y: cy }] })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: 100, y: cy + 2 }] })
+      await page.waitForTimeout(600)
+
+      const after = await weekLabel()
+      if (before === after) throw new Error(`滑动切换未生效: before=${before} after=${after}`)
+    } finally {
+      await page.close()
+    }
+  }, 60000)
 })
