@@ -268,6 +268,7 @@ export function CourseOverlayCard({
   y,
   w,
   h,
+  border,
 }: {
   course: Course
   groupRows: Course[]
@@ -279,6 +280,8 @@ export function CourseOverlayCard({
   y: number
   w: number
   h: number
+  /** 冲突簇真卡 1px 自派生描边 (ConflictCard.kt:1003); 非簇单卡不传=无描边 */
+  border?: string
 }) {
   const prefs = usePrefsStore((s) => s.prefs)
   const neutral = prefs.themeMode === 'dark' ? '#49454F' : '#E7E0EC'
@@ -321,6 +324,7 @@ export function CourseOverlayCard({
           cursor: 'pointer',
           overflow: 'hidden',
           textDecoration: isGrey ? 'line-through' : undefined,
+          border,
         }}
       >
         <div

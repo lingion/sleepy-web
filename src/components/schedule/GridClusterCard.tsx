@@ -13,6 +13,12 @@ import {
   applyLayerRotation,
   memberToLayerRep,
 } from '../../domain/conflictLayout'
+import {
+  parseHex,
+  rgbToHex,
+  conflictBorderColor,
+  pickCourseColorWithGroupRows,
+} from '../../domain/courseColor'
 import { CourseOverlayCard } from './CardsGridView'
 
 export interface GridClusterCardProps {
@@ -73,6 +79,15 @@ export function GridClusterCard(props: GridClusterCardProps) {
   const inset = style === 'rail' ? prefs.conflictRailInset : prefs.conflictStackInset
   const foldSize = prefs.conflictFoldSize
 
+  // 课色(描边/虚线/flap 取色, 含 isGrey 灰显, 与卡渲染取同一色) — ConflictCard.kt:526
+  // courseColorOf 1:1: pickCourseColorWithGroupRows + isGrey→alpha 0.6 (SleepyTheme.Alpha.inactive)
+  const isDark = prefs.themeMode === 'dark'
+  const neutral = isDark ? '#49454F' : '#E7E0EC'
+  const courseColorOf = (course: Course): string => {
+    const bg = pickCourseColorWithGroupRows(course, cluster.courses, isDark, neutral, prefs.courseColorless)
+    return isGrey ? rgbaCss(bg, 0.6) : bg
+  }
+
   return (
     <div style={{ position: 'absolute', left: offsetX, top: offsetY, width: colW, height: clusterH }}>
       {/* 绘制顺序 = 非顶 → 顶 → Mark (ConflictCard.kt drawingOrder) */}
@@ -91,6 +106,7 @@ export function GridClusterCard(props: GridClusterCardProps) {
           allCourses={cluster.courses}
           onCourseClick={onCourseClick}
           onRotate={onRotate}
+          borderColorOf={courseColorOf}
         />
       ))}
       {badge > 0 && (
@@ -122,6 +138,12 @@ export function GridClusterCard(props: GridClusterCardProps) {
   )
 }
 
+/** hex → rgba(css) — isGrey 灰显 (SleepyTheme.Alpha.inactive=0.6, Android bg.copy(alpha)) */
+function rgbaCss(hex: string, alpha: number): string {
+  const rgb = parseHex(hex)
+  return rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})` : hex
+}
+
 function countLayers(laidOut: LaidOutCourse[]): number {
   // zRank 分层 = 图层数 (每层成员共享层身份; 简化: 不同 zRank 数)
   return new Set(laidOut.map((l) => l.zRank)).size
@@ -140,6 +162,7 @@ function ClusterItem({
   allCourses,
   onCourseClick,
   onRotate,
+  borderColorOf,
 }: {
   item: LaidOutCourse
   style: string
@@ -153,12 +176,16 @@ function ClusterItem({
   allCourses: Course[]
   onCourseClick?: (c: Course) => void
   onRotate: () => void
+  borderColorOf: (c: Course) => string
 }) {
   const { course, zRank, hidden, variant, chainFront } = item
   const isTop = zRank === 0
 
   if (hidden) {
     // Mark: 虚线轮廓 + 折角 (FOLD) / 缩进小条 (RAIL) — 不可点透, 点按=轮换
+    // FOLD 虚线色 = conflictBorderColor(courseColorOf) 自派生课色 (ConflictCard.kt:871-880
+    // DashOutline 同构), 禁 --md-on-surface 硬编码 — 虚线与卡渲染取同一课色
+    const dashColor = conflictBorderColor(parseHex(borderColorOf(course)) ?? [0, 0, 0])
     return (
       <div
         onClick={(e) => {
@@ -171,7 +198,7 @@ function ClusterItem({
           borderRadius: 12,
           border:
             variant === 'FOLD'
-              ? '1.5px dashed color-mix(in srgb, var(--md-on-surface) 45%, transparent)'
+              ? `1.5px dashed ${rgbToHex(dashColor)}`
               : 'none',
           background:
             variant === 'RAIL'
@@ -233,6 +260,9 @@ function ClusterItem({
   const idx = slots.findIndex((s) => s.nodeStart === course.startNode)
   const steps = Math.max(1, Math.min(course.step, Math.max(1, slots.length - Math.max(idx, 0))))
   const h = Math.max(20, steps * rowH - gapH)
+  // 真卡 1px 自派生描边 (ConflictCard.kt:1003 .border(CARD_BORDER_DP=1dp,
+  // conflictBorderColor(effectiveBg)) 同构) — 亮压暗/暗提亮,与自身填充/网格底有对比
+  const borderColor = conflictBorderColor(parseHex(borderColorOf(course)) ?? [0, 0, 0])
 
   return (
     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: h, zIndex: 20 + zRank, ...innerStyle }}>
@@ -247,6 +277,7 @@ function ClusterItem({
         y={0}
         w={stackSink ? containerWidth - inset : containerWidth}
         h={h}
+        border={`1px solid ${rgbToHex(borderColor)}`}
       />
     </div>
   )
