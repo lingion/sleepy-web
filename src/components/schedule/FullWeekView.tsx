@@ -5,7 +5,7 @@
  * 行分组下沉引擎 weekLaneRows 时间域 (2026-09-10 同源)。
  */
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Course } from '../../data/types'
 import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
@@ -25,6 +25,19 @@ export function FullWeekView({ courses, timeJson, greyDays = new Set(), onCourse
   const prefs = usePrefsStore((s) => s.prefs)
   const scale = prefs.weekScale
   const cornerRatio = prefs.gridCornerRatio
+  // DetailPanel/DayColumn 实宽测量 (Android BoxWithConstraints 同构) — 冲突行 laneW
+  // 字体压缩必须按真实容器宽算, 默认 360 与实际不符 = 压缩比例失真
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [panelWidth, setPanelWidth] = useState(0)
+  useEffect(() => {
+    const el = panelRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setPanelWidth(e.contentRect.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const today = useMemo(() => {
     const jsDay = new Date().getDay()
     return jsDay === 0 ? 7 : jsDay
@@ -45,7 +58,7 @@ export function FullWeekView({ courses, timeJson, greyDays = new Set(), onCourse
   const sortedDays = hideEmptyDays ? visibleDays.filter((d) => (byDay.get(d) ?? []).length > 0) : visibleDays
 
   return (
-    <div style={{ padding: '6px 16px' }}>
+    <div style={{ padding: '6px 16px' }} ref={panelRef}>
       {/* WeekStrip */}
       <div style={{ display: 'flex', gap: 6 * scale }}>
         {visibleDays
@@ -75,6 +88,7 @@ export function FullWeekView({ courses, timeJson, greyDays = new Set(), onCourse
         onCourseClick={onCourseClick}
         scale={scale}
         cornerRatio={cornerRatio}
+        panelWidth={panelWidth}
       />
     </div>
   )
@@ -190,6 +204,7 @@ function DetailPanel({
   onCourseClick,
   scale,
   cornerRatio,
+  panelWidth,
 }: {
   byDay: Map<number, Course[]>
   sortedDays: number[]
@@ -199,6 +214,8 @@ function DetailPanel({
   onCourseClick?: (c: Course) => void
   scale: number
   cornerRatio: number
+  /** DetailPanel 实测内容宽 (BoxWithConstraints 同构); 0 = 首帧未测, 回落 360 */
+  panelWidth: number
 }) {
   const prefs = usePrefsStore((s) => s.prefs)
   const twoColumn = prefs.weekTwoColumn
@@ -238,6 +255,8 @@ function DetailPanel({
           onCourseClick={onCourseClick}
           scale={scale}
           cornerRatio={cornerRatio}
+          // 两栏: 半宽减 gap+padding (BoxWithConstraints 每侧栏实测同构)
+          containerWidth={panelWidth > 0 ? (panelWidth - 24 * scale - 10 * scale) / 2 : 360}
         />
         {split[1].length > 0 && (
           <DayColumn
@@ -249,6 +268,7 @@ function DetailPanel({
             onCourseClick={onCourseClick}
             scale={scale}
             cornerRatio={cornerRatio}
+            containerWidth={panelWidth > 0 ? (panelWidth - 24 * scale - 10 * scale) / 2 : 360}
           />
         )}
       </div>
@@ -264,7 +284,7 @@ function DetailPanel({
         display: 'flex',
         flexDirection: 'column',
         gap: 10 * scale,
-        margin: 12 * scale,
+        margin: '0 16px',
       }}
     >
       {sortedDays.map((day) => (
@@ -278,6 +298,8 @@ function DetailPanel({
           onCourseClick={onCourseClick}
           scale={scale}
           cornerRatio={cornerRatio}
+          // 单栏: 面板实宽 - 自身 padding*2 (内容区真实可用宽)
+          containerWidth={panelWidth > 0 ? panelWidth - 24 * scale : 360}
         />
       ))}
     </div>
@@ -293,6 +315,7 @@ function DayColumn({
   onCourseClick,
   scale,
   cornerRatio,
+  containerWidth,
 }: {
   days: number[]
   byDay: Map<number, Course[]>
@@ -302,6 +325,8 @@ function DayColumn({
   onCourseClick?: (c: Course) => void
   scale: number
   cornerRatio: number
+  /** 单侧栏内容可用宽 (DetailPanel 按实测传入) */
+  containerWidth: number
 }) {
   return (
     <div
@@ -326,6 +351,8 @@ function DayColumn({
           onCourseClick={onCourseClick}
           scale={scale}
           cornerRatio={cornerRatio}
+          // 侧栏内容宽 - 自身 padding*2
+          containerWidth={containerWidth - 20 * scale}
         />
       ))}
     </div>
