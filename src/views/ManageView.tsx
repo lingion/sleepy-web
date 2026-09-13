@@ -428,7 +428,7 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
         position: 'fixed',
         inset: 0,
         zIndex: 1000,
-        background: 'rgba(0,0,0,0.4)',
+        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

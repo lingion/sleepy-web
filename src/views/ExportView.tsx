@@ -245,7 +245,7 @@ export function ShareScheduleSheetView({
       onClick={onDismiss}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
       <div
@@ -416,7 +416,7 @@ function Picker({
       onClick={onDismiss}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
       <div
