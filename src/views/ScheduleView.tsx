@@ -30,6 +30,7 @@ import { insertTable } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import { inWeek, normalizeNode } from '../data/types'
 import type { Course, Table } from '../data/types'
+import { useWeekSwipe } from '../components/schedule/useWeekSwipe'
 
 /** 周次计算 — startDate (周一) 起 currentWeek = floor(diff/7)+1, clamp 1..maxWeek */
 export function computeCurrentWeek(startDate: string, maxWeek: number): number {
@@ -255,6 +256,17 @@ export function ScheduleView() {
     () => holidayGreyDaysForWeek(defaultTable?.startDate ?? '', currentWeek, holidayData),
     [defaultTable?.startDate, currentWeek, holidayData]
   )
+
+  // 主页左右滑动切换周次 (ScheduleScreen.kt HorizontalPager 同构):
+  // 手势→setWeek; TopBar 箭头/跳周菜单→swipeHandlers 同步 (双向同步语义)
+  const swipeHandlers = useWeekSwipe(
+    (w) => setWeek(w),
+    maxWeek
+  )
+  // currentWeek 变化同步进 hook (scrollToPage 同位)
+  useEffect(() => {
+    swipeHandlers.__setWeek(currentWeek)
+  }, [currentWeek, swipeHandlers])
 
   // v7.10.5 会话级置顶 override — 网格 onPickTop 与详情弹窗 radio 共用真相源 (Android 同构)
   const [topOverrides, setTopOverrides] = useState<Record<string, number>>({})
@@ -531,8 +543,8 @@ export function ScheduleView() {
         </>
       )}
 
-      {/* 主体 */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      {/* 主体 — 左右滑动切换周次 (HorizontalPager 同构, touch 手势→setWeek) */}
+      <div style={{ flex: 1, overflow: 'auto' }} {...swipeHandlers}>
         {tableList === undefined ? null : !hasTable ? (
           // 真的没表: 导入或建表 (ScheduleScreen.kt:570-613 EmptyState)
           <div
@@ -572,7 +584,7 @@ export function ScheduleView() {
                 timeJson={defaultTable.timeJson}
                 startDate={defaultTable.startDate}
                 currentWeek={currentWeek}
-                containerWidth={containerWidth - 16}
+                containerWidth={containerWidth}
                 greyDays={greyDays}
                 topOverrides={topOverrides}
                 onSetTopOverride={setTopOverride}
