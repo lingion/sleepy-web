@@ -584,7 +584,10 @@ export function ScheduleView() {
                 timeJson={defaultTable.timeJson}
                 startDate={defaultTable.startDate}
                 currentWeek={currentWeek}
-                containerWidth={containerWidth}
+                // -32: wrapper '0 8px' 左右 16 + CardsGridView 自身 padding 8px 四边 16 —
+                // colW 按 padding 内真实可用宽算 (Android BoxWithConstraints
+                // 在 padding(8dp) 内测量同构), 不扣则 minWidth > 容器 → 周日列截断
+                containerWidth={containerWidth - 32}
                 greyDays={greyDays}
                 topOverrides={topOverrides}
                 onSetTopOverride={setTopOverride}

@@ -58,9 +58,10 @@ export function FullWeekView({ courses, timeJson, greyDays = new Set(), onCourse
   const sortedDays = hideEmptyDays ? visibleDays.filter((d) => (byDay.get(d) ?? []).length > 0) : visibleDays
 
   return (
-    <div style={{ padding: '6px 16px' }} ref={panelRef}>
-      {/* WeekStrip */}
-      <div style={{ display: 'flex', gap: 6 * scale }}>
+    <div ref={panelRef}>
+      {/* WeekStrip — Android WeekStrip modifier padding(horizontal=16.dp, vertical=6.dp);
+          DetailPanel 无页缘 padding 直达页缘 (FullWeekView Column fillMaxSize 无水平 padding) */}
+      <div style={{ padding: '6px 16px', display: 'flex', gap: 6 * scale }}>
         {visibleDays
           .slice()
           .sort((a, b) => a - b)
@@ -284,7 +285,8 @@ function DetailPanel({
         display: 'flex',
         flexDirection: 'column',
         gap: 10 * scale,
-        margin: '0 16px',
+        // Android DetailPanel 无 margin — 背景直达页缘 (FullWeekView Column
+        // fillMaxSize); 16px 页缘留白 = 根容器 padding 一层, 禁双重 inset
       }}
     >
       {sortedDays.map((day) => (
