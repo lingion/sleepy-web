@@ -74,7 +74,7 @@ afterAll(async () => {
 })
 
 describe('Sleepy Web E2E — 全链路冒烟', () => {
-  it('首访示例课表渲染 → 关提示条 → 课程详情', async () => {
+  it('首访空态 → 建表 → 加课渲染', async () => {
     if (!context) throw new Error('browser 未初始化')
     const page = await context.newPage()
     page.on('pageerror', (err) => {
@@ -83,19 +83,16 @@ describe('Sleepy Web E2E — 全链路冒烟', () => {
 
     await page.goto(BASE, { waitUntil: 'networkidle' })
 
-    // 1. 首访: seed 示例课表 → 表名 + 示例 banner + 课程网格直接渲染
-    await page.getByText('示例课表').first().waitFor({ state: 'visible', timeout: 8000 })
-    await page.getByText('高等数学').first().waitFor({ state: 'visible', timeout: 8000 })
-    await page.getByText('数据结构').first().waitFor({ state: 'visible', timeout: 8000 })
+    // 1. 首访: 空态 (不 seed 示例 — Android 对齐: 没有课表就老实空着)
+    await page.getByText('还没有课表').first().waitFor({ state: 'visible', timeout: 8000 })
 
-    // 2. 示例提示条可见 → 关闭
-    await page.getByText('这是一张示例课表').first().waitFor({ state: 'visible', timeout: 8000 })
-    await page.getByRole('button', { name: '我知道了' }).click()
+    // 2. 空态建表 → EditTableView 打开
+    await page.getByRole('button', { name: '创建第一张课表' }).first().click()
+    await page.getByText('编辑课表').first().waitFor({ state: 'visible', timeout: 8000 })
 
-    // 3. 点课程 → 详情弹层
-    await page.getByText('高等数学').first().click()
-    await page.getByText('课程详情').or(page.getByText('王教授')).waitFor({ state: 'visible', timeout: 8000 })
-    await page.keyboard.press('Escape')
+    // 3. 返回按钮退出编辑页 (返回栈: 按钮 pop 出栈 → 回有表无课态, 新建的空表留在库)
+    await page.locator('button[aria-label="back"]').first().click()
+    await page.getByText('还是空的').first().waitFor({ state: 'visible', timeout: 8000 })
   }, 60000)
 
   it('导入 WakeUp 分享 → 新课表渲染', async () => {

@@ -14,6 +14,7 @@ import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
+import { useBackStack } from '../state/backStack'
 import {
   insertTable,
   deleteTable,
@@ -38,7 +39,7 @@ import {
 
 type IconComponent = ComponentType<{ size?: number; color?: string }>
 
-export function ManageView() {
+export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), [])
   const counts = useLiveQuery(async () => {
@@ -52,28 +53,44 @@ export function ManageView() {
   const [exporting, setExporting] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState<number | null>(null)
+  const back = useBackStack((s) => s.pop)
+  const push = useBackStack((s) => s.push)
 
   const list = tables ?? []
   const defaultTable = list.find((x) => x.isDefault === 1)
   const confirming = confirmingDelete !== null ? list.find((x) => x.id === confirmingDelete) : undefined
 
-  if (importing) return <ImportView onDone={() => setImporting(false)} />
+  // 二级页 push 入栈 (浏览器返回可弹); 返回按钮 pop 出栈。
+  const enter = (key: Parameters<typeof push>[0]) => {
+    push(key)
+  }
+  const leave = () => back()
+
+  if (importing) {
+    enter('addCourse')
+    return <ImportView onDone={() => { leave(); setImporting(false) }} />
+  }
   if (addingCourse) {
+    enter('addCourse')
     return (
       <AddCourseView
-        onBack={() => setAddingCourse(false)}
-        onSaved={() => setAddingCourse(false)}
+        onBack={() => { leave(); setAddingCourse(false) }}
+        onSaved={() => { leave(); setAddingCourse(false) }}
       />
     )
   }
-  if (exporting) return <ExportView onBack={() => setExporting(false)} />
+  if (exporting) {
+    enter('export')
+    return <ExportView onBack={() => { leave(); setExporting(false) }} />
+  }
   if (editingId !== null) {
+    enter('editTable')
     return (
       <EditTableView
         tableId={editingId}
-        onBack={() => setEditingId(null)}
-        onSaved={() => setEditingId(null)}
-        onDeleted={() => setEditingId(null)}
+        onBack={() => { leave(); setEditingId(null) }}
+        onSaved={() => { leave(); setEditingId(null) }}
+        onDeleted={() => { leave(); setEditingId(null) }}
       />
     )
   }
@@ -112,6 +129,7 @@ export function ManageView() {
     <div
       style={{
         padding: 16,
+        paddingBottom: 16 + navExtraBottom,
         display: 'flex',
         flexDirection: 'column',
         gap: 16,

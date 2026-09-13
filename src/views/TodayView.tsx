@@ -53,7 +53,7 @@ function dayName(day: number, lang: string): string {
   return localizedDay(day, lang)
 }
 
-export function TodayView() {
+export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const { t, i18n } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const today = useMemo(() => new Date(), [])
@@ -93,9 +93,11 @@ export function TodayView() {
     [todayCourses, defaultTable?.timeJson]
   )
 
-  // 悬浮胶囊形态 (web navDock=false = App.tsx 悬浮胶囊 overlay) 尾部留 Dock 总高,
-  // 最后一张卡能滚出胶囊条 (TodayScreen.kt:91-99 bottom = 16dp + NavDockSpec 总高)
-  const paddingBottom = prefs.navDock ? 16 : 16 + 76
+  // 悬浮胶囊形态 (web navDock=true = App.tsx 悬浮胶囊 overlay) 尾部留 Dock 总高,
+  // 最后一张卡能滚出胶囊条 (TodayScreen.kt:91-99 bottom = 16dp + NavDockSpec 总高)。
+  // App 测的实测 dockExtra + 12px 安全间隙 传入 (MainActivity dockOverlayPx 同构);
+  // 贴底形态栏已在 App 层占空间, 此处无需加底距。
+  const paddingBottom = prefs.navDock ? 16 + navExtraBottom : 16
 
   // 编辑课程全屏页 (Android onEditCourse → AddCourseScreen)
   if (editingCourse) {

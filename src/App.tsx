@@ -6,9 +6,10 @@
  *   navDock=true  → 悬浮胶囊 Dock (dock=true 分支, MainActivity.kt:424-474)
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from './state/prefsStore'
+import { installBackHandler } from './state/backStack'
 import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/icons'
 import { ScheduleView } from './views/ScheduleView'
 import { TodayView } from './views/TodayView'
@@ -29,6 +30,25 @@ export function App() {
   const { t } = useTranslation()
   const navDock = usePrefsStore((s) => s.prefs.navDock)
   const [tab, setTab] = useState<Tab>('schedule')
+  const [dockExtra, setDockExtra] = useState(76)
+
+  // 返回栈 popstate 接线 (MainActivity BackHandler 同构): 浏览器返回 →
+  // 栈非空出栈回退 Web 页面; 栈空放行浏览器默认。挂载装一次, 卸载拆。
+  useEffect(() => installBackHandler(), [])
+
+  // Dock 滚动余量 (MainActivity dockOverlayPx→dockExtraDp 同构): 理论估算兜底
+  // (首帧前, 64 高 + bottom 12 = 76), dock nav 实测高到位后覆盖 —
+  // 猜值必小于真值, 实测保证最后一项能滚到 Dock 上方完全可见。
+  const dockNavRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!navDock) return
+    const el = dockNavRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setDockExtra(el.offsetHeight + 12))
+    ro.observe(el)
+    setDockExtra(el.offsetHeight + 12)
+    return () => ro.disconnect()
+  }, [navDock])
 
   // Tab 枚举顺序 = MainActivity.kt:173 Schedule/Today/Manage/Mine
   const items: [Tab, string][] = [
@@ -49,16 +69,17 @@ export function App() {
       }}
     >
       <main style={{ flex: 1, overflow: 'auto' }}>
-        {tab === 'schedule' && <ScheduleView />}
-        {tab === 'today' && <TodayView />}
-        {tab === 'manage' && <ManageView />}
-        {tab === 'mine' && <MineView />}
+        {tab === 'schedule' && <ScheduleView navExtraBottom={navDock ? dockExtra : 0} />}
+        {tab === 'today' && <TodayView navExtraBottom={navDock ? dockExtra : 0} />}
+        {tab === 'manage' && <ManageView navExtraBottom={navDock ? dockExtra : 0} />}
+        {tab === 'mine' && <MineView navExtraBottom={navDock ? dockExtra : 0} />}
       </main>
       {navDock ? (
         // 悬浮胶囊 Dock (PillNavigationBar dock=true / DockNavigationBar):
         // iOS 悬浮 tab bar 语义 — 居中玻璃胶囊, 4 座位等宽恒显 icon+label 双行,
         // thumb (secondaryContainer) 包住整个座位, 选中文字 onSecondaryContainer
         <nav
+          ref={dockNavRef}
           style={{
             position: 'absolute',
             left: 0,

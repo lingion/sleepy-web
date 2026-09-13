@@ -21,13 +21,14 @@ import i18next from 'i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
+import { useBackStack, type BackKey } from '../state/backStack'
 import { computeCurrentWeek } from './ScheduleView'
 import { localizedDay } from '../components/schedule/CardsGridView'
 import { THEME_PRESETS } from '../theme/themes'
 import { ExportView } from './ExportView'
 import {IconEdit, IconShare, IconPalette, IconTune, IconInfo, IconAutoAwesome,
   IconCheck, IconCheckCircle, IconContentCopy, IconAdd,
-  IconCalendarMonth, IconSettings,
+  IconCalendarMonth, IconSettings, IconNotifications, IconRefresh,
   IconArrowBack, IconChevronRight, IconExpandLess, IconExpandMore,
 } from '../components/icons'
 import { duplicateTable, setDefault, insertTable } from '../data/repository'
@@ -35,33 +36,55 @@ import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import { EditTableView } from './EditTableView'
 import type { Course, Prefs, Table } from '../data/types'
 
-type Page = 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about'
+type Page = 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder'
 
-export function MineView() {
+export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const [page, setPage] = useState<Page>('main')
+  const back = useBackStack((s) => s.pop)
+  const push = useBackStack((s) => s.push)
+
+  // 二级页导航接线返回栈 (MainActivity pushOverlay/popOverlay 同构):
+  // 进页 push(浏览器返回可出栈), 返回按钮 pop(每层只弹自己 — v7.10.8 修复语义)。
+  const go = (p: Page, key: BackKey) => {
+    push(key)
+    setPage(p)
+  }
+  const backTo = (p: Page) => {
+    back()
+    setPage(p)
+  }
 
   switch (page) {
     case 'general':
-      return <GeneralSettingsPage onBack={() => setPage('main')} onOpenHoliday={() => setPage('holiday')} />
+      return (
+        <GeneralSettingsPage
+          onBack={() => backTo('main')}
+          onOpenHoliday={() => go('holiday', 'holiday')}
+        />
+      )
     case 'holiday':
       // HolidaySettingsScreen 的 back 回通用设置页(GSS 的二级页), 非回主页
-      return <HolidayPage onBack={() => setPage('general')} />
+      return <HolidayPage onBack={() => backTo('general')} />
     case 'appearance':
-      return <AppearancePage onBack={() => setPage('main')} />
+      return <AppearancePage onBack={() => backTo('main')} />
     case 'export':
-      return <ExportView onBack={() => setPage('main')} />
+      return <ExportView onBack={() => backTo('main')} />
     case 'alltables':
-      return <AllTablesPage onBack={() => setPage('main')} />
+      return <AllTablesPage onBack={() => backTo('main')} />
     case 'about':
-      return <AboutPage onBack={() => setPage('main')} />
+      return <AboutPage onBack={() => backTo('main')} />
+    case 'reminder':
+      return <ReminderPage onBack={() => backTo('main')} />
     default:
       return (
         <MineMainPage
-          onOpenGeneral={() => setPage('general')}
-          onOpenAppearance={() => setPage('appearance')}
-          onOpenExport={() => setPage('export')}
-          onOpenAllTables={() => setPage('alltables')}
-          onOpenAbout={() => setPage('about')}
+          navExtraBottom={navExtraBottom}
+          onOpenGeneral={() => go('general', 'general')}
+          onOpenAppearance={() => go('appearance', 'appearance')}
+          onOpenExport={() => go('export', 'export')}
+          onOpenAllTables={() => go('alltables', 'allTables')}
+          onOpenAbout={() => go('about', 'about')}
+          onOpenReminder={() => go('reminder', 'reminder')}
         />
       )
   }
@@ -70,17 +93,21 @@ export function MineView() {
 // ── 主页 — MineScreen.kt ────────────────────────────────────────────────
 
 function MineMainPage({
+  navExtraBottom = 0,
   onOpenGeneral,
   onOpenAppearance,
   onOpenExport,
   onOpenAllTables,
   onOpenAbout,
+  onOpenReminder,
 }: {
+  navExtraBottom?: number
   onOpenGeneral: () => void
   onOpenAppearance: () => void
   onOpenExport: () => void
   onOpenAllTables: () => void
   onOpenAbout: () => void
+  onOpenReminder: () => void
 }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
@@ -98,7 +125,7 @@ function MineMainPage({
   )
 
   return (
-    <div style={{ padding: 16, overflow: 'auto', height: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: 16, paddingBottom: 16 + navExtraBottom, overflow: 'auto', height: '100%', boxSizing: 'border-box' }}>
       <h1 className="m3-headline-medium" style={{ margin: '0 0 4px' }}>{t('tab_mine')}</h1>
       <p className="m3-body-medium" style={{ margin: '0 0 16px', color: 'var(--md-on-surface-variant)' }}>
         {t('mine_subtitle')}
@@ -115,11 +142,14 @@ function MineMainPage({
 
       <div style={{ height: 16 }} />
 
-      {/* 设置入口列表 — SettingsItem 序列 1:1 */}
+      {/* 设置入口列表 — SettingsItem 序列 1:1 (MineScreen.kt:115-125) */}
       <div className="m3-card" style={{ padding: 0 }}>
         <SettingsItem icon={<IconEdit size={20} />} label={t('all_tables')} onClick={onOpenAllTables} />
         <HDiv inset={72} />
         <SettingsItem icon={<IconShare size={20} />} label={t('mine_export')} onClick={onOpenExport} />
+        <HDiv inset={72} />
+        {/* 提醒 — web 无系统通知通道, 入口保留接通 to-do 占位页 */}
+        <SettingsItem icon={<IconNotifications size={20} />} label={t('reminder_title')} onClick={onOpenReminder} />
         <HDiv inset={72} />
         <SettingsItem icon={<IconPalette size={20} />} label={t('mine_appearance')} onClick={onOpenAppearance} />
         <HDiv inset={72} />
@@ -127,8 +157,30 @@ function MineMainPage({
         <HDiv inset={72} />
         <SettingsItem icon={<IconInfo size={20} />} label={t('about_title')} onClick={onOpenAbout} />
       </div>
+
+      {/* 刷新小组件按钮 — MineScreen.kt:131-149 FilledTonalButton 同构。
+          web 无 OS 桌面小组件 → 占位 to-do: 显示状态即可, 后续发布浏览器扩展时实化。 */}
+      <button
+        onClick={() => void refreshWidgets()}
+        className="m3-card"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          padding: '10px 16px', cursor: 'pointer', border: 'none', width: '100%',
+          background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+        }}
+      >
+        <IconRefresh size={20} />
+        <span className="m3-label-large">{t('mine_refresh_widgets', { defaultValue: '刷新小组件' })}</span>
+      </button>
     </div>
   )
+}
+
+/** 刷新小组件 — 占位 (web 无 OS 桌面小组件)。
+ *  实际数据流是 db 写入即同步, 此处空操作足够;
+ *  后续接浏览器扩展 (Chrome/Safari widget) 时实化为对应 provider 的 refresh 等价。 */
+async function refreshWidgets(): Promise<void> {
+  await db.timetables.count()
 }
 
 function StatItem({ value, label }: { value: string; label: string }) {
@@ -695,6 +747,43 @@ function t2(key: string, opts?: Record<string, unknown>): string {
 // (此前 conflation courseColorless = 已知 P3; HolidayRuleEditor 本体属节假日规则域另立文件)
 // 灰显样式: grey=半透明 / strikethrough=删除线 (ScheduleView greyDays 消费方)
 
+// ── 提醒 — ReminderScreen.kt 1:1 (web 无系统通知通道, 仅展示配置占位) ──
+// Android ReminderScreen 581 行 = master/daily/beforeClass/banner/fluid + 时间选择。
+// Web 浏览器原生 Notifications API 可作 web push 化替代, 但需用户授权且会丢后台
+// 唤醒, 故此处保留完整入口与配置展示, 开关置灰, 让用户知晓平台限制。
+
+function ReminderPage({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <SettingsScaffold title={t('reminder_title')} onBack={onBack}>
+      <SectionHeader title={t('reminder_master_title')} />
+      <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="m3-body-large" style={{ fontWeight: 600 }}>{t('reminder_master_title')}</div>
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+          {t('reminder_master_sub')}
+        </div>
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 8 }}>
+          {t('reminder_web_placeholder', { defaultValue: 'Web 版暂不支持系统通知, 后续接浏览器扩展时实化' })}
+        </div>
+      </div>
+      <SectionHeader title={t('reminder_daily_title')} />
+      <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="m3-body-large" style={{ fontWeight: 600 }}>{t('reminder_daily_title')}</div>
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+          {t('reminder_daily_sub')}
+        </div>
+      </div>
+      <SectionHeader title={t('reminder_before_class_title')} />
+      <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="m3-body-large" style={{ fontWeight: 600 }}>{t('reminder_before_class_title')}</div>
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+          {t('reminder_before_class_sub')}
+        </div>
+      </div>
+    </SettingsScaffold>
+  )
+}
+
 function HolidayPage({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
@@ -834,7 +923,7 @@ const DAYS = [1, 2, 3, 4, 5, 6, 7]
 
 function SettingsScaffold({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ height: '100%', overflow: 'auto', boxSizing: 'border-box' }}>
+    <div style={{ height: '100%', overflow: 'auto', boxSizing: 'border-box', paddingBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 8px 6px' }}>
         <button
           onClick={onBack}

@@ -11,12 +11,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  IconChevronLeft, IconChevronRight, IconClose,
+  IconChevronLeft, IconChevronRight,
   IconCalendarMonth, IconAdd, IconIosShare, IconCheck,
 } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
+import { useBackStack } from '../state/backStack'
 import { undoManager, useUndoStore } from '../data/undoStore'
 import { CardsGridView, dateOfWeek } from '../components/schedule/CardsGridView'
 import { FullWeekView } from '../components/schedule/FullWeekView'
@@ -186,7 +187,7 @@ function useHolidayYearData(years: number[]): Map<number, HolidayYearData> {
   return data
 }
 
-export function ScheduleView() {
+export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const updatePrefs = usePrefsStore((s) => s.update)
@@ -203,19 +204,19 @@ export function ScheduleView() {
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [jumpOpen, setJumpOpen] = useState(false)
-  const [sampleBannerOff, setSampleBannerOff] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const back = useBackStack((s) => s.pop)
+  const push = useBackStack((s) => s.push)
+
+  // 二级页 push 入栈 (浏览器返回可弹), 返回按钮 pop 出栈。
+  const enter = (key: Parameters<typeof push>[0]) => push(key)
+  const leave = () => back()
 
   // 撤回深度 — 响应式订阅 ( getState() 不触发重渲染, 仅作渲染条件用)
   const undoDepth = useUndoStore((s) => s.undoStack.length)
 
   const tableList = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) as Table[] | undefined
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
-  // 示例课表提示: seed 时记 sampleTableId; 用户关掉提示条 (sampleBannerDismissed) 后不再显示
-  const sampleMeta = useLiveQuery(async () => ({
-    id: (await db.prefs.get('sampleTableId'))?.value,
-    dismissed: (await db.prefs.get('sampleBannerDismissed'))?.value,
-  }))
   const allCourses = useLiveQuery(
     async () =>
       defaultTable ? await db.courses.where('tableId').equals(defaultTable.id).toArray() : ([] as Course[]),
@@ -304,27 +305,30 @@ export function ScheduleView() {
   const display = viewMode ?? prefs.startView
 
   if (importing) {
-    return <ImportView onDone={() => setImporting(false)} />
+    enter('addCourse')
+    return <ImportView onDone={() => { leave(); setImporting(false) }} />
   }
 
   if (adding || editingCourse) {
+    enter('addCourse')
     return (
       <AddCourseView
         editingCourse={editingCourse}
-        onBack={() => { setAdding(false); setEditingCourse(null) }}
-        onSaved={() => { setAdding(false); setEditingCourse(null) }}
+        onBack={() => { leave(); setAdding(false); setEditingCourse(null) }}
+        onSaved={() => { leave(); setAdding(false); setEditingCourse(null) }}
       />
     )
   }
 
   // 建表流 (EmptyState 副按钮) — 插表后进 EditTableView (Android onCreateTable 同语义)
   if (editingTableId !== null) {
+    enter('editTable')
     return (
       <EditTableView
         tableId={editingTableId}
-        onBack={() => setEditingTableId(null)}
-        onSaved={() => setEditingTableId(null)}
-        onDeleted={() => setEditingTableId(null)}
+        onBack={() => { leave(); setEditingTableId(null) }}
+        onSaved={() => { leave(); setEditingTableId(null) }}
+        onDeleted={() => { leave(); setEditingTableId(null) }}
       />
     )
   }
@@ -365,7 +369,7 @@ export function ScheduleView() {
             <div style={{ position: 'absolute', left: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <NavCircleBtn
                 title={t('schedule_switch_table', { defaultValue: '切换课表' })}
-                onClick={() => setShowSwitcher(true)}
+                onClick={() => { enter('editTable'); setShowSwitcher(true) }}
               >
                 <IconCalendarMonth size={18} />
               </NavCircleBtn>
@@ -391,7 +395,7 @@ export function ScheduleView() {
               {/* 周次胶囊 — 在当前实际周点击弹跳周菜单, 否则一键跳回 (ScheduleScreen.kt:470-517) */}
               <div style={{ position: 'relative' }}>
                 <span
-                  onClick={() => (isOnActual ? setJumpOpen(true) : setWeek(null))}
+                  onClick={() => (isOnActual ? (enter('editTable'), setJumpOpen(true)) : setWeek(null))}
                   className="m3-label-large"
                   role="button"
                   aria-label={weekLabel}
@@ -413,7 +417,7 @@ export function ScheduleView() {
                 {jumpOpen && (
                   <>
                     <div
-                      onClick={() => setJumpOpen(false)}
+                      onClick={() => { leave(); setJumpOpen(false) }}
                       style={{ position: 'fixed', inset: 0, zIndex: 990 }}
                     />
                     <div
@@ -444,6 +448,7 @@ export function ScheduleView() {
                               key={w}
                               onClick={() => {
                                 setWeek(w)
+                                leave()
                                 setJumpOpen(false)
                               }}
                               className="m3-label-large"
@@ -490,7 +495,7 @@ export function ScheduleView() {
               </NavCircleBtn>
               <NavCircleBtn
                 title={t('schedule_share_table', { defaultValue: '分享课表' })}
-                onClick={() => setShowShare(true)}
+                onClick={() => { enter('editTable'); setShowShare(true) }}
               >
                 <IconIosShare size={18} />
               </NavCircleBtn>
@@ -509,31 +514,6 @@ export function ScheduleView() {
             />
           </div>
 
-          {/* 示例课表提示条 — 首访教学, 关闭即永久 (Android 无此概念, web 特有) */}
-          {defaultTable && !sampleBannerOff && sampleMeta?.id === String(defaultTable.id) && !sampleMeta.dismissed && (
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, margin: '0 16px 4px',
-                padding: '10px 14px', borderRadius: 14,
-                background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
-              }}
-            >
-              <span className="m3-body-small" style={{ flex: 1 }}>{t('sample_table_banner')}</span>
-              <button
-                onClick={() => {
-                  setSampleBannerOff(true)
-                  void db.prefs.put({ key: 'sampleBannerDismissed', value: '1' })
-                }}
-                aria-label={t('sample_table_dismiss')}
-                style={{
-                  border: 'none', cursor: 'pointer', flexShrink: 0, padding: 4,
-                  background: 'transparent', color: 'inherit', display: 'flex',
-                }}
-              >
-                <IconClose size={18} />
-              </button>
-            </div>
-          )}
         </>
       )}
 
@@ -579,7 +559,7 @@ export function ScheduleView() {
               courses={weekCourses}
               timeJson={defaultTable.timeJson}
               greyDays={greyDays}
-              onCourseClick={(c) => setDetailCourse(c)}
+              onCourseClick={(c) => { enter('editTable'); setDetailCourse(c) }}
             />
           ) : (
             <div style={{ padding: '0 8px 8px' }}>
@@ -604,12 +584,15 @@ export function ScheduleView() {
                     return next
                   })
                 }
-                onCourseClick={(c) => setDetailCourse(c)}
+                onCourseClick={(c) => { enter('editTable'); setDetailCourse(c) }}
               />
             </div>
           )
         ) : null}
         </div>
+        {/* Dock 悬浮底栏: 滚动尾部多留 Dock 总高 (CourseTableView.kt:376/655 同构),
+            最后一张课程卡能滚到 Dock 上方完全可见 */}
+        {navExtraBottom > 0 && <div style={{ height: navExtraBottom, flexShrink: 0 }} />}
       </div>
 
       {/* 课表切换弹窗 (TableSwitcherDialog.kt 1:1) */}
@@ -622,12 +605,13 @@ export function ScheduleView() {
               const { setDefault } = await import('../data/repository')
               await setDefault(id)
             })()
+            leave()
             setShowSwitcher(false)
             setWeek(null)
             setTopOverrides({})
             setRotationSteps({})
           }}
-          onDismiss={() => setShowSwitcher(false)}
+          onDismiss={() => { leave(); setShowSwitcher(false) }}
         />
       )}
 
@@ -636,7 +620,7 @@ export function ScheduleView() {
         <ShareScheduleSheetView
           table={defaultTable}
           courses={allCourses ?? []}
-          onDismiss={() => setShowShare(false)}
+          onDismiss={() => { leave(); setShowShare(false) }}
         />
       )}
 
@@ -646,9 +630,9 @@ export function ScheduleView() {
           course={detailCourse}
           allCourses={weekCourses}
           timeJson={defaultTable.timeJson}
-          onDismiss={() => setDetailCourse(null)}
+          onDismiss={() => { leave(); setDetailCourse(null) }}
           onEdit={(c) => {
-            setDetailCourse(null)
+            leave(); setDetailCourse(null)
             setEditingCourse(c)
           }}
           onDefaultTopChanged={handleDefaultTopChanged}
