@@ -28,7 +28,7 @@ import { ExportView } from './ExportView'
 import {IconEdit, IconShare, IconPalette, IconTune, IconInfo, IconAutoAwesome,
   IconCheck, IconCheckCircle, IconContentCopy, IconAdd,
   IconCalendarMonth, IconSettings,
-  IconArrowBack, IconChevronRight,
+  IconArrowBack, IconChevronRight, IconExpandLess, IconExpandMore,
 } from '../components/icons'
 import { duplicateTable, setDefault, insertTable } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
@@ -890,9 +890,10 @@ function FoldCard({ title, expanded, onToggle, children }: { title: string; expa
             color: 'var(--md-on-surface-variant)',
             transform: expanded ? 'rotate(180deg)' : 'none',
             transition: 'transform 180ms',
+            display: 'inline-flex',
           }}
         >
-          ⌄
+          {expanded ? <IconExpandLess size={18} /> : <IconExpandMore size={18} />}
         </span>
       </div>
       {expanded && (

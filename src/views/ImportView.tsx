@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { IconExpandLess, IconExpandMore } from '../components/icons'
 import { db } from '../data/db'
 import {
   getTable,
@@ -389,7 +390,10 @@ export function ImportView({ onDone }: { onDone: () => void }) {
           style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 600 }}
         >
           <span style={{ flex: 1 }} className="m3-body-large">{t('import_paste')}</span>
-          <span style={{ fontSize: 18 }}>{textExpanded ? '⌃' : '⌄'}</span>
+          {/* Icons.Outlined.ExpandLess/ExpandMore 同构 (ImportSheet.kt:235 trailing) — 禁文本符号 */}
+          <span style={{ fontSize: 18, color: 'var(--md-on-surface-variant)', display: 'inline-flex' }}>
+            {textExpanded ? <IconExpandLess size={18} /> : <IconExpandMore size={18} />}
+          </span>
         </div>
         {textExpanded && (
           <>
@@ -471,12 +475,6 @@ export function ImportView({ onDone }: { onDone: () => void }) {
           style={{ padding: 12, background: 'var(--md-error-container)', color: 'var(--md-on-error-container)' }}
         >
           {errorMsg}
-          <button
-            onClick={() => setErrorMsg(null)}
-            style={{ marginLeft: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit' }}
-          >
-            ✕
-          </button>
         </div>
       )}
       {notice && !preview && (
@@ -844,7 +842,7 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 16,
       }}
       onClick={onDismiss}
