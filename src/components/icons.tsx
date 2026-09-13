@@ -19,7 +19,7 @@ interface IconProps {
 export function SleepyLogo({ size = 40, style }: { size?: number; style?: CSSProperties }) {
   return (
     <img
-      src="/assets/sleepy-logo.png"
+      src={`${typeof document !== 'undefined' && document.baseURI.includes('/sleepy-web/') ? '/sleepy-web/' : '/'}assets/sleepy-logo.png`}
       width={size}
       height={size}
       alt="Sleepy"
