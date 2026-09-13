@@ -169,4 +169,54 @@ describe('Sleepy Web E2E — 全链路冒烟', () => {
       await page.close()
     }
   }, 60000)
+
+  it('主页跟手翻页动画 (HorizontalPager 页面实时平移同构, CDP 真触摸)', async () => {
+    if (!context) throw new Error('browser 未初始化')
+    const page = await context.newPage()
+    page.on('pageerror', (err) => {
+      throw new Error(`页面 JS 错误: ${err.message}`)
+    })
+    try {
+      await page.goto(BASE, { waitUntil: 'networkidle' })
+      await page.getByText('高等数学').first().waitFor({ state: 'visible', timeout: 8000 })
+
+      const cdp = await context.newCDPSession(page)
+      const cy = 400
+      const readTransform = () =>
+        page.evaluate(
+          () => (document.querySelector('div[style*="translateX"]') as HTMLElement | null)?.style.transform ?? null
+        )
+
+      // 跟手: touchMove 中途 transform 必须实时反映位移 (页面平移层)
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 350, y: cy }] })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 280, y: cy }] })
+      await page.waitForTimeout(150)
+      const mid = await readTransform()
+      if (mid !== 'translateX(-70px)') throw new Error(`跟手位移未生效: ${mid}`)
+
+      // 松手翻页: 阈值内位移 → 周次变化
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 200, y: cy }] })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: 150, y: cy + 2 }] })
+      await page.waitForTimeout(600)
+      const after = await page.evaluate(() =>
+        document.querySelector('span[role="button"][aria-label*="周"]')?.textContent
+      )
+      if (!after || !after.includes('2')) throw new Error(`翻页未生效: ${after}`)
+
+      // 回弹: 轻扫不足阈值 → 回原页 (周次不变)
+      const beforeBounce = await page.evaluate(() =>
+        document.querySelector('span[role="button"][aria-label*="周"]')?.textContent
+      )
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y: cy }] })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 270, y: cy }] })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: 265, y: cy + 2 }] })
+      await page.waitForTimeout(600)
+      const afterBounce = await page.evaluate(() =>
+        document.querySelector('span[role="button"][aria-label*="周"]')?.textContent
+      )
+      if (beforeBounce !== afterBounce) throw new Error(`回弹失败: ${beforeBounce} → ${afterBounce}`)
+    } finally {
+      await page.close()
+    }
+  }, 60000)
 })
