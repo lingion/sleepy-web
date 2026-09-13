@@ -16,6 +16,7 @@ import {
   pruneConflictDefaultTop,
 } from './conflictLayout'
 import type { Course } from '../data/types'
+import { normalizeNode } from '../data/types'
 
 let nextId = 1
 function mkCourse(partial: Partial<Course>): Course {
@@ -465,5 +466,115 @@ describe('簇键 / 图层序 / 轮换 / 偏好清理', () => {
   it('pruneConflictDefaultTop: 空输入 = 空', () => {
     expect(pruneConflictDefaultTop({}, [mkCourse({})])).toEqual({})
     expect(pruneConflictDefaultTop({ '1:1:2': 1 }, [])).toEqual({})
+  })
+})
+
+describe('chainGroups — issue#23 边缘槽位负节点 (死循环边界, 审计 finding 8)', () => {
+  it('同日两门 startNode=-2 重叠课: 两层, 不死循环', () => {
+    // issue#23 Before 组边缘槽位节点可 ≤ 0; 旧哨兵 currentEnd=-1 下首轮无人入选
+    // → layer 空 → remaining 不减 → while 死循环 (两端同源缺陷)
+    const a = mkCourse({ day: 1, startNode: -2, step: 2 })
+    const b = mkCourse({ day: 1, startNode: -2, step: 2 })
+    const layers = chainGroups([a, b])
+    expect(layers).toHaveLength(2)
+    expect(layers.every((l) => l.length === 1)).toBe(true)
+  })
+
+  it('daysExceedingTwoLanes: 同日负节点双课重叠 → 2 栏合法不挂起 (导入闸门路径)', () => {
+    // ImportView 导入校验对 issue#23 负节点课无防护, 旧实现直接挂死浏览器
+    const a = mkCourse({ day: 2, startNode: -2, step: 2 })
+    const b = mkCourse({ day: 2, startNode: -2, step: 2 })
+    expect(daysExceedingTwoLanes([a, b])).toEqual(new Set())
+  })
+})
+
+describe('realIntervalOf / 时间域聚簇 — ISO_LOCAL_TIME 秒级对齐 (审计 finding 6)', () => {
+  // JVM 实测 java.time.LocalTime.parse (ISO_LOCAL_TIME) 接受域:
+  //   - 拒绝 "8:20" 单位数小时 / 拒绝 "08:20 " 带空格 / 拒绝 "08:5" 单位数分钟
+  //   - 接受 "HH:mm" / "HH:mm:ss" / "HH:mm:ss.fff" (截断小数秒到整数秒)
+  //   - realIntervalOf 内应独立兜底秒级解析, 不污染 parseHM (跨分区保持 HH:mm 现状)
+
+  it('ownTime 起止带秒: 与节次课的分钟级时间聚簇正确合并 (节点域同节不同秒场景)', () => {
+    const timeJson = JSON.stringify([
+      { node: 1, start: '08:00', end: '08:45' },
+      { node: 2, start: '08:55', end: '09:40' },
+    ])
+    // ownTime 课 08:00:30-08:46:30 → 与节 1 (08:00-08:45) 真实分钟重叠 30 分钟
+    const a = mkCourse({
+      ownTime: true,
+      isIrregularTime: true,
+      day: 1,
+      startNode: 1,
+      step: 1,
+      startTime: '08:00:30',
+      endTime: '08:46:30',
+    })
+    const b = mkCourse({ day: 1, startNode: 1, step: 1 })
+    // 节点域: 同节点 1 必成簇; 时间域: 0..46 分钟与 0..45 分钟重叠 45 分钟必成簇
+    expect(findClusters([a, b], timeJson)).toHaveLength(1)
+  })
+
+  it('ownTime 起止带秒但真实时间零交集: 不成簇 (秒级解析不可漏报)', () => {
+    const timeJson = JSON.stringify([
+      { node: 1, start: '08:00', end: '08:45' },
+    ])
+    // 常规课先建 (id 先序, 与 Android sortedWith({startNode},{step},{id}) 平局一致):
+    // 线性扫按 startNode 排序, id 平局打破先建者先扫 — 与真机入表顺序同构
+    const b = mkCourse({ day: 1, startNode: 1, step: 1 })
+    // ownTime 课 09:00:30-09:30:00 后建 → 扫到时 currentEnd=08:45, 09:00 无交集
+    const a = mkCourse({
+      ownTime: true,
+      isIrregularTime: true,
+      day: 1,
+      startNode: 1,
+      step: 1,
+      startTime: '09:00:30',
+      endTime: '09:30:00',
+    })
+    // step 均显式 1 — mkCourse 默认 step=2 会跨到节 2 (first/last 反查 null 行为分叉)
+    expect(findClusters([a, b], timeJson)).toHaveLength(0)
+  })
+
+  it('ownTime 非法秒级时间: 回落节点域 (与 ISO 域不对齐时, 走退路)', () => {
+    const timeJson = JSON.stringify([
+      { node: 1, start: '08:00', end: '08:45' },
+    ])
+    // "T08:00:00" 带 T 前缀, LocalTime.parse 拒绝; ownTime 时间解析退路
+    const a = mkCourse({
+      ownTime: true,
+      isIrregularTime: true,
+      day: 1,
+      startNode: 1,
+      step: 1,
+      startTime: 'T08:00:00',
+      endTime: 'T08:30:00',
+    })
+    const b = mkCourse({ day: 1, startNode: 1, step: 1 })
+    // 时间不可解析 → 混合域不成簇 (冲突布局引擎混合域行为)
+    expect(findClusters([a, b], timeJson)).toHaveLength(0)
+  })
+})
+
+describe('normalizeForLayout → normalizeNode 单一真源 (审计 finding 7)', () => {
+  it('weekLaneRows 时间域: 与 normalizeNode 输出一致 (双实现漂移护栏)', () => {
+    const timeJson = JSON.stringify([
+      { node: 1, start: '08:00', end: '08:45' },
+      { node: 2, start: '08:55', end: '09:40' },
+    ])
+    const a = mkCourse({
+      ownTime: true,
+      isIrregularTime: true,
+      day: 1,
+      startNode: 1,
+      step: 1,
+      startTime: '08:00',
+      endTime: '08:30',
+    })
+    // normalizeNode (types.ts 真源) vs weekLaneRows 内置归一化 输出一致
+    const aViaTypes = normalizeNode(a, timeJson)
+    const rows = weekLaneRows([a], timeJson)
+    // rows[0].courses[0].startNode 应等于 aViaTypes.startNode (即 timeToNode 反算结果)
+    expect(rows[0].courses[0].startNode).toBe(aViaTypes.startNode)
+    expect(rows[0].courses[0].step).toBe(aViaTypes.step)
   })
 })

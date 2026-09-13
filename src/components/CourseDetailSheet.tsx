@@ -10,7 +10,6 @@ import { usePrefsStore } from '../state/prefsStore'
 import { findClusters, chainGroups, conflictClusterKeyOf } from '../domain/conflictLayout'
 import { normalizeNode } from '../data/types'
 import type { Course } from '../data/types'
-import { localizedDay } from './schedule/CardsGridView'
 
 export function shortNodeString(c: Course): string {
   if (c.ownTime && c.startTime.trim() !== '' && c.endTime.trim() !== '') {
@@ -28,6 +27,7 @@ export function CourseDetailSheet({
   timeJson,
   onDismiss,
   onEdit,
+  onDefaultTopChanged,
 }: {
   course: Course
   timeString?: string
@@ -35,6 +35,8 @@ export function CourseDetailSheet({
   timeJson?: string | null
   onDismiss: () => void
   onEdit?: (c: Course) => void
+  /** v7.10.5 同 Android: 回调优先 — 同帧驱动网格换层(会话级 override); 无回调宿主退回纯持久化路径 */
+  onDefaultTopChanged?: (clusterKey: string, layerRepId: number | null) => void
 }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
@@ -58,24 +60,33 @@ export function CourseDetailSheet({
   const savedRepId = prefs.conflictDefaultTop[clusterKey]
 
   async function setDefaultTop(repId: number | null) {
+    // v7.10.5: 回调优先 — 同帧驱动网格换层(会话级 override);
+    // 无回调宿主时退回纯持久化路径 (与 Android CourseDetailSheet.kt 同构)
+    if (onDefaultTopChanged) {
+      onDefaultTopChanged(clusterKey, repId)
+      return
+    }
     const next = { ...prefs.conflictDefaultTop }
     if (repId === null) delete next[clusterKey]
     else next[clusterKey] = repId
     await update({ conflictDefaultTop: next })
   }
 
+  // i18next 未 init 时 t() 返 undefined — 全部 key 带中文 defaultValue 兜底 (zh-CN 基准)
   return (
     <div
       onClick={onDismiss}
       style={{
         position: 'fixed', inset: 0, zIndex: 1100,
-        background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        // M3 ModalBottomSheet scrim = theme scrim 色 + alpha 0.32 (Compose 默认值)
+        background: 'color-mix(in srgb, var(--md-scrim) 32%, transparent)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={t('course_detail_title')}
+        aria-label={t('course_detail_title', '课程详情')}
         onClick={(e) => e.stopPropagation()}
         className="m3-card"
         style={{
@@ -90,7 +101,18 @@ export function CourseDetailSheet({
             borderRadius: '28px 28px 0 0',
           }}
         >
-          <div className="m3-title-large">{course.courseName || t('course_detail_title')}</div>
+          {/* maxLines=3 + Ellipsis 同 Android SheetHeader */}
+          <div
+            className="m3-title-large"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {course.courseName || t('course_detail_title', '课程详情')}
+          </div>
         </div>
 
         <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -99,27 +121,28 @@ export function CourseDetailSheet({
               className="m3-label-medium"
               style={{
                 alignSelf: 'flex-start', background: 'var(--md-secondary-container)',
-                color: 'var(--md-on-secondary-container)', padding: '6px 12px', borderRadius: 10,
+                // SleepyTheme.shapes.medium = RoundedCornerShape(12.dp)
+                color: 'var(--md-on-secondary-container)', padding: '6px 12px', borderRadius: 12,
               }}
             >
               {timeString}
             </span>
           )}
 
-          <DetailRow label={t('course_field_name')} value={course.courseName || '—'} />
-          {course.teacher.trim() !== '' && <DetailRow label={t('course_field_teacher')} value={course.teacher} />}
-          {course.room.trim() !== '' && <DetailRow label={t('course_field_room')} value={course.room} />}
+          <DetailRow label={t('course_field_name', '课程')} value={course.courseName || '—'} />
+          {course.teacher.trim() !== '' && <DetailRow label={t('course_field_teacher', '老师')} value={course.teacher} />}
+          {course.room.trim() !== '' && <DetailRow label={t('course_field_room', '地点')} value={course.room} />}
           <DetailRow
-            label={t('course_field_week')}
-            value={t('course_week_range', { v1: shortNodeString(course), v2: course.startWeek, v3: course.endWeek })}
+            label={t('course_field_week', '时间')}
+            value={t('course_week_range', { v1: shortNodeString(course), v2: course.startWeek, v3: course.endWeek, defaultValue: `${shortNodeString(course)} (${course.startWeek}-${course.endWeek}周)` })}
           />
-          {course.note.trim() !== '' && <DetailRow label={t('course_field_note')} value={course.note} />}
+          {course.note.trim() !== '' && <DetailRow label={t('course_field_note', '备注')} value={course.note} />}
 
           {/* 默认置顶选择区 — 仅 ≥2 图层冲突簇显示 (v7.10.16p) */}
           {clusterInfo && layers.length >= 2 && (
-            <div role="radiogroup" aria-label={t('conflict_default_top_title')} style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
+            <div role="radiogroup" aria-label={t('conflict_default_top_title', '选择默认置顶课程')} style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
               <div className="m3-title-small" style={{ fontWeight: 600, padding: '4px 0' }}>
-                {t('conflict_default_top_title')}
+                {t('conflict_default_top_title', '选择默认置顶课程')}
               </div>
               {layers.map((layer) => {
                 const layerRepId = layer[0].id
@@ -128,13 +151,17 @@ export function CourseDetailSheet({
                 return (
                   <label
                     key={layerRepId}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer' }}
+                    // spacedBy(4dp) 同 Android Row
+                    style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0', cursor: 'pointer' }}
                   >
                     <input
                       type="radio"
                       name={`conflict-top-${clusterKey}`}
+                      aria-label={label}
                       checked={selected}
                       onChange={() => void setDefaultTop(selected ? null : layerRepId)}
+                      // M3 RadioButton: selected=primary / unselected=onSurfaceVariant (accent-color 只控选中态)
+                      style={{ accentColor: 'var(--md-primary)', width: 18, height: 18, cursor: 'pointer', flexShrink: 0 }}
                     />
                     <span className="m3-body-medium" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {label}
@@ -149,12 +176,13 @@ export function CourseDetailSheet({
             <button
               onClick={() => onEdit(course)}
               style={{
-                padding: 12, borderRadius: 14, border: 'none', cursor: 'pointer',
+                // SleepyTheme.shapes.large = RoundedCornerShape(16.dp); 14px 纵向 padding 贴 M3 Button 40dp 高
+                padding: '14px 12px', borderRadius: 16, border: 'none', cursor: 'pointer',
                 background: 'var(--md-primary)', color: 'var(--md-on-primary)',
                 fontSize: 14, fontWeight: 600,
               }}
             >
-              {t('course_detail_edit_course')}
+              {t('course_detail_edit_course', '编辑这节课')}
             </button>
           )}
         </div>
@@ -173,6 +201,3 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
-
-/** localizedDay re-export 帮助本文件内使用一致性 (i18n.language 由调用方组装) */
-export { localizedDay }

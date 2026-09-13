@@ -99,6 +99,18 @@ describe('parseNodes', () => {
     expect(parseNodes('not json')).toEqual([])
     expect(parseNodes('{}')).toEqual([])
   })
+
+  it('任一行时间非法 → 整表空数组 (Android LocalTime.parse 抛异常语义)', () => {
+    // 单数字小时 "8:00" 在 Android LocalTime.parse 下抛异常 → 整表 emptyList
+    expect(parseNodes('[{"node":1,"start":"08:00","end":"08:45"},{"node":2,"start":"9:00","end":"09:45"}]')).toEqual([])
+    expect(parseNodes('[{"node":1,"start":"bad","end":"08:45"}]')).toEqual([])
+    expect(parseNodes('[{"node":1,"start":"08:00","end":"25:00"}]')).toEqual([])
+  })
+
+  it('全部行时间合法 → 正常返回', () => {
+    const nodes = parseNodes('[{"node":1,"start":"08:00","end":"08:45"}]')
+    expect(nodes).toEqual([{ node: 1, start: '08:00', end: '08:45' }])
+  })
 })
 
 describe('timeSlotsFor', () => {
@@ -108,6 +120,20 @@ describe('timeSlotsFor', () => {
     expect(slots[0].label).toBe('1')
     expect(slots[0].displayStart).toBe('08:00')
     expect(slots[4].label).toBe('5')
+  })
+
+  it('脏数据(单数字小时) → parseNodes 已整表拒绝, 返回空 (Android 同链路语义)', () => {
+    // Android: parseNodes LocalTime.parse 抛异常 → emptyList → timeSlotsFor emptyList
+    expect(timeSlotsFor('[{"node":1,"start":"8:00","end":"9:40"}]')).toEqual([])
+  })
+
+  it('displayStart/displayEnd 经 formatTime 零填充 (Android formatTime %02d 同构)', () => {
+    // parseNodes 只放行严格 HH:mm, displayStart 恒等归一值
+    const slots = timeSlotsFor('[{"node":1,"start":"08:00","end":"09:40"}]')
+    expect(slots[0].displayStart).toBe('08:00')
+    expect(slots[0].displayEnd).toBe('09:40')
+    expect(slots[0].start).toBe('08:00')
+    expect(slots[0].end).toBe('09:40')
   })
 })
 
@@ -446,6 +472,10 @@ describe('边缘节次 (issue#23)', () => {
 
   it('effectiveCourseTime: isIrregularTime 直接生效', () => {
     expect(effectiveCourseTime(true, ' 18:30 ', '20:55 ', 1, 1, DEFAULT_TIME_JSON)).toEqual(['18:30', '20:55'])
+  })
+
+  it('effectiveCourseTime: isIrregularTime 时间归一零填充 (Android LocalTime.toString 语义)', () => {
+    expect(effectiveCourseTime(true, ' 8:30 ', '9:05 ', 1, 1, DEFAULT_TIME_JSON)).toEqual(['08:30', '09:05'])
   })
 
   it('effectiveCourseTime: 标准节次查表', () => {

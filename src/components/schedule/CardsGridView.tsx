@@ -79,7 +79,9 @@ export function CardsGridView(props: CardsGridViewProps) {
     <div
       style={{
         background: 'var(--md-surface-container-high)',
-        borderRadius: 28 * prefs.gridScale,
+        // Android: SleepyTheme.shapes.large = 固定 16dp (Theme.kt:286), 不乘 scale;
+        // 旧值 28 * gridScale 是错的 (审计 medium #17)
+        borderRadius: 16,
         padding: 8 * prefs.gridScale,
         overflowX: 'auto',
       }}

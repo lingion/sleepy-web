@@ -649,5 +649,6 @@
 "conflict_default_top_title": "デフォルトで前面に表示する授業を選択",
 "sample_table_name": "サンプル時間割",
 "sample_table_banner": "これは Sleepy の表示を確認するためのサンプル時間割です。編集・削除、または自分の時間割のインポートができます。",
-"sample_table_dismiss": "OK"
+"sample_table_dismiss": "OK",
+"manage_empty_hint": "時間割がまだありません。下のボタンから作成・インポートしてください"
 }

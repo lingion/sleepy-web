@@ -649,5 +649,6 @@
 "conflict_default_top_title": "選擇預設置頂課程",
 "sample_table_name": "範例課表",
 "sample_table_banner": "這是一張範例課表, 供你瞭解 Sleepy 的顯示效果。可編輯、刪除, 或直接匯入你自己的課表。",
-"sample_table_dismiss": "我知道了"
+"sample_table_dismiss": "我知道了",
+"manage_empty_hint": "還沒有課表，點擊下方按鈕建立或匯入"
 }

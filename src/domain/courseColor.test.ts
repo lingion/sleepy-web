@@ -12,6 +12,8 @@ import {
   pickCourseColorWithGroupRows,
   groupSourceColorHex,
   goldenAngleForRow,
+  conflictBorderColor,
+  foldFlapColor,
   SENTINEL_COLOR,
 } from './courseColor'
 import type { Course } from '../data/types'
@@ -73,7 +75,7 @@ describe('javaStringHashCode — 与 JVM String.hashCode 一致', () => {
   })
 })
 
-describe('stableHue — 黄金角色相', () => {
+describe('stableHue — 黄金角色相 (Kotlin Float 语义)', () => {
   it('返回值在 [0, 360)', () => {
     for (const g of ['g1', 'math-2024', '物理', 'x', '']) {
       const h = stableHue(g)
@@ -86,11 +88,34 @@ describe('stableHue — 黄金角色相', () => {
     expect(stableHue('grp-7')).toBe(stableHue('grp-7'))
   })
 
-  it('与 Android 公式一致: ((hash * 137.508) mod 360 + 360) mod 360', () => {
-    const gid = 'test-group'
-    const hash = javaStringHashCode(gid)
-    const expected = (((hash * 137.508) % 360) + 360) % 360
-    expect(stableHue(gid)).toBeCloseTo(expected, 10)
+  it('与 JVM Float 运算位级一致 (CourseColorUtil.kt:53-54)', () => {
+    // 基准值 = JVM (java 17) 实跑 ((hashCode().toLong() * 137.508f) % 360f + 360f) % 360f,
+    // 逐级 float32 舍入; web 端 Math.fround 复刻, 位级 (float32) 相等。
+    const anchors: Record<string, number> = {
+      g1: 120.90625,
+      'math-2024': 112,
+      物理: 88,
+      x: 300.958984375,
+      '': 0,
+      'test-group': 344,
+      'grp-7': 0,
+      phy: 185,
+      zzz: 264,
+      same: 136,
+      高等数学: 256,
+      大学英语: 24,
+      数据结构与算法分析: 216,
+    }
+    for (const [gid, expected] of Object.entries(anchors)) {
+      expect(stableHue(gid)).toBe(Math.fround(expected))
+    }
+  })
+
+  it('与 JS double 语义有差 (Float32 舍入是刻意行为)', () => {
+    // 高等数学: double=192.64 vs Float=256 — 证明 fround 链生效, 不是侥幸相同
+    const hash = javaStringHashCode('高等数学')
+    const doubleValue = (((hash * 137.508) % 360) + 360) % 360
+    expect(doubleValue).not.toBeCloseTo(stableHue('高等数学'), 0)
   })
 })
 
@@ -154,8 +179,9 @@ describe('hslToRgb / rgbToHex / parseHex / rgbToHsl 往返', () => {
     expect(parseHex('#123456')).toEqual([0x12, 0x34, 0x56])
   })
 
-  it('parseHex 支持 3 位缩写', () => {
-    expect(parseHex('#f0a')).toEqual([0xff, 0x00, 0xaa])
+  it('parseHex 拒绝 3 位缩写 (对齐 Android Color.parseColor 失败语义)', () => {
+    expect(parseHex('#f0a')).toBeNull()
+    expect(parseHex('f0a')).toBeNull()
   })
 
   it('parseHex 支持 8 位 (#AARRGGBB, alpha 忽略)', () => {
@@ -270,14 +296,18 @@ describe('goldenAngleForRow — AUTO 模式色相推进', () => {
     expect(goldenAngleForRow(row, [row], '')).toBe(0)
   })
 
-  it('按 id 排序取序号', () => {
+  it('按 id 排序取序号 (JVM Float 基准)', () => {
     const r1 = mkCourse({ id: 7 })
     const r2 = mkCourse({ id: 3 })
     const r3 = mkCourse({ id: 9 })
-    // sorted by id: [3,7,9] → r1(idx=1) hue = 137.508
-    expect(goldenAngleForRow(r1, [r1, r2, r3], '')).toBeCloseTo(137.508, 3)
-    // r3(idx=2) hue = 275.016
-    expect(goldenAngleForRow(r3, [r1, r2, r3], '')).toBeCloseTo(275.016, 3)
+    // sorted by id: [3,7,9] → r1(idx=1) hue = float32(137.508)
+    expect(goldenAngleForRow(r1, [r1, r2, r3], '')).toBe(Math.fround(137.508))
+    // r3(idx=2) hue = float32(275.016)
+    expect(goldenAngleForRow(r3, [r1, r2, r3], '')).toBe(Math.fround(275.016))
+    // JVM 实跑锚定: idx=10 → 295.07996 (float32)
+    const r11 = mkCourse({ id: 11 })
+    const rows = Array.from({ length: 11 }, (_, i) => mkCourse({ id: i + 1 }))
+    expect(goldenAngleForRow(r11, rows, '')).toBe(Math.fround(295.0799560546875))
   })
 
   it('组源色非空时 baseHue = 组源色色相', () => {
@@ -285,5 +315,47 @@ describe('goldenAngleForRow — AUTO 模式色相推进', () => {
     const baseHue = rgbToHsl(parseHex('#FF0000')!)[0] // 红 = 0
     const out = goldenAngleForRow(row, [row], '#FF0000')
     expect(out).toBeCloseTo((baseHue + 0) % 360, 3)
+  })
+})
+
+describe('conflictBorderColor — 冲突卡自派生描边色 (ConflictCard.kt:133-137)', () => {
+  it('亮色 (>0.5) 压黑 35%', () => {
+    // 纯白: lerp(255,0,0.35)=165.75→166
+    expect(conflictBorderColor([255, 255, 255])).toEqual([166, 166, 166])
+  })
+
+  it('暗色 (<0.5) 提白 45%', () => {
+    // 纯黑: lerp(0,255,0.45)=114.75→115
+    expect(conflictBorderColor([0, 0, 0])).toEqual([115, 115, 115])
+  })
+
+  it('阈值判定用 BT.601 亮度 (luminance 0.5 边界)', () => {
+    // 绿 [0,255,0] luminance=0.587>0.5 → 压黑分支
+    expect(conflictBorderColor([0, 255, 0])).toEqual([0, 166, 0])
+    // 红纯色 [255,0,0] luminance=0.299<0.5 → 提白分支: lerp(0,255,0.45)=114.75→115
+    expect(conflictBorderColor([255, 0, 0])).toEqual([255, 115, 115])
+  })
+
+  it('结果与 base 色有明度差 (对比目的)', () => {
+    const base: [number, number, number] = [255, 226, 213]
+    const out = conflictBorderColor(base)
+    expect(luminance(out)).toBeLessThan(luminance(base))
+  })
+})
+
+describe('foldFlapColor — FOLD 折角 flap 色 (ConflictCard.kt:142)', () => {
+  it('课色压黑 28%', () => {
+    // 纯白: lerp(255,0,0.28)=183.6→184
+    expect(foldFlapColor([255, 255, 255])).toEqual([184, 184, 184])
+  })
+
+  it('与描边色压暗幅度不同 (flap 0.28 vs border 0.35)', () => {
+    const base: [number, number, number] = [255, 255, 255]
+    expect(foldFlapColor(base)).not.toEqual(conflictBorderColor(base))
+  })
+
+  it('比 base 暗 (翻面朝里的物理意象)', () => {
+    const base: [number, number, number] = [200, 230, 255]
+    expect(luminance(foldFlapColor(base))).toBeLessThan(luminance(base))
   })
 })

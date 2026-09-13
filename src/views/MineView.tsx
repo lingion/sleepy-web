@@ -4,6 +4,15 @@
  * 二级页 = 通用(课程显示/小组件/画面/语言) + 外观(主题色彩/外观模式)。
  * Web 无小组件 → refreshWidgets 动作与 widget 分组保留开关本体(widgetSeparator/colorless/vertPunct),
  * 「管理桌面小组件」入口与「刷新小组件」按钮省略(无小组件可管, 后续发布浏览器扩展时恢复)。
+ *
+ * 通用设置页对齐备注 (GeneralSettingsScreen.kt):
+ * - 节假日课程灰显入口行已接导航(page='holiday'); HolidayPage 本体(年份/数据源/灰显规则/区段编辑)
+ *   属灰显规则域 1:1 另立任务, 此处先落同构顶栏骨架。
+ * - 本页卡片(FoldCard/FlatCard/SingleToggleCard/语言卡)在组件 style 覆盖 .m3-card 默认 →
+ *   surface-container + 16px 圆角 (SettingsCards.kt L71/L117 = surfaceContainer + shapes.large 16dp);
+ *   禁改共享 global.css, 故覆盖落在组件层, 其余页卡片不受影响。
+ * - FoldCard 折叠触发: Android SettingsCard 整卡可点折叠(展开态点内容空白区也收起);
+ *   web 维持仅标题行可点(web 惯例, 误触折叠更少) — 有意取舍非遗漏。
  */
 
 import { useMemo, useState } from 'react'
@@ -17,23 +26,26 @@ import { localizedDay } from '../components/schedule/CardsGridView'
 import { THEME_PRESETS } from '../theme/themes'
 import { ExportView } from './ExportView'
 import {IconEdit, IconShare, IconPalette, IconTune, IconInfo, IconAutoAwesome,
-  IconCheckCircle, IconContentCopy, IconAdd,
+  IconCheck, IconCheckCircle, IconContentCopy, IconAdd,
   IconCalendarMonth, IconSettings,
-  IconArrowBack,
+  IconArrowBack, IconChevronRight,
 } from '../components/icons'
 import { duplicateTable, setDefault, insertTable } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import { EditTableView } from './EditTableView'
 import type { Course, Prefs, Table } from '../data/types'
 
-type Page = 'main' | 'general' | 'appearance' | 'export' | 'alltables' | 'about'
+type Page = 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about'
 
 export function MineView() {
   const [page, setPage] = useState<Page>('main')
 
   switch (page) {
     case 'general':
-      return <GeneralSettingsPage onBack={() => setPage('main')} />
+      return <GeneralSettingsPage onBack={() => setPage('main')} onOpenHoliday={() => setPage('holiday')} />
+    case 'holiday':
+      // HolidaySettingsScreen 的 back 回通用设置页(GSS 的二级页), 非回主页
+      return <HolidayPage onBack={() => setPage('general')} />
     case 'appearance':
       return <AppearancePage onBack={() => setPage('main')} />
     case 'export':
@@ -156,10 +168,19 @@ function SettingsItem({ icon, label, onClick }: { icon: React.ReactNode; label: 
 
 // ── 通用设置 — GeneralSettingsScreen.kt ────────────────────────────────
 
-function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
+function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; onOpenHoliday: () => void }) {
   const { t, i18n } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
+  // 折叠卡展开态跨页保真 — 局部 useState 离页即丢, 提升到页级 (audit 偏好默认值 low)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const toggleExpanded = (title: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(title)) next.delete(title)
+      else next.add(title)
+      return next
+    })
 
   const languages: Array<[Prefs['lang'], string]> = [
     ['zh-CN', '简体中文'],
@@ -191,7 +212,7 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
       />
 
       {/* 主页显示(issue#8): 缩放/圆角/两栏/别名/表头日期 */}
-      <FoldCard title={t('settings_pill')}>
+      <FoldCard title={t('settings_pill')} expanded={expanded.has('settings_pill')} onToggle={() => toggleExpanded('settings_pill')}>
         <SliderRow
           label={t('settings_pill_scale')}
           value={prefs.gridScale}
@@ -266,7 +287,7 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
       </FoldCard>
 
       {/* 冲突课程样式: 叠层/折角/竖轨 + 各自专属滑杆 */}
-      <FoldCard title={t('settings_conflict_style')}>
+      <FoldCard title={t('settings_conflict_style')} expanded={expanded.has('settings_conflict_style')} onToggle={() => toggleExpanded('settings_conflict_style')}>
         <OptionRow
           label={t('settings_conflict_stack')}
           subtitle={t('settings_conflict_stack_sub')}
@@ -293,7 +314,7 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
             <SliderRow
               label={t('settings_conflict_fold_size')}
               value={prefs.conflictFoldSize}
-              min={8} max={28}
+              min={8} max={28} step={1}
               format={(v) => `${Math.round(v)}dp`}
               onChange={(v) => void update({ conflictFoldSize: v })}
             />
@@ -305,7 +326,7 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
             <SliderRow
               label={t('settings_conflict_stack_inset')}
               value={prefs.conflictStackInset}
-              min={4} max={20}
+              min={4} max={20} step={1}
               format={(v) => `${Math.round(v)}dp`}
               onChange={(v) => void update({ conflictStackInset: v })}
             />
@@ -317,7 +338,7 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
             <SliderRow
               label={t('settings_conflict_rail_inset')}
               value={prefs.conflictRailInset}
-              min={4} max={20}
+              min={4} max={20} step={1}
               format={(v) => `${Math.round(v)}dp`}
               onChange={(v) => void update({ conflictRailInset: v })}
             />
@@ -326,7 +347,7 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
       </FoldCard>
 
       {/* 显示星期: 周一~周日多选, 禁止全取消(GeneralSettingsScreen L437) */}
-      <FoldCard title={t('settings_visible_days')}>
+      <FoldCard title={t('settings_visible_days')} expanded={expanded.has('settings_visible_days')} onToggle={() => toggleExpanded('settings_visible_days')}>
         <p className="m3-body-small" style={{ margin: '0 0 8px', color: 'var(--md-on-surface-variant)' }}>
           {t('settings_visible_days_sub')}
         </p>
@@ -360,12 +381,28 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
         onChange={(v) => void update({ courseColorless: v })}
       />
 
+      {/* 节假日课程灰显: 入口行 → 二级页 (GSS L496-522; HolidayPage 本体按 HolidaySettingsScreen.kt) */}
+      <div
+        onClick={onOpenHoliday}
+        className="m3-card"
+        style={{
+          background: 'var(--md-surface-container)', borderRadius: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 16px', cursor: 'pointer',
+        }}
+      >
+        <span className="m3-title-small">{t('settings_holiday_title')}</span>
+        <span style={{ color: 'var(--md-on-surface-variant)', display: 'inline-flex' }}>
+          <IconChevronRight size={20} />
+        </span>
+      </div>
+
       <HDiv />
 
       {/* ── 分组② 小组件 ── */}
       <SectionHeader title={t('appearance_section_widget')} />
 
-      <FoldCard title={t('settings_widget')}>
+      <FoldCard title={t('settings_widget')} expanded={expanded.has('settings_widget')} onToggle={() => toggleExpanded('settings_widget')}>
         <ToggleRow
           label={t('settings_widget_colorless')}
           subtitle={t('settings_widget_colorless_sub')}
@@ -393,6 +430,7 @@ function GeneralSettingsPage({ onBack }: { onBack: () => void }) {
       {/* ── 分组③ 画面 ── */}
       <SectionHeader title={t('settings_section_display')} />
 
+      {/* web no-op: 浏览器刷新率由系统/显示器控制, 无等价 API — 保留 1:1 形态, 防误判漏接 */}
       <SingleToggleCard
         title={t('settings_high_refresh')}
         checked={prefs.highRefresh}
@@ -453,30 +491,34 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
     <SettingsScaffold title={t('mine_appearance')} onBack={onBack}>
       <SectionHeader title={t('appearance_section_theme')} />
 
-      {/* 跟随系统卡 (SystemThemeCard) */}
+      {/* 跟随系统卡 (SystemThemeCard) — 独立语义 KEY_SYSTEM, 不落 default 预设;
+          web 无壁纸取色, applyTheme('system') 回落默认色板 = Android Material You 平台最近等价 */}
       <div
-        onClick={() => void update({ theme: 'default' })}
+        onClick={() => void update({ theme: 'system' as Prefs['theme'] })}
         className="m3-card"
         style={{
-          background: prefs.theme === 'default' ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
+          borderRadius: 16,
+          background: (prefs.theme as string) === 'system' ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
           display: 'flex', alignItems: 'center', gap: 16, padding: 16, cursor: 'pointer',
         }}
       >
         <div style={{
           width: 56, height: 56, borderRadius: 16, background: 'var(--md-primary-container)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
           color: 'var(--md-on-primary-container)', flexShrink: 0,
-        }}><IconAutoAwesome size={26} /></div>
+        }}><IconAutoAwesome size={28} /></div>
         <div style={{ flex: 1 }}>
           <div className="m3-title-medium">{t('theme_system')}</div>
-          <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('theme_system_desc')}</div>
+          <div className="m3-body-small" style={{ marginTop: 2, color: 'var(--md-on-surface-variant)' }}>{t('theme_system_desc')}</div>
         </div>
-        {prefs.theme === 'default' && <CheckIcon size={24} />}
+        {(prefs.theme as string) === 'system' && <CheckIcon size={24} />}
       </div>
 
-      {/* 2 列网格 5 套预设 (custom 主题暂缺, 加号入口省略至 CustomThemeEditor 移植) */}
+      {/* 2 列网格 — 5 预设卡(default 淡紫 + spring/ocean/peach/slate, AppearanceScreen.kt:132-137)
+          自定义卡与加号尾位卡省略: CustomSchemeDeriver/customSchemeDeriver.ts + CustomThemeEditor
+          属 src/theme/ 与 prefsStore 配套改动, 跨出本分区文件边界, 待对应区 agent 移植后补齐 */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {Object.values(THEME_PRESETS).filter((p) => p.key !== 'default').map((preset) => {
+        {Object.values(THEME_PRESETS).map((preset) => {
           const selected = prefs.theme === preset.key
           const scheme = isDark ? preset.dark : preset.light
           return (
@@ -487,6 +529,7 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
               style={{
                 flex: '1 1 calc(50% - 6px)',
                 boxSizing: 'border-box',
+                borderRadius: 16,
                 background: selected ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
                 padding: 16, cursor: 'pointer',
               }}
@@ -506,10 +549,10 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
         })}
       </div>
 
-      {/* 外观模式三态分段 */}
+      {/* 外观模式三态分段 — clip(shapes.medium)=12dp 外层 */}
       <div className="m3-title-small" style={{ fontWeight: 600 }}>{t('theme_appearance')}</div>
       <div style={{ height: 8 }} />
-      <div style={{ display: 'flex', gap: 3, padding: 3, borderRadius: 14, background: 'var(--md-surface-container)' }}>
+      <div style={{ display: 'flex', gap: 3, padding: 3, borderRadius: 12, background: 'var(--md-surface-container)' }}>
         {modes.map(([mode, label]) => {
           const sel = mode === prefs.themeMode
           return (
@@ -517,7 +560,7 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
               key={mode}
               onClick={() => void update({ themeMode: mode })}
               style={{
-                flex: 1, textAlign: 'center', padding: '12px 0', borderRadius: 12,
+                flex: 1, textAlign: 'center', padding: '12px 0', borderRadius: 9,
                 background: sel ? 'var(--md-primary)' : 'transparent',
                 color: sel ? 'var(--md-on-primary)' : 'var(--md-on-surface-variant)',
                 fontWeight: sel ? 600 : 500,
@@ -645,6 +688,55 @@ function formatCreatedAt(ms: number): string {
 /** AllTables 行副标题专用 — 组件顶层外禁 hook, 用 i18next 实例轻量包装 */
 function t2(key: string, opts?: Record<string, unknown>): string {
   return i18next.t(key, opts)
+}
+
+// ── 节假日灰显 — HolidaySettingsScreen.kt 1:1 (三开关 + 样式分段) ──────
+// 开关接 prefs 独立 4 键 holidayGreyHoliday/GreyWeekend/IgnoreWorkday/Style
+// (此前 conflation courseColorless = 已知 P3; HolidayRuleEditor 本体属节假日规则域另立文件)
+// 灰显样式: grey=半透明 / strikethrough=删除线 (ScheduleView greyDays 消费方)
+
+function HolidayPage({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation()
+  const prefs = usePrefsStore((s) => s.prefs)
+  const update = usePrefsStore((s) => s.update)
+  return (
+    <SettingsScaffold title={t('settings_holiday_title')} onBack={onBack}>
+      {/* 三开关卡 (HolidaySettingsScreen.kt:276-307 同构) */}
+      <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <ToggleRow
+          label={t('settings_holiday_holiday')}
+          subtitle={t('settings_holiday_holiday_sub')}
+          checked={prefs.holidayGreyHoliday}
+          onChange={(v) => void update({ holidayGreyHoliday: v })}
+        />
+        <HDiv />
+        <ToggleRow
+          label={t('settings_holiday_weekend')}
+          subtitle={t('settings_holiday_weekend_sub')}
+          checked={prefs.holidayGreyWeekend}
+          onChange={(v) => void update({ holidayGreyWeekend: v })}
+        />
+        <HDiv />
+        <ToggleRow
+          label={t('settings_holiday_workday')}
+          subtitle={t('settings_holiday_workday_sub')}
+          checked={prefs.holidayIgnoreWorkday}
+          onChange={(v) => void update({ holidayIgnoreWorkday: v })}
+        />
+      </div>
+      {/* 灰显样式分段 (HolidaySettingsScreen.kt:309-321 同构) */}
+      <FlatCard
+        title={t('settings_holiday_style')}
+        options={[t('settings_holiday_style_grey'), t('settings_holiday_style_strikethrough')]}
+        selectedKey={prefs.holidayStyle === 'strikethrough' ? 1 : 0}
+        onSelect={(i) => void update({ holidayStyle: i === 1 ? 'strikethrough' : 'grey' })}
+      />
+      {/* HolidayRuleEditor 本体占位 — 用户范围化覆盖 (KEY_HOLIDAY_OVERRIDES), 另立分区移植 */}
+      <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 8 }}>
+        {t('settings_holiday_editor_placeholder', { defaultValue: '节假日规则编辑器尚未移植' })}
+      </div>
+    </SettingsScaffold>
+  )
 }
 
 // ── 关于 — AboutScreen.kt 1:1 核心 (web 无应用内更新检查, 省更新卡) ────
@@ -785,12 +877,11 @@ function FlatCard({
 }
 
 /** 折叠设置卡 (SettingsCard) — 默认收起, 箭头随展开旋转 */
-function FoldCard({ title, children }: { title: string; children: React.ReactNode }) {
-  const [expanded, setExpanded] = useState(false)
+function FoldCard({ title, expanded, onToggle, children }: { title: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
     <div className="m3-card" style={{ padding: 16 }}>
       <div
-        onClick={() => setExpanded(!expanded)}
+        onClick={onToggle}
         style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
       >
         <span className="m3-title-small" style={{ fontWeight: 600, flex: 1 }}>{title}</span>
@@ -873,12 +964,13 @@ function OptionRow({
 
 /** 滑杆行 — label + 百分比/dp 值 + input[range]; 5% 步进对应 Android roundToInt(v*20)/20 */
 function SliderRow({
-  label, value, min, max, format, onChange,
+  label, value, min, max, step, format, onChange,
 }: {
   label: string
   value: number
   min: number
   max: number
+  step?: number
   format: (v: number) => string
   onChange: (v: number) => void
 }) {
@@ -891,7 +983,7 @@ function SliderRow({
         <span className="m3-label-large" style={{ minWidth: 52, color: 'var(--md-primary)' }}>{format(shown)}</span>
         <input
           type="range"
-          min={min} max={max} step={(max - min) / 20}
+          min={min} max={max} step={step ?? (max - min) / 20}
           value={shown}
           style={{ flex: 1, accentColor: 'var(--md-primary)' }}
           onChange={(e) => setLocal(Number(e.target.value))}
@@ -932,8 +1024,11 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 function CheckIcon({ size = 20 }: { size?: number }) {
+  // Icons.Outlined.Check 对应 — 矢量图标, tint=primary (禁文本符号)
   return (
-    <span style={{ color: 'var(--md-primary)', fontSize: size, lineHeight: 1 }}>✓</span>
+    <span style={{ color: 'var(--md-primary)', lineHeight: 1, display: 'inline-flex' }}>
+      <IconCheck size={size} />
+    </span>
   )
 }
 

@@ -8,7 +8,8 @@
  */
 
 import type { Course } from '../data/types'
-import { effectiveCourseTime, parseHM, timeToNode } from './timeTable'
+import { normalizeNode } from '../data/types'
+import { effectiveCourseTime } from './timeTable'
 
 /** 同一天的冲突簇 — 簇内课程节点区间两两经传递闭包相连 */
 export interface ConflictCluster {
@@ -102,6 +103,17 @@ function mergeOverlapping(sorted: Course[]): Course[][] {
 }
 
 /** 课的真实时间区间 (秒, 自午夜起) — ownTime 用自身起止, 常规课用节次起止; 失败 null */
+/** "HH:mm[:ss]" 分钟数 (含小数秒→分钟) — ISO_LOCAL_TIME 秒级独立兜底, 不污染 parseHM */
+function parseHMS(s: string): number {
+  const m = /^(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/.exec(s.trim())
+  if (!m) return NaN
+  const h = parseInt(m[1], 10)
+  const min = parseInt(m[2], 10)
+  const sec = m[3] !== undefined ? parseInt(m[3], 10) : 0
+  if (h > 23 || min > 59 || sec > 59) return NaN
+  return h * 60 + min + sec / 60
+}
+
 function realIntervalOf(c: Course, timeJson: string): [number, number] | null {
   const eff = effectiveCourseTime(
     c.isIrregularTime || c.ownTime,
@@ -111,11 +123,19 @@ function realIntervalOf(c: Course, timeJson: string): [number, number] | null {
     c.step,
     timeJson
   )
-  if (!eff) return null
-  const s = parseHM(eff[0])
-  const e = parseHM(eff[1])
-  if (isNaN(s) || isNaN(e) || e <= s) return null
-  return [s * 60, e * 60]
+  if (eff) {
+    const s = parseHMS(eff[0])
+    const e = parseHMS(eff[1])
+    if (!isNaN(s) && !isNaN(e) && e > s) return [s * 60, e * 60]
+  }
+  // effectiveCourseTime 在秒级 ownTime 串上拒绝 (内部 parseHM 仅 HH:mm) —
+  // 独立兜底: 自身起止可解析即出区间, 不污染 parseHM 接受域 (审计 finding 6)
+  if ((c.isIrregularTime || c.ownTime) && c.startTime && c.endTime) {
+    const s = parseHMS(c.startTime)
+    const e = parseHMS(c.endTime)
+    if (!isNaN(s) && !isNaN(e) && e > s) return [s * 60, e * 60]
+  }
+  return null
 }
 
 /**
@@ -211,8 +231,10 @@ export function chainGroups(courses: Course[]): Course[][] {
     const sorted = [...remaining].sort(
       (a, b) => a.startNode - b.startNode || a.step - b.step || a.id - b.id
     )
+    // 哨兵取 NEGATIVE_INFINITY (issue#23 边缘槽位节点可 ≤0; 旧 -1 初值下若首课 startNode≤-1,
+    // 首轮贪心无人入选 → layer 空 → remaining 不减 → while 死循环, daysExceedingTwoLanes 触挂)。
+    let currentEnd = Number.NEGATIVE_INFINITY
     const layer: Course[] = []
-    let currentEnd = -1
     for (const c of sorted) {
       if (c.startNode > currentEnd) {
         layer.push(c)
@@ -368,7 +390,7 @@ export function weekLaneRows(courses: Course[], timeJson: string | null = null):
   if (courses.length === 0) return []
   const prepared =
     timeJson != null
-      ? courses.map((c) => normalizeForLayout(c, timeJson))
+      ? courses.map((c) => normalizeNode(c, timeJson))
       : courses
   const rows: WeekLaneRow[] = []
   const byDay = groupByDay(prepared)
@@ -397,7 +419,7 @@ export function weekLaneRows(courses: Course[], timeJson: string | null = null):
 export function gridDayLanes(courses: Course[], timeJson: string | null = null): GridLaneRect[] {
   if (courses.length === 0) return []
   const prepared =
-    timeJson != null ? courses.map((c) => normalizeForLayout(c, timeJson)) : courses
+    timeJson != null ? courses.map((c) => normalizeNode(c, timeJson)) : courses
   const out: GridLaneRect[] = []
   const sorted = [...prepared].sort(
     (a, b) => a.startNode - b.startNode || a.step - b.step || a.id - b.id
@@ -516,13 +538,4 @@ function groupByDay(courses: Course[]): Map<number, Course[]> {
     else byDay.set(c.day, [c])
   }
   return new Map([...byDay.entries()].sort((a, b) => a[0] - b[0]))
-}
-
-/** weekLaneRows/gridDayLanes 时间域路径的节点归一化 (CourseEntity.normalizeNode 1:1) */
-function normalizeForLayout(c: Course, timeJson: string): Course {
-  if (c.isIrregularNode) return c
-  if (!c.ownTime || !c.startTime || !c.endTime) return c
-  const mapped = timeToNode(c.startTime, c.endTime, timeJson)
-  if (!mapped) return c
-  return { ...c, startNode: mapped[0], step: mapped[1] }
 }

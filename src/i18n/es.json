@@ -649,5 +649,6 @@
 "conflict_default_top_title": "Elegir el curso predeterminado en primer plano",
 "sample_table_name": "Horario de ejemplo",
 "sample_table_banner": "Este es un horario de ejemplo para ver cómo funciona Sleepy. Edítalo, bórralo o importa tu propio horario.",
-"sample_table_dismiss": "Entendido"
+"sample_table_dismiss": "Entendido",
+"manage_empty_hint": "Aún no hay horario. Crea o importa con los botones de abajo"
 }
