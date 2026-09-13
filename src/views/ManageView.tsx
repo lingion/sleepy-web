@@ -2,8 +2,8 @@
  * ManageView — Kotlin ManagementPage.kt 1:1 移植
  * 标题(headlineMedium+Medium) + 当前课表摘要卡(标签/名称/startDate|第N周|N门课)
  * + 5 张 ManageCard(导入/新建/手动添加/编辑当前/导出, 44dp 图标方块布局)
- * + 全部课表列表(web 承载切默认, 行高亮同 AllTablesScreen primary-container 就地高亮)
- * + 删除二次确认弹窗(EditTableScreen.kt:329-355 同款, N>0 提示课数)。
+ * 管理页只承载 Android ManagementPage.kt 的当前课表摘要与 5 张管理卡；
+ * 全部课表列表属于 Mine → AllTablesScreen，不能嵌入本页。
  * 新建动线 = MainActivity createEmptyTable(commitSelection=false) 1:1:
  * 默认N 查重 + 上周一开学日 + 首表自动置默认, 建后跳 EditTable 让用户立即命名。
  * 重命名不入本页 — Android 真源重命名仅发生在 EditTableScreen(名称字段), 经编辑卡完成。
@@ -15,14 +15,8 @@ import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { useBackStack } from '../state/backStack'
-import {
-  insertTable,
-  deleteTable,
-  setDefault,
-  countCourses,
-} from '../data/repository'
+import { insertTable, setDefault } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
-import type { Table } from '../data/types'
 import { ImportView } from './ImportView'
 import { EditTableView } from './EditTableView'
 import { AddCourseView } from './AddCourseView'
@@ -34,7 +28,6 @@ import {
   IconAdd,
   IconEdit,
   IconShare,
-  IconCheckCircle,
 } from '../components/icons'
 
 type IconComponent = ComponentType<{ size?: number; color?: string }>
@@ -42,23 +35,19 @@ type IconComponent = ComponentType<{ size?: number; color?: string }>
 export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), [])
-  const counts = useLiveQuery(async () => {
-    const all = await db.timetables.toArray()
-    const out: Record<number, number> = {}
-    for (const tb of all) out[tb.id] = await countCourses(tb.id)
-    return out
-  }, [])
+  const defaultTable = tables?.find((x) => x.isDefault === 1)
+  const currentCourseCount = useLiveQuery(
+    () => (defaultTable ? db.courses.where('tableId').equals(defaultTable.id).count() : Promise.resolve(0)),
+    [defaultTable?.id],
+  )
   const [importing, setImporting] = useState(false)
   const [addingCourse, setAddingCourse] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [confirmingDelete, setConfirmingDelete] = useState<number | null>(null)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
 
   const list = tables ?? []
-  const defaultTable = list.find((x) => x.isDefault === 1)
-  const confirming = confirmingDelete !== null ? list.find((x) => x.id === confirmingDelete) : undefined
 
   // 二级页 push 入栈 (浏览器返回可弹); 返回按钮 pop 出栈。
   const enter = (key: Parameters<typeof push>[0]) => {
@@ -174,7 +163,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
             {t('table_info', {
               v1: defaultTable.startDate || '—',
               v2: computeCurrentWeek(defaultTable.startDate, defaultTable.maxWeek || 20),
-              v3: counts?.[defaultTable.id] ?? 0,
+              v3: currentCourseCount ?? 0,
             })}
           </div>
         </div>
@@ -216,126 +205,6 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
         />
       </div>
 
-      {/* 全部课表 — web 承载切默认(Android 在 Mine→AllTables); 行样式 AllTablesScreen.kt:81-97:
-          当前=primary-container 底 + onPrimaryContainer 文本 + CheckCircle, 点击当前行 no-op */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {list.map((tb: Table) => {
-          const isCurrent = tb.isDefault === 1
-          return (
-            <div
-              key={tb.id}
-              className="m3-card m3-card-clickable"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: 14,
-                borderRadius: 16,
-                background: isCurrent ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
-              }}
-              onClick={() => {
-                if (!isCurrent) void setDefault(tb.id)
-              }}
-            >
-              {isCurrent ? (
-                <span style={{ color: 'var(--md-primary)', flexShrink: 0, display: 'flex' }}>
-                  <IconCheckCircle size={24} />
-                </span>
-              ) : (
-                <div
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
-                    background: 'var(--md-outline-variant)',
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  className="m3-title-small"
-                  style={{
-                    fontWeight: 600,
-                    color: isCurrent ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)',
-                  }}
-                >
-                  {tb.name}
-                </div>
-                <div
-                  className="m3-body-small"
-                  style={{
-                    fontSize: 12,
-                    lineHeight: '16px',
-                    color: isCurrent ? 'var(--md-on-primary-container)' : 'var(--md-on-surface-variant)',
-                    // SleepyTheme.Alpha.highContent = 0.8f (Theme.kt:327)
-                    opacity: isCurrent ? 0.8 : undefined,
-                  }}
-                >
-                  {t('table_info', {
-                    v1: tb.startDate || '—',
-                    v2: computeCurrentWeek(tb.startDate, tb.maxWeek || 20),
-                    v3: counts?.[tb.id] ?? 0,
-                  })}
-                </div>
-              </div>
-              <SmallBtn
-                label={t('edit_table_title')}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setEditingId(tb.id)
-                }}
-              />
-              <SmallBtn
-                label={t('delete')}
-                danger
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setConfirmingDelete(tb.id)
-                }}
-              />
-            </div>
-          )
-        })}
-      </div>
-
-      {/* 删除二次确认 — EditTableScreen.kt:329-355 (N>0 提示一并删除的课数) */}
-      {confirming && (
-        <Overlay onDismiss={() => setConfirmingDelete(null)}>
-          <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('edit_table_delete_confirm')}</h2>
-          <p className="m3-body-medium" style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>
-            {(counts?.[confirming.id] ?? 0) > 0
-              ? t('edit_table_delete_msg_count', {
-                  v1: confirming.name,
-                  v2: counts?.[confirming.id] ?? 0,
-                })
-              : t('edit_table_delete_msg', { v1: confirming.name })}
-          </p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setConfirmingDelete(null)} style={ghostBtnStyle}>
-              {t('cancel')}
-            </button>
-            <button
-              onClick={() => {
-                const id = confirming.id
-                setConfirmingDelete(null)
-                void deleteTable(id)
-              }}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 12,
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--md-error)',
-                background: 'transparent',
-                fontWeight: 600,
-              }}
-            >
-              {t('delete')}
-            </button>
-          </div>
-        </Overlay>
-      )}
     </div>
   )
 }
@@ -400,68 +269,3 @@ function ManageCard({
   )
 }
 
-function SmallBtn({
-  label,
-  onClick,
-  danger,
-}: {
-  label: string
-  onClick: (e: React.MouseEvent) => void
-  danger?: boolean
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '4px 12px',
-        borderRadius: 8,
-        border: 'none',
-        background: danger ? 'var(--md-error-container)' : 'var(--md-surface-container-high)',
-        color: danger ? 'var(--md-on-error-container)' : 'var(--md-on-surface)',
-        fontSize: 12,
-        cursor: 'pointer',
-        flexShrink: 0,
-      }}
-    >
-      {label}
-    </button>
-  )
-}
-
-const ghostBtnStyle: React.CSSProperties = {
-  padding: '8px 14px',
-  borderRadius: 12,
-  border: 'none',
-  cursor: 'pointer',
-  background: 'var(--md-surface-container-high)',
-  color: 'var(--md-on-surface)',
-  fontSize: 13,
-}
-
-function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
-  return (
-    <div
-      onClick={onDismiss}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="m3-card"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}

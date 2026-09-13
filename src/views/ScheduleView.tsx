@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconChevronLeft, IconChevronRight,
-  IconCalendarMonth, IconAdd, IconIosShare, IconCheck,
+  IconAdd, IconIosShare, IconCheck, SleepyLogo,
 } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
@@ -371,7 +371,7 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
                 title={t('schedule_switch_table', { defaultValue: '切换课表' })}
                 onClick={() => { enter('editTable'); setShowSwitcher(true) }}
               >
-                <IconCalendarMonth size={18} />
+                <SleepyLogo size={18} />
               </NavCircleBtn>
               {undoDepth > 0 && (
                 <NavCircleBtn

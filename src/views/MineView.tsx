@@ -26,9 +26,9 @@ import { computeCurrentWeek } from './ScheduleView'
 import { localizedDay } from '../components/schedule/CardsGridView'
 import { THEME_PRESETS } from '../theme/themes'
 import { ExportView } from './ExportView'
-import {IconEdit, IconShare, IconPalette, IconTune, IconInfo, IconAutoAwesome,
+import {IconEdit, IconShare, IconPalette, IconTune, IconInfo,
   IconCheck, IconCheckCircle, IconContentCopy, IconAdd,
-  IconCalendarMonth, IconSettings, IconNotifications, IconRefresh,
+  IconSettings, IconNotifications, IconRefresh, SleepyLogo,
   IconArrowBack, IconChevronRight, IconExpandLess, IconExpandMore,
 } from '../components/icons'
 import { duplicateTable, setDefault, insertTable } from '../data/repository'
@@ -558,7 +558,7 @@ function AppearancePage({ onBack }: { onBack: () => void }) {
           width: 56, height: 56, borderRadius: 16, background: 'var(--md-primary-container)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
           color: 'var(--md-on-primary-container)', flexShrink: 0,
-        }}><IconAutoAwesome size={28} /></div>
+        }}><SleepyLogo size={40} /></div>
         <div style={{ flex: 1 }}>
           <div className="m3-title-medium">{t('theme_system')}</div>
           <div className="m3-body-small" style={{ marginTop: 2, color: 'var(--md-on-surface-variant)' }}>{t('theme_system_desc')}</div>
@@ -839,10 +839,10 @@ function AboutPage({ onBack }: { onBack: () => void }) {
       <div className="m3-card" style={{ padding: 20, textAlign: 'center' }}>
         <div style={{
           width: 64, height: 64, borderRadius: 18, margin: '0 auto 12px',
-          background: 'var(--md-primary)', color: 'var(--md-on-primary)',
+          background: 'var(--md-primary-container)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <IconCalendarMonth size={32} />
+          <SleepyLogo size={48} />
         </div>
         <div className="m3-headline-small" style={{ fontWeight: 700 }}>{t('app_name')}</div>
         <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>

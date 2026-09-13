@@ -15,6 +15,19 @@ interface IconProps {
   style?: CSSProperties
 }
 
+/** Canonical Sleepy brand mark. Keep one raster source across every branded surface. */
+export function SleepyLogo({ size = 40, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <img
+      src="/assets/sleepy-logo.png"
+      width={size}
+      height={size}
+      alt="Sleepy"
+      style={{ display: 'block', objectFit: 'contain', ...style }}
+    />
+  )
+}
+
 function svg(path: string, viewBox = '0 -960 960 960'): (props: IconProps) => JSX.Element {
   return function Icon({ size = 24, color, style }: IconProps) {
     return (
