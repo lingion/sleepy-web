@@ -9,14 +9,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from './state/prefsStore'
-import { installBackHandler } from './state/backStack'
+import { installBackHandler, tabFromHash, useBackStack, type TabKey } from './state/backStack'
 import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/icons'
 import { ScheduleView } from './views/ScheduleView'
 import { TodayView } from './views/TodayView'
 import { ManageView } from './views/ManageView'
 import { MineView } from './views/MineView'
 
-type Tab = 'schedule' | 'today' | 'manage' | 'mine'
+type Tab = TabKey
 
 // MainActivity.kt:173-178 Tab 枚举图标 1:1 (Icons.Outlined.*)
 const TAB_ICONS: Record<Tab, (p: { size?: number }) => JSX.Element> = {
@@ -29,12 +29,25 @@ const TAB_ICONS: Record<Tab, (p: { size?: number }) => JSX.Element> = {
 export function App() {
   const { t } = useTranslation()
   const navDock = usePrefsStore((s) => s.prefs.navDock)
-  const [tab, setTab] = useState<Tab>('schedule')
+  const [tab, setTab] = useState<Tab>(() => tabFromHash(window.location.hash))
   const [dockExtra, setDockExtra] = useState(76)
+  const pushTab = useBackStack((s) => s.pushTab)
 
-  // 返回栈 popstate 接线 (MainActivity BackHandler 同构): 浏览器返回 →
-  // 栈非空出栈回退 Web 页面; 栈空放行浏览器默认。挂载装一次, 卸载拆。
-  useEffect(() => installBackHandler(), [])
+  // tab hash 首次进入不新增历史;之后点击 tab 写入独立地址。
+  useEffect(() => {
+    if (!window.location.hash) pushTab(tab)
+    return installBackHandler((_popped, hash) => {
+      // 二级层由其所在视图处理;退回 tab 层时 hash 直接决定当前 tab。
+      const next = tabFromHash(hash)
+      setTab(next)
+    })
+  }, [])
+
+  const selectTab = (next: Tab) => {
+    if (next === tab) return
+    pushTab(next)
+    setTab(next)
+  }
 
   // Dock 滚动余量 (MainActivity dockOverlayPx→dockExtraDp 同构): 理论估算兜底
   // (首帧前, 64 高 + bottom 12 = 76), dock nav 实测高到位后覆盖 —
@@ -110,7 +123,7 @@ export function App() {
               return (
                 <button
                   key={key}
-                  onClick={() => setTab(key)}
+                  onClick={() => selectTab(key)}
                   aria-current={isSel ? 'page' : undefined}
                   style={{
                     width: 56,
@@ -152,7 +165,7 @@ export function App() {
             return (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => selectTab(key)}
                 aria-current={isSel ? 'page' : undefined}
                 style={{
                   flex: 1,
