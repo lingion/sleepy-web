@@ -17,6 +17,8 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
+import { holidaySetsForYear, useHolidayStore } from '../state/holidayStore'
+import { decideGrey } from '../domain/holiday/ranges'
 import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
 import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
 import { undoManager, useUndoStore } from '../data/undoStore'
@@ -57,89 +59,39 @@ export function actualWeekOf(startDate: string): number {
 // ── 节假日灰显 — HolidayManager.shouldGrey web 同构 ─────────────────────
 // 数据源与 Android 相同: unpkg holiday-calendar (gitcode.com/zy-mayong/publicHoliday,
 // MIT)。取数顺序 内存缓存 → localStorage 磁盘缓存(拉成功一次永久) → 网络, 失败静默
-// (仅周末灰显, 与 Android 离线兜底同语义)。用户范围化覆盖段 (HolidayRangeOps) web
-// 偏好模型暂无对应, 不做 — 与 Android 默认态 (无覆盖) 一致。
+// (仅周末灰显, 与 Android 离线兜底同语义)。用户范围化覆盖段 (HolidayRangeOps) 经
+// holidayStore 合并 (mergeSegments→toSets), 三开关走 decideGrey — 与 Android 全同构。
 
-/** 某年节假日数据 — ISO 日期集合 */
+/** 某年节假日数据 — ISO 日期集合 (合并用户覆盖后的生效集合) */
 export interface HolidayYearData {
   holidays: Set<string>
   workdays: Set<string>
 }
 
-/** 模块级内存缓存 — null = 已确认拉取失败 (进程内不再重试, Android yearFetchFailed 同构) */
-const holidayCache = new Map<number, HolidayYearData | null>()
-
-function parseHolidayJson(text: string): HolidayYearData {
-  const holidays = new Set<string>()
-  const workdays = new Set<string>()
-  try {
-    const obj = JSON.parse(text) as { dates?: { date: string; type: string }[] }
-    for (const d of obj.dates ?? []) {
-      if (d.type === 'public_holiday') holidays.add(d.date)
-      else if (d.type === 'transfer_workday') workdays.add(d.date)
-    }
-  } catch {
-    /* 坏数据当空 → 仅周末灰显 */
-  }
-  return { holidays, workdays }
+/** 三开关 (settings_holiday_holiday/weekend/workday) */
+export interface GreyToggles {
+  greyHoliday: boolean
+  greyWeekend: boolean
+  ignoreWorkday: boolean
 }
 
-function fetchYearIfNeeded(year: number): Promise<HolidayYearData | null> {
-  const cached = holidayCache.get(year)
-  if (cached !== undefined) return Promise.resolve(cached)
-  const cacheKey = `sleepy_holiday_cn_${year}`
-  try {
-    const raw = localStorage.getItem(cacheKey)
-    if (raw !== null) {
-      const parsed = parseHolidayJson(raw)
-      holidayCache.set(year, parsed)
-      return Promise.resolve(parsed)
-    }
-  } catch {
-    /* localStorage 不可用 → 走网络 */
-  }
-  return fetch(`https://unpkg.com/holiday-calendar/data/CN/${year}.json`)
-    .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
-    .then((text) => {
-      try {
-        localStorage.setItem(cacheKey, text)
-      } catch {
-        /* 忽略配额/隐私模式失败 */
-      }
-      const parsed = parseHolidayJson(text)
-      holidayCache.set(year, parsed)
-      return parsed
-    })
-    .catch(() => {
-      holidayCache.set(year, null)
-      return null
-    })
-}
-
-/** 纯函数 — 某周灰显天集合 (1=周一..7=周日); 无年数据时仅周末灰显 */
+/** 纯函数 — 某周灰显天集合 (1=周一..7=周日); 无年数据时按空集合走 decideGrey */
 export function holidayGreyDaysForWeek(
   startDate: string,
   week: number,
-  yearData: Map<number, HolidayYearData>
+  yearData: Map<number, HolidayYearData>,
+  toggles: GreyToggles
 ): Set<number> {
   const out = new Set<number>()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return out
   for (let day = 1; day <= 7; day++) {
     const d = dateOfWeek(startDate, week, day)
     if (!d) continue
-    const isWeekend = day >= 6
     const data = yearData.get(d.getFullYear())
-    if (data) {
-      // 法定节假日灰显 (greyHoliday=true 默认)
-      if (data.holidays.has(isoDate(d))) {
-        out.add(day)
-        continue
-      }
-      // 周末灰显, 补班日豁免 (greyWeekend=true + ignoreWorkday=true 默认)
-      if (isWeekend) {
-        if (!data.workdays.has(isoDate(d))) out.add(day)
-      }
-    } else if (isWeekend) {
+    const iso = isoDate(d)
+    if (
+      decideGrey(iso, data?.holidays ?? new Set(), data?.workdays ?? new Set(), toggles.greyHoliday, toggles.greyWeekend, toggles.ignoreWorkday)
+    ) {
       out.add(day)
     }
   }
@@ -162,28 +114,25 @@ function yearsSpanned(startDate: string, week: number): number[] {
   return [...years].sort((a, b) => a - b)
 }
 
-/** 年数据拉取 hook — 就绪后触发重渲染, 纯增量 */
+/** 年数据 hook — holidayStore 取数(内存→磁盘→网络) + 覆盖合并; 就绪/覆盖变化即重渲染 */
 function useHolidayYearData(years: number[]): Map<number, HolidayYearData> {
-  const [data, setData] = useState<Map<number, HolidayYearData>>(new Map())
+  const entries = useHolidayStore((s) => s.entries)
+  const overrides = useHolidayStore((s) => s.overrides)
+  const load = useHolidayStore((s) => s.load)
   const key = years.join(',')
   useEffect(() => {
-    if (years.length === 0) return
-    let alive = true
-    void Promise.all(years.map((y) => fetchYearIfNeeded(y))).then((list) => {
-      if (!alive) return
-      const m = new Map<number, HolidayYearData>()
-      years.forEach((y, i) => {
-        const v = list[i]
-        if (v) m.set(y, v)
-      })
-      setData(m)
-    })
-    return () => {
-      alive = false
-    }
+    for (const y of years) void load(y)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
-  return data
+  return useMemo(() => {
+    const m = new Map<number, HolidayYearData>()
+    for (const y of years) {
+      const en = entries[y]
+      if (en) m.set(y, holidaySetsForYear(en, overrides))
+    }
+    return m
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, entries, overrides])
 }
 
 export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
@@ -275,15 +224,24 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
     return [...years]
   }, [defaultTable?.startDate, trackWeeks])
   const holidayData = useHolidayYearData(greyYears)
+  // 三开关 (HolidayManager.shouldGrey 读 AppPrefs 三键同构)
+  const greyToggles = useMemo(
+    () => ({
+      greyHoliday: prefs.holidayGreyHoliday,
+      greyWeekend: prefs.holidayGreyWeekend,
+      ignoreWorkday: prefs.holidayIgnoreWorkday,
+    }),
+    [prefs.holidayGreyHoliday, prefs.holidayGreyWeekend, prefs.holidayIgnoreWorkday]
+  )
   const greyDays = useMemo(
-    () => holidayGreyDaysForWeek(defaultTable?.startDate ?? '', currentWeek, holidayData),
-    [defaultTable?.startDate, currentWeek, holidayData]
+    () => holidayGreyDaysForWeek(defaultTable?.startDate ?? '', currentWeek, holidayData, greyToggles),
+    [defaultTable?.startDate, currentWeek, holidayData, greyToggles]
   )
   const greyDaysByWeek = useMemo(() => {
     const map = new Map<number, Set<number>>()
-    for (const w of trackWeeks) map.set(w, holidayGreyDaysForWeek(defaultTable?.startDate ?? '', w, holidayData))
+    for (const w of trackWeeks) map.set(w, holidayGreyDaysForWeek(defaultTable?.startDate ?? '', w, holidayData, greyToggles))
     return map
-  }, [defaultTable?.startDate, trackWeeks, holidayData])
+  }, [defaultTable?.startDate, trackWeeks, holidayData, greyToggles])
 
   // 轨道内每周课程 (ScheduleScreen.kt:236-241 每页独立 inWeek 过滤 + normalizeNode)
   const coursesByWeek = useMemo(() => {

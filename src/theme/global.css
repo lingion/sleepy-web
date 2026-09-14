@@ -179,3 +179,20 @@ body {
   height: 56px;
   border-radius: 16px;
 }
+
+/* 节假日数据源刷新转圈 — CircularProgressIndicator(18dp, 2dp) 同构 */
+.holiday-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--md-primary) 25%, transparent);
+  border-top-color: var(--md-primary);
+  animation: holiday-spin 0.9s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+@keyframes holiday-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
