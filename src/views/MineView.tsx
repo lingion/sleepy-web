@@ -22,6 +22,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
 import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
+import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
 import { computeCurrentWeek } from './ScheduleView'
 import { localizedDay } from '../components/schedule/CardsGridView'
 import { THEME_PRESETS } from '../theme/themes'
@@ -31,12 +32,14 @@ import {IconEdit, IconShare, IconPalette, IconTune, IconInfo,
   IconSettings, IconNotifications, IconRefresh, SleepyLogo,
   IconArrowBack, IconChevronRight, IconExpandLess, IconExpandMore,
 } from '../components/icons'
-import { duplicateTable, setDefault, insertTable } from '../data/repository'
-import { DEFAULT_TIME_JSON } from '../domain/timeTable'
+import { duplicateTable, setDefault } from '../data/repository'
 import { EditTableView } from './EditTableView'
 import type { Course, Prefs, Table } from '../data/types'
 
 type Page = 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder'
+
+/** MineView 自己拥有的返回层 — popstate 只在这些 key 弹出时收回页面状态 */
+const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'about', 'reminder', 'license'])
 
 export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const [page, setPage] = useState<Page>('main')
@@ -45,8 +48,9 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
 
   // 浏览器返回时同步本地 page state;否则只弹历史而页面仍停在二级页。
   useEffect(() => installBackHandler((key) => {
+    // 只收回属于本页的层 — 别的 tab 的弹层 (课程详情/周次跳转…) 弹出时不得误跳
     if (key === 'holiday') setPage('general')
-    else if (key && key !== 'addCourse' && key !== 'editTable') setPage('main')
+    else if (MINE_KEYS.has(key ?? '')) setPage('main')
   }), [])
 
   // 二级页导航接线返回栈 (MainActivity pushOverlay/popOverlay 同构):
@@ -646,14 +650,25 @@ function AllTablesPage({ onBack }: { onBack: () => void }) {
   const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) ?? []
   const selectedId = useLiveQuery(async () => (await db.timetables.where('isDefault').equals(1).first())?.id)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const push = useBackStack((s) => s.push)
+  const back = useBackStack((s) => s.pop)
+  const pendingId = usePendingTable((s) => s.pendingId)
+
+  // EditTable 走返回栈 (MainActivity:317 pushOverlay(EditTable)) — 此前 editingId 是纯局部态,
+  // 浏览器返回只弹历史不收回页面, 且底栏在编辑页仍露出来 (违反 overlay 不变量)。
+  useEffect(() => installBackHandler((key) => {
+    if (key === 'editTable') setEditingId(null)
+  }), [])
 
   if (editingId !== null) {
     return (
       <EditTableView
         tableId={editingId}
-        onBack={() => setEditingId(null)}
-        onSaved={() => setEditingId(null)}
-        onDeleted={() => setEditingId(null)}
+        pendingNewTableId={pendingId}
+        onBack={() => { back(); setEditingId(null) }}
+        onDiscardPending={() => { void abandonPendingTable(); back(); setEditingId(null) }}
+        onSaved={() => { back(); setEditingId(null) }}
+        onDeleted={() => { back(); setEditingId(null) }}
       />
     )
   }
@@ -698,7 +713,7 @@ function AllTablesPage({ onBack }: { onBack: () => void }) {
               <IconContentCopy size={20} />
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); setEditingId(tb.id) }}
+              onClick={(e) => { e.stopPropagation(); push('editTable'); setEditingId(tb.id) }}
               aria-label={t('action_settings')}
               style={iconBtnStyle}
             >
@@ -709,8 +724,8 @@ function AllTablesPage({ onBack }: { onBack: () => void }) {
       })}
       <button
         onClick={() => {
-          const n = tables.length + 1
-          void insertTable({ name: `课表 ${n}`, startDate: '', timeJson: DEFAULT_TIME_JSON, isDefault: tables.length === 0 ? 1 : 0, maxWeek: 20, createdAt: Date.now(), smartConfigJson: '', nodeCount: 12 })
+          // 待保存新建 (MainActivity:311-317): 建空表不切选中 → EditTable, 不保存返回即丢弃
+          void beginNewTable().then((id) => { push('editTable'); setEditingId(id) })
         }}
         className="m3-card"
         style={{

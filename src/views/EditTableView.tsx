@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { IconArrowBack, IconCheck, IconClose, IconDelete } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
+import { usePendingTable } from '../state/pendingTable'
 import {
   updateTableRemappingCourses,
   deleteTable,
@@ -29,12 +30,18 @@ function normalizeStartDate(raw: string): string {
 
 export function EditTableView({
   tableId,
+  pendingNewTableId = null,
   onBack,
+  onDiscardPending,
   onSaved,
   onDeleted,
 }: {
   tableId?: number
+  /** 非空 = 这张表刚建出来还没保存 (MainActivity.pendingNewTableId 同构) */
+  pendingNewTableId?: number | null
   onBack: () => void
+  /** 待保存期间退出 = 丢弃新表 (EditTableScreen.kt:142 onDiscardPending) */
+  onDiscardPending?: () => void
   onSaved: () => void
   onDeleted: () => void
 }) {
@@ -55,6 +62,17 @@ export function EditTableView({
   const [timeSlotsExpanded, setTimeSlotsExpanded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // 返回分层 (EditTableScreen.kt:142): 待保存的新表 → 退出即丢弃, 普通编辑 → 直接返回
+  const handleBack = () => {
+    if (pendingNewTableId != null && onDiscardPending) onDiscardPending()
+    else onBack()
+  }
+  // 保存/删除后新表已落定, 待保存标记作废 (MainActivity:323/327 popOverlay 同时清 pending)
+  const settle = (done: () => void) => () => {
+    if (pendingNewTableId != null) usePendingTable.getState().clear()
+    done()
+  }
 
   // 表异步到达后再初始化受控值 (remember(table.id) 等价)
   if (table && name === null) setName(table.name)
@@ -97,12 +115,12 @@ export function EditTableView({
       startDate: normalizeStartDate(tableStart),
       maxWeek,
       timeJson: buildTimeJsonFromRows(newRows),
-    }).then(onSaved)
+    }).then(settle(onSaved))
   }
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <Header onBack={onBack} title={t('edit_table_title')} />
+      <Header onBack={handleBack} title={t('edit_table_title')} />
 
       {/* 基础信息 */}
       <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -151,7 +169,9 @@ export function EditTableView({
         <IconCheck size={18} /> {t('edit_table_save')}
       </button>
 
-      {/* 删除 — 最后一张表也可删 (用户 2026-09-03), 空态由 Schedule 兜底 */}
+      {/* 删除 — 最后一张表也可删 (用户 2026-09-03), 空态由 Schedule 兜底;
+          待保存的新表隐藏删除键 (EditTableScreen.kt:312: pendingNewTableId == null 才渲染) */}
+      {pendingNewTableId == null && (
       <button
         onClick={() => setShowDeleteConfirm(true)}
         style={{
@@ -162,6 +182,7 @@ export function EditTableView({
       >
         <IconClose size={18} /> {t('edit_table_delete')}
       </button>
+      )}
 
       {showDeleteConfirm && (
         <Overlay onDismiss={() => setShowDeleteConfirm(false)}>
@@ -181,7 +202,7 @@ export function EditTableView({
             <button
               onClick={() => {
                 setShowDeleteConfirm(false)
-                void deleteTable(table.id).then(onDeleted)
+                void deleteTable(table.id).then(settle(onDeleted))
               }}
               style={{ padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', color: 'var(--md-error)', background: 'transparent', fontWeight: 600 }}
             >
