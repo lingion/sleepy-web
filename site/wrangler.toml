@@ -1,0 +1,25 @@
+# sleepy-web-site — Sleepy Web SPA 静态资产 Worker
+# 已部署: https://sleepy.qdp.qzz.io (custom_domain)
+# 当前版本: 2bc946c0-b3cd-4fb4-9b07-0b9f913f17a1 (hash 路由版, 2026-09-14)
+# 重部署: BASE_PATH=/ npx tsc -b && BASE_PATH=/ npx vite build
+#         cd site && CLOUDFLARE_API_TOKEN=$(cat ~/.cloudflare-token) npx --prefix ~/proxy wrangler deploy
+#   (token 位置: ~/.cloudflare-token; wrangler 复用 ~/proxy/node_modules)
+# Docs: assets.directory + not_found_handling="single-page-application"
+#   → 未匹配路由回 200 + index.html (developers.cloudflare.com/workers/static-assets/)
+#   纯静态资产 worker 无需 main 脚本
+#   custom_domain=true 免 DNS/证书手配 (developers.cloudflare.com/workers/wrangler/configuration/#routes)
+# hash 路由不经服务端 (# 后片段不随请求上行), Pages/Worker 双部署均成立
+name = "sleepy-web-site"
+compatibility_date = "2026-09-01"
+
+# 自定义域名 — qdp.qzz.io zone (account: Lingion04@gmail.com's Account)
+routes = [
+  { pattern = "sleepy.qdp.qzz.io", custom_domain = true },
+]
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true
