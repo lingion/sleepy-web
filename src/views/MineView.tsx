@@ -17,12 +17,13 @@ import { AppearancePage } from './mine/AppearancePage'
 import { HolidayPage } from './mine/HolidayPage'
 import { ReminderPage } from './mine/ReminderPage'
 import { AboutPage } from './mine/AboutPage'
+import { LicensePage } from './mine/LicensePage'
 import { AllTablesPage } from './mine/AllTablesPage'
 import { CustomThemeEditorView } from './mine/CustomThemeEditorView'
 import { JwImportView } from './jw/JwImportView'
 
 type Page =
-  | 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder'
+  | 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder' | 'license'
   | 'customTheme' | 'jwImport'
 
 /** MineView 自己拥有的返回层 — popstate 只在这些 key 弹出时收回页面状态 */
@@ -40,6 +41,7 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
     // 只收回属于本页的层 — 别的 tab 的弹层 (课程详情/周次跳转…) 弹出时不得误跳
     if (key === 'holiday') setPage('general')
     else if (key === 'customTheme') setPage('appearance')
+    else if (key === 'license') setPage('about')
     else if (MINE_KEYS.has(key ?? '')) setPage('main')
   }), [])
 
@@ -84,7 +86,9 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
     case 'alltables':
       return <AllTablesPage onBack={() => backTo('main')} />
     case 'about':
-      return <AboutPage onBack={() => backTo('main')} />
+      return <AboutPage onBack={() => backTo('main')} onOpenLicense={() => go('license', 'license')} />
+    case 'license':
+      return <LicensePage onBack={() => backTo('about')} />
     case 'reminder':
       return <ReminderPage onBack={() => backTo('main')} />
     default:

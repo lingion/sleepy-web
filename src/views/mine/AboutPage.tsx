@@ -4,13 +4,13 @@
  */
 
 import { useTranslation } from 'react-i18next'
-import { SleepyLogo } from '../../components/icons'
+import { SleepyLogo, IconChevronRight } from '../../components/icons'
 import { SettingsScaffold, HDiv } from './shared'
 
 
-export function AboutPage({ onBack }: { onBack: () => void }) {
+export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpenLicense?: () => void }) {
   const t = useTranslation().t
-  const version = '1.0.53'
+  const version = '1.0.55'
 
   return (
     <SettingsScaffold title={t('about_title')} onBack={onBack}>
@@ -24,12 +24,12 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
         </div>
         <div className="m3-headline-small" style={{ fontWeight: 700 }}>{t('app_name')}</div>
         <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>
-          {t('about_version_detail', { v1: '1.0.53', v2: '53' })}
+          v1.0.55
         </div>
       </div>
 
       <div className="m3-card" style={{ padding: 0 }}>
-        <InfoRow label={t('about_version')} value={`${version} (53)`} />
+        <InfoRow label={t('about_version')} value={`${version} (61)`} />
         <HDiv inset={16} />
         <InfoRow label={t('about_author')} value={t('about_author_name')} />
         <HDiv inset={16} />
@@ -72,11 +72,19 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <div className="m3-card" style={{ padding: 16 }}>
-        <div className="m3-title-medium" style={{ marginBottom: 8 }}>{t('about_license_title')}</div>
-        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', whiteSpace: 'pre-line' }}>
-          {t('about_license_body')}
+      {/* License 入口行 (v1.0.46 用户令): 长卡拆独立二级页, 这里只留入口 */}
+      <div
+        className="m3-card"
+        onClick={() => onOpenLicense?.()}
+        style={{ padding: 16, display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+      >
+        <div style={{ flex: 1 }}>
+          <div className="m3-body-medium" style={{ fontWeight: 600 }}>{t('about_license_title')}</div>
+          <div className="m3-body-small" style={{ marginTop: 2, color: 'var(--md-on-surface-variant)' }}>
+            {t('about_license_detail')}
+          </div>
         </div>
+        <IconChevronRight size={20} color="var(--md-on-surface-variant)" />
       </div>
     </SettingsScaffold>
   )
