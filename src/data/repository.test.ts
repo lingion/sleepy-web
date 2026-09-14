@@ -166,10 +166,22 @@ describe('课程 CRUD (capture 6-14)', () => {
     expect(out.map((c) => c.courseName).sort()).toEqual(['增', '改2'])
   })
 
-  it('assignGroupIds: 同名课共享 groupId', () => {
-    const out = assignGroupIds([mkCourse({ courseName: '体育' }), mkCourse({ courseName: '体育' }), mkCourse({ courseName: '英语' })])
-    expect(out[0].groupId).toBe(out[1].groupId)
-    expect(out[0].groupId).not.toBe(out[2].groupId)
+  it('assignGroupIds: 同名课共享 groupId (Android ScheduleRepository.kt:356 语义)', () => {
+    // 空值 → 按名分 key 共享随机 UUID
+    const a = assignGroupIds([
+      mkCourse({ courseName: '体育', groupId: '' }),
+      mkCourse({ courseName: '体育', groupId: '' }),
+      mkCourse({ courseName: '英语', groupId: '' }),
+    ])
+    expect(a[0].groupId).toBe(a[1].groupId)
+    expect(a[0].groupId).not.toBe(a[2].groupId)
+    // 原值非空 → 保留原值 (Kotlin c.groupId.takeIf { it.isNotBlank() } ?: UUID)
+    const b = assignGroupIds([
+      mkCourse({ courseName: '体育', groupId: 'g1' }),
+      mkCourse({ courseName: '英语', groupId: 'g2' }),
+    ])
+    expect(b[0].groupId).toBe('g1')
+    expect(b[1].groupId).toBe('g2')
   })
 })
 

@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconChevronLeft, IconChevronRight,
-  IconAdd, IconIosShare, IconCheck, SleepyLogo,
+  IconAdd, IconIosShare, IconCheck, IconClose, SleepyLogo,
 } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
@@ -349,6 +349,12 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
   }
 
   const hasTable = (tableList ?? []).length > 0
+  // 示例课表提示: seed 时记 sampleTableId; 用户关掉提示条 (sampleBannerDismissed) 后不再显示
+  const [sampleBannerOff, setSampleBannerOff] = useState(false)
+  const sampleMeta = useLiveQuery(async () => ({
+    id: (await db.prefs.get('sampleTableId'))?.value,
+    dismissed: (await db.prefs.get('sampleBannerDismissed'))?.value,
+  }))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }} ref={containerRef}>
@@ -515,6 +521,32 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
           </div>
 
         </>
+      )}
+
+      {/* 示例课表提示条 — 首访教学, 关闭即永久 (Android 无此概念, web 特有) */}
+      {defaultTable && !sampleBannerOff && sampleMeta?.id === String(defaultTable.id) && !sampleMeta.dismissed && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, margin: '0 16px 4px',
+            padding: '10px 14px', borderRadius: 14,
+            background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+          }}
+        >
+          <span className="m3-body-small" style={{ flex: 1 }}>{t('sample_table_banner')}</span>
+          <button
+            onClick={() => {
+              setSampleBannerOff(true)
+              void db.prefs.put({ key: 'sampleBannerDismissed', value: '1' })
+            }}
+            aria-label={t('sample_table_dismiss')}
+            style={{
+              border: 'none', cursor: 'pointer', flexShrink: 0, padding: 4,
+              background: 'transparent', color: 'inherit', display: 'flex',
+            }}
+          >
+            <IconClose size={18} />
+          </button>
+        </div>
       )}
 
       {/* 主体 — 左右滑动切换周次 + 跟手翻页动画 (HorizontalPager 页面实时平移同构):

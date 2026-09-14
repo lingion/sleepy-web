@@ -117,13 +117,48 @@ export async function insertCourse(course: Omit<Course, 'id'> & { id?: number })
   return id
 }
 
-/** 7. insertCourses (批量, assignGroupIds 语义由调用方保证) */
+/** 7. insertCourses (批量, 内建 assignGroupIds — Android ScheduleRepository.kt:170 同构) */
 export async function insertCourses(courses: Omit<Course, 'id'>[]): Promise<number[]> {
   await undoManager.capture('insertCourses')
+  // 导入时以规范化课程名为身份; 时间、教师、教室只属于课程的一个时段
+  const withGroupIds = assignGroupIds(courses)
   let next = await nextCourseId()
-  const full = courses.map((c) => ({ ...c, id: next++ }))
+  const full = withGroupIds.map((c) => ({ ...c, id: next++ }))
   await db.courses.bulkPut(full)
   return full.map((c) => c.id)
+}
+
+/** assignGroupIds — Android ScheduleRepository.kt:356 1:1
+ *  按规范化课名分 key 共享 groupId; 原值非空保留, 空则生成随机 UUID。
+ *  同名不同 token 的分区靠 sleepy-v1 authoritative 路径 (insertCoursesKeepingGroups)
+ *  绕过本函数保留 — 与 Android 双路径分流同构。 */
+export function assignGroupIds(courses: Omit<Course, 'id'>[]): Omit<Course, 'id'>[] {
+  const nameToGroupId = new Map<string, string>()
+  return courses.map((c) => {
+    const key = c.courseName.trim().replace(/\s+/g, ' ').toLowerCase()
+    let gid = nameToGroupId.get(key)
+    if (gid === undefined) {
+      gid = c.groupId.trim() !== '' ? c.groupId : randomUuid()
+      nameToGroupId.set(key, gid)
+    }
+    return { ...c, groupId: gid }
+  })
+}
+
+/** crypto.randomUUID 兜底 (非安全上下文 jsdom 无此 API) */
+function randomUuid(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch {
+    /* fallthrough */
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const r = (Math.random() * 16) | 0
+    const v = ch === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
 /** 8. insertCoursesKeepingGroups — 导入保留原 groupId */
@@ -298,17 +333,4 @@ export async function duplicateTable(id: number): Promise<number> {
     await endBatch()
   }
   return newId
-}
-
-/** assignGroupIds — 同名课同 groupId (导入路径) */
-export function assignGroupIds(courses: Omit<Course, 'id'>[]): Omit<Course, 'id'>[] {
-  const nameToGroup = new Map<string, string>()
-  return courses.map((c) => {
-    let groupId = nameToGroup.get(c.courseName)
-    if (!groupId) {
-      groupId = `group_${c.courseName}_${Math.random().toString(36).slice(2, 8)}`
-      nameToGroup.set(c.courseName, groupId)
-    }
-    return { ...c, groupId }
-  })
 }
