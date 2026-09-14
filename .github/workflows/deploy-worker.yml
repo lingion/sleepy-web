@@ -1,0 +1,47 @@
+# Sleepy Web — Cloudflare Worker 部署 (sleepy.qdp.qzz.io)
+# push 到 main 时构建并部署 → 与 GitHub Pages (deploy.yml) 同一触发条件, 双端同步
+# token: gh secret set CLOUDFLARE_API_TOKEN (加密 secrets, 不回显不入库)
+# 重部署(手动): BASE_PATH=/ npx tsc -b && BASE_PATH=/ npx vite build
+#               cd site && CLOUDFLARE_API_TOKEN=<token> npx --prefix ~/proxy wrangler deploy
+name: Deploy to Cloudflare Worker
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc -b
+
+      - name: Build (root base for custom domain)
+        run: npx vite build
+        env:
+          BASE_PATH: /
+
+      - name: Deploy to Cloudflare Worker
+        run: npx wrangler deploy
+        working-directory: site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

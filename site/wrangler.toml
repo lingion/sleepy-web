@@ -1,7 +1,8 @@
 # sleepy-web-site — Sleepy Web SPA 静态资产 Worker
 # 已部署: https://sleepy.qdp.qzz.io (custom_domain)
-# 当前版本: 2bc946c0-b3cd-4fb4-9b07-0b9f913f17a1 (hash 路由版, 2026-09-14)
-# 重部署: BASE_PATH=/ npx tsc -b && BASE_PATH=/ npx vite build
+# 当前版本: 5a8315c8-d513-4acb-b097-b7029f54a678 (deploy-worker.yml 接入, 2026-09-14)
+# 自动部署: push 到 main → .github/workflows/deploy-worker.yml (token=repo secrets)
+# 手动重部署: BASE_PATH=/ npx tsc -b && BASE_PATH=/ npx vite build
 #         cd site && CLOUDFLARE_API_TOKEN=$(cat ~/.cloudflare-token) npx --prefix ~/proxy wrangler deploy
 #   (token 位置: ~/.cloudflare-token; wrangler 复用 ~/proxy/node_modules)
 # Docs: assets.directory + not_found_handling="single-page-application"
@@ -18,7 +19,9 @@ routes = [
 ]
 
 [assets]
-directory = "./dist"
+# 相对 wrangler.toml 所在目录 → 仓库根 dist (本地构建与 CI 构建同一产物;
+# 曾用 site/dist symlink, CI checkout 不跟踪 symlink 之外的状态, 改相对路径更稳)
+directory = "../dist"
 not_found_handling = "single-page-application"
 
 [observability]
