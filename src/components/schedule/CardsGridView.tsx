@@ -83,10 +83,11 @@ export function CardsGridView(props: CardsGridViewProps) {
         // 旧值 28 * gridScale 是错的 (审计 medium #17)
         borderRadius: 16,
         padding: 8 * prefs.gridScale,
-        overflowX: 'auto',
       }}
     >
-      <div style={{ minWidth: geo.timeW + geo.gapW * (dayCount + 1) + geo.colW * dayCount }}>
+      {/* 对齐安卓 CourseTableView: 列宽恒随容器宽度缩放, 无横向滚动
+          (曾经的 overflowX:auto 会让浏览器把横滑判给原生滚动, pointercancel 杀死翻页手势) */}
+      <div>
         {/* 表头 */}
         <div style={{ display: 'flex', gap: geo.gapW, height: geo.headH, alignItems: 'center' }}>
           <div style={{ width: geo.timeW, flexShrink: 0 }} />
