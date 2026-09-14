@@ -317,8 +317,9 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
   // pointermove 位移→轨道 transform 跟手; 松手 pagerTargetWeek (半页阈值+fling)→落定/回弹;
   // 外部周次变化 (TopBar 箭头/跳周菜单/切表) → effect 清位移 (scrollToPage 同位)
   const pager = useWeekPager((w) => setWeek(w), maxWeek, currentWeek, pageWidth)
-  // 只把事件处理器铺到滚动容器上 (offset/settling 是渲染状态, 不能当 DOM 属性)
-  const { offset: pagerOffsetPx, settling: pagerSettling, ...pagerHandlers } = pager
+  // 只把事件处理器铺到滚动容器上 (offset/settling 是渲染状态, 不能当 DOM 属性;
+  // attachPager 走 ref 合并, 也不能当 DOM 属性)
+  const { offset: pagerOffsetPx, settling: pagerSettling, attachPager, ...pagerHandlers } = pager
 
   // v7.10.5 会话级置顶 override — 网格 onPickTop 与详情弹窗 radio 共用真相源 (Android 同构)
   const [topOverrides, setTopOverrides] = useState<Record<string, number>>({})
@@ -605,7 +606,10 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
           滚动层 overflow 管纵向 (横向 hidden, 轨道 300% 宽不外溢), 轨道只管横向跟手;
           touch-action:pan-y 把纵向滚动让给浏览器, 只抢横向。 */}
       <div
-        ref={attachScroll}
+        ref={(el) => {
+          attachScroll(el)
+          attachPager(el)
+        }}
         style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', touchAction: 'pan-y', userSelect: 'none' }}
         {...pagerHandlers}
       >

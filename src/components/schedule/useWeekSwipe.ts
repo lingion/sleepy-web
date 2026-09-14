@@ -32,6 +32,13 @@ export const SWIPE_PAGE_FRACTION = 0.5
 export const SWIPE_MAX_THRESHOLD_PX = 240
 /** fling 最小位移 — 低于它不认速度, 防原地微抖误翻页 (px) */
 export const SWIPE_FLING_MIN_PX = 16
+/**
+ * 方向锁判定斜率阈值 (px) — Android HorizontalPager 在 gesture arena 里
+ * 过 touch slop (~8dp) 后按主轴方向认领手势的同构: 横移意图一旦确立,
+ * pager 独占该手势 (preventDefault 阻止浏览器起原生纵滚 → 不再 pointercancel
+ * 杀死翻页 = 用户反馈"周视图难滑"的根因); 纵移意图则让位给原生滚动。
+ */
+export const SWIPE_DIRECTION_LOCK_PX = 8
 /** 松手落定动画时长 ms (Android pager snap 量级) */
 export const PAGER_SETTLE_MS = 260
 
@@ -93,6 +100,18 @@ export function pagerTrackWeeks(week: number, maxWeek: number): number[] {
   weeks.push(clamped)
   if (clamped < maxWeek) weeks.push(clamped + 1)
   return weeks
+}
+
+/** 手势方向: 'h' = 横滑翻页归 pager, 'v' = 纵滑归原生滚动, 'none' = 未过 slop 未定 */
+export type DragLock = 'none' | 'h' | 'v'
+
+/**
+ * 方向锁判定 (纯函数可测) — 位移过 slop 后按主轴定归属;
+ * 未过 slop 返回 'none' (不锁, 给手指起步留余地); 主轴相等偏 'v' (保滚动)。
+ */
+export function lockDirection(dx: number, dy: number): DragLock {
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_DIRECTION_LOCK_PX) return 'none'
+  return Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
 }
 
 export function swipeTargetWeek(
@@ -184,6 +203,8 @@ export function useWeekPager(
   week: number,
   pageWidth: number
 ): WeekPagerHandlers & {
+  /** 挂到滚动容器: 原生 touchmove preventDefault 通道 (方向锁 'h' 时阻止浏览器抢手势) */
+  attachPager: (el: HTMLElement | null) => void
   /** 轨道位移 px (负 = 露出下一周, 正 = 露出上一周); 与基准百分比叠加 */
   offset: number
   /** 跟手期间 false; 松手落定/回弹过渡 true (transition 只在此时开) */
@@ -191,6 +212,7 @@ export function useWeekPager(
 } {
   const start = useRef<{ x: number; y: number } | null>(null)
   const last = useRef<{ x: number; t: number } | null>(null)
+  const lock = useRef<DragLock>('none')
   const settleTimer = useRef<number | null>(null)
   const [offset, setOffset] = useState(0)
   const [settling, setSettling] = useState(false)
@@ -224,6 +246,7 @@ export function useWeekPager(
     clearSettle()
     start.current = { x: e.clientX, y: e.clientY }
     last.current = { x: e.clientX, t: performance.now() }
+    lock.current = 'none'
     // 落定动画中途再次按住 → 立刻接管, 不留 transition (否则动画跟手指打架)
     setSettling(false)
   }, [clearSettle])
@@ -233,6 +256,12 @@ export function useWeekPager(
     if (!s) return
     last.current = { x: e.clientX, t: performance.now() }
     const dx = e.clientX - s.x
+    const dy = e.clientY - s.y
+    // 方向锁 (Android gesture arena 同构): 过 slop 按主轴定归属一次, 之后不换手。
+    // 'v' → 完全让位原生纵滚 (不跟手, 避免斜拖时轨道横抖);
+    // 'h' → pager 独占, 配套 attachPager 的 touchmove preventDefault 防浏览器抢。
+    if (lock.current === 'none') lock.current = lockDirection(dx, dy)
+    if (lock.current === 'v') return
     const atLastWeek = weekRef.current >= maxRef.current && dx < 0
     const atFirstWeek = weekRef.current <= 1 && dx > 0
     setOffset(pagerOffset(dx, widthRef.current, atLastWeek, atFirstWeek))
@@ -241,6 +270,7 @@ export function useWeekPager(
   const finish = useCallback((e: PointerLike) => {
     const s = start.current
     start.current = null
+    lock.current = 'none'
     if (!s) return
     const dx = e.clientX - s.x
     const l = last.current
@@ -267,10 +297,26 @@ export function useWeekPager(
 
   const onPointerCancel = useCallback(() => {
     start.current = null
+    lock.current = 'none'
     clearSettle()
     setSettling(true)
     setOffset(0)
   }, [clearSettle])
 
-  return { onPointerDown, onPointerMove, onPointerUp: finish, onPointerCancel, offset, settling }
+  // 原生 touchmove (passive:false) — React 合成 touch 事件是 passive 的, 无法
+  // preventDefault; 方向锁 'h' 确立后阻止浏览器起原生滚动, 否则 touch-action:pan-y
+  // 下任何纵向分量都会 pointercancel 杀死翻页 (周视图"难滑"根因)。
+  const onTouchMoveNative = useCallback((e: TouchEvent) => {
+    if (lock.current === 'h' && start.current) e.preventDefault()
+  }, [])
+  const pagerEl = useRef<HTMLElement | null>(null)
+  const attachPager = useCallback((el: HTMLElement | null) => {
+    if (pagerEl.current === el) return
+    pagerEl.current?.removeEventListener('touchmove', onTouchMoveNative)
+    pagerEl.current = el
+    el?.addEventListener('touchmove', onTouchMoveNative, { passive: false })
+  }, [onTouchMoveNative])
+  useEffect(() => () => attachPager(null), [attachPager])
+
+  return { onPointerDown, onPointerMove, onPointerUp: finish, onPointerCancel, attachPager, offset, settling }
 }

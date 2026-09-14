@@ -8,6 +8,8 @@ import {
   pagerOffset,
   pagerTargetWeek,
   pagerTrackWeeks,
+  lockDirection,
+  SWIPE_DIRECTION_LOCK_PX,
   SWIPE_PAGE_FRACTION,
   SWIPE_FLING_VELOCITY,
   SWIPE_MAX_THRESHOLD_PX,
@@ -127,5 +129,28 @@ describe('pagerTrackWeeks — 轨道连动渲染的周次 (把两个课表连起
   it('越界周次被夹进 [1, maxWeek]', () => {
     expect(pagerTrackWeeks(0, 20)).toEqual([1, 2])
     expect(pagerTrackWeeks(99, 20)).toEqual([19, 20])
+  })
+})
+
+describe('lockDirection — 方向锁 (Android gesture arena 横移认领同构)', () => {
+  it('未过 slop 不锁 (起步余地)', () => {
+    expect(lockDirection(0, 0)).toBe('none')
+    expect(lockDirection(3, 0)).toBe('none')
+    expect(lockDirection(7, 7)).toBe('none')
+  })
+
+  it('横移主轴 → h (pager 独占, 斜拖不再被原生纵滚 pointercancel)', () => {
+    expect(lockDirection(10, 2)).toBe('h')
+    expect(lockDirection(-40, 12)).toBe('h')
+  })
+
+  it('纵移主轴 → v (让位原生滚动); 主轴相等偏 v 保滚动', () => {
+    expect(lockDirection(2, 10)).toBe('v')
+    expect(lockDirection(30, -60)).toBe('v')
+    expect(lockDirection(10, 10)).toBe('v')
+  })
+
+  it('slop = 8px (Android touch slop ~8dp 同量级)', () => {
+    expect(SWIPE_DIRECTION_LOCK_PX).toBe(8)
   })
 })
