@@ -9,12 +9,12 @@
  * 重命名不入本页 — Android 真源重命名仅发生在 EditTableScreen(名称字段), 经编辑卡完成。
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
-import { useBackStack } from '../state/backStack'
+import { installBackHandler, useBackStack } from '../state/backStack'
 import { insertTable, setDefault } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import { ImportView } from './ImportView'
@@ -49,7 +49,14 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
 
   const list = tables ?? []
 
-  // 二级页 push 入栈 (浏览器返回可弹); 返回按钮 pop 出栈。
+  // 浏览器返回时同步本地 page state (popstate 广播 popped key → 收回本视图的层)。
+  useEffect(() => installBackHandler((key) => {
+    if (key === 'addCourse') { setImporting(false); setAddingCourse(false) }
+    else if (key === 'export') setExporting(false)
+    else if (key === 'editTable') setEditingId(null)
+  }), [])
+
+  // 二级页 push 入栈 (带 hash 地址, 浏览器返回可弹); 返回按钮 pop 出栈。
   const enter = (key: Parameters<typeof push>[0]) => {
     push(key)
   }

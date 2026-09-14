@@ -17,7 +17,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
-import { useBackStack } from '../state/backStack'
+import { installBackHandler, useBackStack } from '../state/backStack'
 import { undoManager, useUndoStore } from '../data/undoStore'
 import { CardsGridView, dateOfWeek } from '../components/schedule/CardsGridView'
 import { FullWeekView } from '../components/schedule/FullWeekView'
@@ -208,7 +208,13 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
 
-  // 二级页 push 入栈 (浏览器返回可弹), 返回按钮 pop 出栈。
+  // 浏览器返回时同步本地 page state (popstate 广播 popped key → 收回本视图的层)。
+  useEffect(() => installBackHandler((key) => {
+    if (key === 'addCourse') { setAdding(false); setImporting(false); setEditingCourse(null) }
+    else if (key === 'editTable') setEditingTableId(null)
+  }), [])
+
+  // 二级页 push 入栈 (带 hash 地址, 浏览器返回可弹), 返回按钮 pop 出栈。
   const enter = (key: Parameters<typeof push>[0]) => push(key)
   const leave = () => back()
 

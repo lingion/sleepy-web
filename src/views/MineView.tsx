@@ -15,13 +15,13 @@
  *   web 维持仅标题行可点(web 惯例, 误触折叠更少) — 有意取舍非遗漏。
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
-import { useBackStack, type BackKey } from '../state/backStack'
+import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
 import { computeCurrentWeek } from './ScheduleView'
 import { localizedDay } from '../components/schedule/CardsGridView'
 import { THEME_PRESETS } from '../theme/themes'
@@ -42,6 +42,12 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const [page, setPage] = useState<Page>('main')
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
+
+  // 浏览器返回时同步本地 page state;否则只弹历史而页面仍停在二级页。
+  useEffect(() => installBackHandler((key) => {
+    if (key === 'holiday') setPage('general')
+    else if (key && key !== 'addCourse' && key !== 'editTable') setPage('main')
+  }), [])
 
   // 二级页导航接线返回栈 (MainActivity pushOverlay/popOverlay 同构):
   // 进页 push(浏览器返回可出栈), 返回按钮 pop(每层只弹自己 — v7.10.8 修复语义)。
