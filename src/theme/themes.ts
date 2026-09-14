@@ -2,7 +2,11 @@
  * 主题系统 — ThemePresets.kt + Theme.kt 1:1
  * 5 套预设 × light/dark, M3 token 全量 CSS 变量映射。
  * WakeUpColorScheme 字段 → --md-* CSS 变量。
+ * 'custom:<uuid>' 键 → customSchemeDeriver 派生 (模块级循环仅函数体引用, 运行时安全)。
  */
+
+import { CUSTOM_KEY_PREFIX, getThemeById } from '../data/customThemeStore'
+import { deriveCustomScheme } from './customSchemeDeriver'
 
 export interface SchemeColors {
   primary: string
@@ -196,12 +200,28 @@ function kebab(s: string): string {
   return s.replace(/([A-Z])/g, '-$1').toLowerCase()
 }
 
-/** 把主题应用到 document — data-theme + 亮暗 CSS 变量 */
+/** 把主题应用到 document — data-theme + 亮暗 CSS 变量; 'custom:<uuid>' 走派生引擎 */
 export function applyTheme(themeKey: string, isDark: boolean): void {
-  const preset = THEME_PRESETS[themeKey] ?? THEME_PRESETS.default
-  const scheme = isDark ? preset.dark : preset.light
+  let scheme: SchemeColors
+  let dataTheme: string
+  if (themeKey.startsWith(CUSTOM_KEY_PREFIX)) {
+    const custom = getThemeById(themeKey.slice(CUSTOM_KEY_PREFIX.length))
+    if (custom) {
+      scheme = deriveCustomScheme(custom, isDark)
+      dataTheme = 'custom'
+    } else {
+      // 主题已删除 → 回落默认 (Android Theme.kt custom 找不到回落淡紫同构)
+      const preset = THEME_PRESETS.default
+      scheme = isDark ? preset.dark : preset.light
+      dataTheme = preset.key
+    }
+  } else {
+    const preset = THEME_PRESETS[themeKey] ?? THEME_PRESETS.default
+    scheme = isDark ? preset.dark : preset.light
+    dataTheme = preset.key
+  }
   const el = document.documentElement
-  el.dataset.theme = preset.key
+  el.dataset.theme = dataTheme
   el.dataset.mode = isDark ? 'dark' : 'light'
   for (const [k, v] of Object.entries(scheme)) {
     el.style.setProperty(`--md-${kebab(k)}`, v)

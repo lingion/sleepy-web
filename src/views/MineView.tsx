@@ -30,6 +30,8 @@ const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables
 
 export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const [page, setPage] = useState<Page>('main')
+  // 编辑器微调目标: null = 新建 (Android editingTheme 同构)
+  const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
 
@@ -64,9 +66,17 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
       // HolidaySettingsScreen 的 back 回通用设置页(GSS 的二级页), 非回主页
       return <HolidayPage onBack={() => backTo('general')} />
     case 'appearance':
-      return <AppearancePage onBack={() => backTo('main')} />
+      return (
+        <AppearancePage
+          onBack={() => backTo('main')}
+          onOpenThemeEditor={(id) => {
+            setEditingThemeId(id)
+            go('customTheme', 'customTheme')
+          }}
+        />
+      )
     case 'customTheme':
-      return <CustomThemeEditorView onBack={() => backTo('appearance')} />
+      return <CustomThemeEditorView onBack={() => backTo('appearance')} editingId={editingThemeId} />
     case 'jwImport':
       return <JwImportView onBack={() => backTo('main')} />
     case 'export':

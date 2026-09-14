@@ -102,7 +102,8 @@ export interface Holiday {
  */
 export interface Prefs {
   themeMode: 'system' | 'light' | 'dark'
-  theme: 'default' | 'spring' | 'ocean' | 'peach' | 'slate'
+  /** 预设 key(default/spring/ocean/peach/slate) | 'system' | 'custom:<uuid>' (AppPrefs themeKey 同构) */
+  theme: string
   lang: 'system' | 'en' | 'zh-CN' | 'zh-TW' | 'ja' | 'es' | 'en-GB'
   /** 课程时间显示: node=第N节 / time=HH:mm-HH:mm (非视图切换!) */
   displayMode: 'node' | 'time'

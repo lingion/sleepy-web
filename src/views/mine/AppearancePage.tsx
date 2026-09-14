@@ -1,23 +1,26 @@
 /**
  * AppearancePage — 外观 (AppearanceScreen.kt 1:1)。从 MineView.tsx 拆出。
- * 主题色彩 (跟随系统卡 + 2 列预设网格) + 外观模式三态分段。
- * 自定义卡与加号尾位卡省略: CustomSchemeDeriver + CustomThemeEditor 属 src/theme/ 与
- * prefsStore 配套改动, 待对应区 agent 移植后补齐 (#/我的/外观/自定义主题 路由已预注册)。
+ * 主题色彩 (跟随系统卡 + 2 列网格: 5 预设 → 各自定义卡 → 加号新建卡永远最后) + 外观模式三态分段。
+ * 网格顺序是不变量(2026-09-11 用户定稿): 自定义卡与预设卡同列紧密堆积, 加号只排整个网格末尾。
  */
 
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from '../../state/prefsStore'
 import { THEME_PRESETS } from '../../theme/themes'
+import { deriveCustomScheme } from '../../theme/customSchemeDeriver'
+import { CUSTOM_KEY_PREFIX, getAllThemes, type CustomTheme } from '../../data/customThemeStore'
 import { SleepyLogo } from '../../components/icons'
 import type { Prefs } from '../../data/types'
 import { SettingsScaffold, SectionHeader, CheckIcon } from './shared'
 
 
-export function AppearancePage({ onBack }: { onBack: () => void }) {
+export function AppearancePage({ onBack, onOpenThemeEditor }: { onBack: () => void; onOpenThemeEditor?: (id: string | null) => void }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
   const isDark = document.documentElement.dataset.mode === 'dark'
+  // 每次渲染重读 — 编辑器保存/删除后返回本页即见最新 (Android customListVersion 同效)
+  const customThemes: CustomTheme[] = getAllThemes()
 
   const modes: Array<[Prefs['themeMode'], string]> = [
     ['system', t('theme_mode_system')],
@@ -52,9 +55,8 @@ export function AppearancePage({ onBack }: { onBack: () => void }) {
         {(prefs.theme as string) === 'system' && <CheckIcon size={24} />}
       </div>
 
-      {/* 2 列网格 — 5 预设卡(default 淡紫 + spring/ocean/peach/slate, AppearanceScreen.kt:132-137)
-          自定义卡与加号尾位卡省略: CustomSchemeDeriver/customSchemeDeriver.ts + CustomThemeEditor
-          属 src/theme/ 与 prefsStore 配套改动, 跨出本分区文件边界, 待对应区 agent 移植后补齐 */}
+      {/* 2 列网格 — 5 预设卡 → 各自定义卡 → 加号新建卡永远最后 (AppearanceScreen cells 序列同构)。
+          奇数尾行补空位, 保证最后一张卡保持半宽不撑满 (Android 空 Box 同构)。 */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {Object.values(THEME_PRESETS).map((preset) => {
           const selected = prefs.theme === preset.key
@@ -85,6 +87,32 @@ export function AppearancePage({ onBack }: { onBack: () => void }) {
             </div>
           )
         })}
+        {customThemes.map((theme) => (
+          <CustomThemeCard
+            key={theme.id}
+            theme={theme}
+            isDark={isDark}
+            selected={prefs.theme === CUSTOM_KEY_PREFIX + theme.id}
+            onClick={() => void update({ theme: CUSTOM_KEY_PREFIX + theme.id })}
+            onEdit={() => onOpenThemeEditor?.(theme.id)}
+          />
+        ))}
+        {/* 新建主题 — 虚线卡, 恒为网格最后一格 (不变量, 非快照) */}
+        <div
+          onClick={() => onOpenThemeEditor?.(null)}
+          style={{
+            flex: '1 1 calc(50% - 6px)', boxSizing: 'border-box', borderRadius: 16,
+            border: '1.5px dashed var(--md-outline)', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, minHeight: 96,
+            cursor: 'pointer', color: 'var(--md-on-surface-variant)',
+          }}
+        >
+          <span style={{ fontSize: 24 }}>＋</span>
+          <span className="m3-title-small">{t('theme_new')}</span>
+        </div>
+        {(Object.keys(THEME_PRESETS).length + customThemes.length + 1) % 2 === 1 && (
+          <div style={{ flex: '1 1 calc(50% - 6px)' }} aria-hidden />
+        )}
       </div>
 
       {/* 外观模式三态分段 — clip(shapes.medium)=12dp 外层 */}
@@ -117,4 +145,67 @@ export function AppearancePage({ onBack }: { onBack: () => void }) {
 
 function Swatch({ color }: { color: string }) {
   return <div style={{ width: 28, height: 28, borderRadius: 8, background: color }} />
+}
+
+/**
+ * 自定义主题卡 — 与预设卡完全同构(三色板+名称+选中对勾)。
+ * edit 图标在色板行右端: 24dp 色块包裹嵌 28dp 色板行, 不撑高卡片 (2026-09-13 用户定稿)。
+ */
+function CustomThemeCard({
+  theme,
+  isDark,
+  selected,
+  onClick,
+  onEdit,
+}: {
+  theme: CustomTheme
+  isDark: boolean
+  selected: boolean
+  onClick: () => void
+  onEdit: () => void
+}) {
+  const { t } = useTranslation()
+  const scheme = deriveCustomScheme(theme, isDark)
+  return (
+    <div
+      onClick={onClick}
+      className="m3-card"
+      style={{
+        flex: '1 1 calc(50% - 6px)',
+        boxSizing: 'border-box',
+        borderRadius: 16,
+        background: selected ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
+        padding: 16, cursor: 'pointer',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <Swatch color={scheme.primary} />
+        <Swatch color={scheme.secondary} />
+        <Swatch color={scheme.tertiary} />
+        <div style={{ flex: 1 }} />
+        <div
+          onClick={(e) => { e.stopPropagation(); onEdit() }}
+          title={t('theme_custom_edit')}
+          aria-label={t('theme_custom_edit')}
+          style={{
+            width: 24, height: 24, borderRadius: 6, background: 'var(--md-surface-container-highest)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--md-on-surface-variant)', fontSize: 13, cursor: 'pointer', flexShrink: 0,
+          }}
+        >
+          ✎
+        </div>
+      </div>
+      <div style={{ height: 12 }} />
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <span
+          className="m3-title-small"
+          style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {theme.name.trim() === '' ? t('theme_new') : theme.name}
+        </span>
+        {selected && <CheckIcon size={20} />}
+      </div>
+    </div>
+  )
 }
