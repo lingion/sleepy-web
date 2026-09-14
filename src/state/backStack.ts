@@ -66,12 +66,16 @@ export const HASH_BY_TAB: Record<TabKey, string> = {
   mine: '#/我的',
 }
 
-/** URL hash → tab (启动恢复/浏览器返回) — 未匹配落 schedule */
+/**
+ * URL hash → tab (启动恢复/浏览器返回) — 未匹配落 schedule。
+ * 前缀匹配: 二/三级页 hash (#/我的/外观、#/我的/通用设置/节假日) 从上层 pop 回来时
+ * popstate 携带的就是这些 hash, 精确匹配会落 fallback 把用户甩回课表页。
+ */
 export function tabFromHash(hash: string): TabKey {
   const normalized = decodeURIComponent(hash).toLowerCase()
-  if (normalized === HASH_BY_TAB.today.toLowerCase()) return 'today'
-  if (normalized === HASH_BY_TAB.manage.toLowerCase()) return 'manage'
-  if (normalized === HASH_BY_TAB.mine.toLowerCase()) return 'mine'
+  if (normalized.startsWith(HASH_BY_TAB.today.toLowerCase())) return 'today'
+  if (normalized.startsWith(HASH_BY_TAB.manage.toLowerCase())) return 'manage'
+  if (normalized.startsWith(HASH_BY_TAB.mine.toLowerCase())) return 'mine'
   return 'schedule'
 }
 

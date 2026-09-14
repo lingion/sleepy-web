@@ -72,6 +72,15 @@ describe('useBackStack — 每页 hash 地址 (tab + 全部二级页)', () => {
     expect(tabFromHash('#/未知页')).toBe('schedule')
   })
 
+  it('tabFromHash: 二/三级页 hash 前缀归属所在 tab — 三级返回不甩回课表页', () => {
+    expect(tabFromHash('#/我的/外观')).toBe('mine')
+    expect(tabFromHash('#/我的/外观/自定义主题')).toBe('mine')
+    expect(tabFromHash('#/我的/通用设置/节假日')).toBe('mine')
+    expect(tabFromHash('#/管理/全部课表')).toBe('manage')
+    expect(tabFromHash('#/课表/添加课程')).toBe('schedule')
+    expect(tabFromHash(encodeURIComponent('#/我的/外观'))).toBe('mine')
+  })
+
   it('顺序: 连续 push 两层 → hash 随层递增切换 (general → holiday)', () => {
     useBackStack.getState().reset()
     useBackStack.getState().push('general')
