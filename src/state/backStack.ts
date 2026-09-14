@@ -26,6 +26,9 @@ export type BackKey =
   | 'reminder'
   | 'about'
   | 'license'
+  // 预注册覆盖层 (路由已接, 触发入口待对应分区补齐): 自定义主题编辑器 / 教务导入
+  | 'customTheme'
+  | 'jwImport'
   // web 扩展: 课表页的临时弹层 (Android 是 Compose 局部 dialog/sheet state,
   // 不入 overlayStack;Web 需要「浏览器返回先关弹层」, 故入同一层栈但用独立 hash —
   // ✗ 复用 editTable, 否则点一门课地址栏会跳到 #/管理/编辑课表)。
@@ -48,6 +51,8 @@ export const HASH_BY_KEY: Record<BackKey, string> = {
   reminder: '#/我的/提醒',
   about: '#/我的/关于',
   license: '#/我的/许可证',
+  customTheme: '#/我的/外观/自定义主题',
+  jwImport: '#/我的/教务导入',
   courseDetail: '#/课表/课程详情',
   weekSwitcher: '#/课表/切换课表',
   weekJump: '#/课表/周次跳转',
