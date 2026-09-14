@@ -9,6 +9,8 @@ import {
   pagerTargetWeek,
   pagerTrackWeeks,
   SWIPE_PAGE_FRACTION,
+  SWIPE_FLING_VELOCITY,
+  SWIPE_MAX_THRESHOLD_PX,
 } from './useWeekSwipe'
 
 const PAGE = 390
@@ -77,6 +79,24 @@ describe('pagerTargetWeek — 松手翻页落点 (半页 positional + fling)', (
 
   it('页宽未知 (首帧未测到) = 不翻页, 不误判', () => {
     expect(pagerTargetWeek(-999, -5, 0, 3, 20)).toBeNull()
+  })
+
+  it('桌面宽窗阈值封顶 240px — 半页比例不变但绝对距离对齐手机手感', () => {
+    // 1280 宽窗口: 纯半页规则要拖 640px (手机只需 ~195px) → 用户反馈"电脑端不好滑"
+    // 不变量: 阈值 = min(半页, 240px)。手机页宽 ≤480 → 与 Android 完全同规则
+    expect(SWIPE_MAX_THRESHOLD_PX).toBe(240)
+    expect(pagerTargetWeek(-300, 0, 1280, 3, 20)).toBe(4) // 300 ≥ 240 → 翻
+    expect(pagerTargetWeek(-200, 0, 1280, 3, 20)).toBeNull() // 200 < 240 → 回弹
+    expect(pagerTargetWeek(-PAGE * 0.5 - 1, 0, PAGE, 3, 20)).toBe(4) // 手机侧不受封顶影响
+  })
+
+  it('fling 速度阈值 = Android snapVelocityThreshold 300px/s (0.3px/ms)', () => {
+    expect(SWIPE_FLING_VELOCITY).toBe(0.3)
+    // 400px/s 的轻甩: Android 会翻页, 旧 web (0.6) 会回弹 → 必须翻
+    expect(pagerTargetWeek(-50, -0.4, PAGE, 3, 20)).toBe(4)
+    expect(pagerTargetWeek(50, 0.4, PAGE, 3, 20)).toBe(2)
+    // 200px/s 慢甩仍不够 (低于 300px/s)
+    expect(pagerTargetWeek(-50, -0.2, PAGE, 3, 20)).toBeNull()
   })
 })
 

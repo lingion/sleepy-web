@@ -606,7 +606,7 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
           touch-action:pan-y 把纵向滚动让给浏览器, 只抢横向。 */}
       <div
         ref={attachScroll}
-        style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', touchAction: 'pan-y' }}
+        style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', touchAction: 'pan-y', userSelect: 'none' }}
         {...pagerHandlers}
       >
         {tableList === undefined ? null : !hasTable ? (

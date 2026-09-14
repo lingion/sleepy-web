@@ -12,13 +12,24 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export const SWIPE_THRESHOLD_PX = 60
 /** 边缘逃逸阈值 — 起点/终点距容器边小于它视为系统手势 (如 iOS 返回), 忽略 (px) */
 export const SWIPE_EDGE_ESCAPE_PX = 24
-/** fling 速度阈值 — 位移不足但速度超过它也翻页 (px/ms) */
-export const SWIPE_FLING_VELOCITY = 0.6
+/**
+ * fling 速度阈值 — 位移不足但速度超过它也翻页 (px/ms)。
+ * = Android PagerDefaults.snapVelocityThreshold 300 px/s (字节码/源码同值),
+ * 旧值 0.6 px/ms 比安卓严一倍, 鼠标轻甩安卓能翻、web 回弹 = "电脑端不好滑"之一。
+ */
+export const SWIPE_FLING_VELOCITY = 0.3
 /**
  * 翻页位移阈值 — 页宽的比例。Android HorizontalPager 默认 fling 的 positional
  * threshold 就是半页 (拖过 1/2 页宽才落下一页), 用绝对 px 在宽屏上会一碰就翻 (丑)。
  */
 export const SWIPE_PAGE_FRACTION = 0.5
+/**
+ * 位移阈值绝对上限 (px) — 不变量: 阈值 = min(半页, 240px)。
+ * 半页是比例规则, 但页宽随窗口涨: 安卓页宽恒 ~400dp (拖 200dp 翻页), 桌面浏览器
+ * 页宽 = 整个窗口 (1280px → 要拖 640px, 三倍距离 = "电脑端不好滑"主因)。
+ * 手机页宽 ≤480px 时封顶不生效 → 与 Android 逐位同规则; 宽窗时封顶回手机力度。
+ */
+export const SWIPE_MAX_THRESHOLD_PX = 240
 /** fling 最小位移 — 低于它不认速度, 防原地微抖误翻页 (px) */
 export const SWIPE_FLING_MIN_PX = 16
 /** 松手落定动画时长 ms (Android pager snap 量级) */
@@ -59,7 +70,8 @@ export function pagerTargetWeek(
   maxWeek: number
 ): number | null {
   if (pageWidth <= 0) return null
-  const positional = Math.abs(dx) >= pageWidth * SWIPE_PAGE_FRACTION
+  const threshold = Math.min(pageWidth * SWIPE_PAGE_FRACTION, SWIPE_MAX_THRESHOLD_PX)
+  const positional = Math.abs(dx) >= threshold
   const fling = Math.abs(velocityX) >= SWIPE_FLING_VELOCITY && Math.abs(dx) >= SWIPE_FLING_MIN_PX
   if (!positional && !fling) return null
   // 方向以位移为准; 近零位移的纯 fling 才取速度方向
