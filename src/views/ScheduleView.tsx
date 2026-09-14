@@ -8,7 +8,7 @@
  * 节假日/周末灰显 (HolidayManager.shouldGrey web 同构: 网络源 + localStorage 磁盘缓存)。
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconChevronLeft, IconChevronRight,
@@ -17,7 +17,8 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
-import { installBackHandler, useBackStack } from '../state/backStack'
+import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
+import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
 import { undoManager, useUndoStore } from '../data/undoStore'
 import { CardsGridView, dateOfWeek } from '../components/schedule/CardsGridView'
 import { FullWeekView } from '../components/schedule/FullWeekView'
@@ -27,11 +28,9 @@ import { ImportView } from './ImportView'
 import { ShareScheduleSheetView } from './ExportView'
 import { EditTableView } from './EditTableView'
 import { semesterStatus } from './TodayView'
-import { insertTable } from '../data/repository'
-import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import { inWeek, normalizeNode } from '../data/types'
 import type { Course, Table } from '../data/types'
-import { useWeekPager } from '../components/schedule/useWeekSwipe'
+import { pagerTrackWeeks, PAGER_SETTLE_MS, useWeekPager } from '../components/schedule/useWeekSwipe'
 
 /** 周次计算 — startDate (周一) 起 currentWeek = floor(diff/7)+1, clamp 1..maxWeek */
 export function computeCurrentWeek(startDate: string, maxWeek: number): number {
@@ -196,6 +195,7 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
   const [viewMode, setViewMode] = useState<'full' | 'cards' | null>(null)
   const [week, setWeek] = useState<number | null>(null)
   const [containerWidth, setContainerWidth] = useState(800)
+  const [pageWidth, setPageWidth] = useState(0)
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -207,15 +207,24 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
   const containerRef = useRef<HTMLDivElement>(null)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
+  const pendingId = usePendingTable((s) => s.pendingId)
 
   // 浏览器返回时同步本地 page state (popstate 广播 popped key → 收回本视图的层)。
   useEffect(() => installBackHandler((key) => {
     if (key === 'addCourse') { setAdding(false); setImporting(false); setEditingCourse(null) }
     else if (key === 'editTable') setEditingTableId(null)
+    else if (key === 'courseDetail') setDetailCourse(null)
+    else if (key === 'weekSwitcher') setShowSwitcher(false)
+    else if (key === 'weekJump') setJumpOpen(false)
+    else if (key === 'shareSheet') setShowShare(false)
   }), [])
 
-  // 二级页 push 入栈 (带 hash 地址, 浏览器返回可弹), 返回按钮 pop 出栈。
-  const enter = (key: Parameters<typeof push>[0]) => push(key)
+  // 入栈只在事件处理器里做 (带 hash 地址, 浏览器返回可弹), 返回按钮 pop 出栈。
+  // 🚫 渲染期 push: 每次重渲染都会再入一层, 返回一次弹不干净 (底栏卡在隐藏态)。
+  const open = (key: BackKey, show: () => void) => {
+    push(key)
+    show()
+  }
   const leave = () => back()
 
   // 撤回深度 — 响应式订阅 ( getState() 不触发重渲染, 仅作渲染条件用)
@@ -253,21 +262,63 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
     return list.filter((c) => inWeek(c, currentWeek)).map((c) => (tj ? normalizeNode(c, tj) : c))
   }, [allCourses, currentWeek, defaultTable])
 
-  // 节假日/周末灰显 (ScheduleScreen.kt:242-254 produceState 同构)
-  const greyYears = useMemo(
-    () => yearsSpanned(defaultTable?.startDate ?? '', currentWeek),
-    [defaultTable?.startDate, currentWeek]
-  )
+  // 轨道周次 — 邻接周与本周一起渲染 (HorizontalPager pageCount 同语义),
+  // 三页并排整条平移 → 相邻两周视觉上连成一体
+  const trackWeeks = useMemo(() => pagerTrackWeeks(currentWeek, maxWeek), [currentWeek, maxWeek])
+  const trackIndex = Math.max(0, trackWeeks.indexOf(currentWeek))
+
+  // 节假日/周末灰显 (ScheduleScreen.kt:242-254 produceState 同构) — 按轨道三周并集取年份,
+  // 邻页灰显才与本周同域 (跨年那一周不会邻页缺灰)
+  const greyYears = useMemo(() => {
+    const years = new Set<number>()
+    for (const w of trackWeeks) for (const y of yearsSpanned(defaultTable?.startDate ?? '', w)) years.add(y)
+    return [...years]
+  }, [defaultTable?.startDate, trackWeeks])
   const holidayData = useHolidayYearData(greyYears)
   const greyDays = useMemo(
     () => holidayGreyDaysForWeek(defaultTable?.startDate ?? '', currentWeek, holidayData),
     [defaultTable?.startDate, currentWeek, holidayData]
   )
+  const greyDaysByWeek = useMemo(() => {
+    const map = new Map<number, Set<number>>()
+    for (const w of trackWeeks) map.set(w, holidayGreyDaysForWeek(defaultTable?.startDate ?? '', w, holidayData))
+    return map
+  }, [defaultTable?.startDate, trackWeeks, holidayData])
 
-  // 主页左右滑动切换周次 + 跟手翻页动画 (ScheduleScreen.kt HorizontalPager 同构):
-  // touchmove 位移→offset→transform 跟手; 松手 pagerTargetWeek (阈值+fling)→setWeek;
+  // 轨道内每周课程 (ScheduleScreen.kt:236-241 每页独立 inWeek 过滤 + normalizeNode)
+  const coursesByWeek = useMemo(() => {
+    const map = new Map<number, Course[]>()
+    if (!defaultTable) return map
+    const tj = defaultTable.timeJson
+    for (const w of trackWeeks) {
+      map.set(
+        w,
+        (allCourses ?? []).filter((c) => inWeek(c, w)).map((c) => (tj ? normalizeNode(c, tj) : c))
+      )
+    }
+    return map
+  }, [allCourses, defaultTable, trackWeeks])
+
+  // 单页宽 = 滚动容器宽 (翻页阈值按半页比例算, 落定位移按整页算, 都依赖它)
+  const measureRo = useRef<ResizeObserver | null>(null)
+  const attachScroll = useCallback((el: HTMLDivElement | null) => {
+    measureRo.current?.disconnect()
+    measureRo.current = null
+    if (!el) return
+    setPageWidth(el.clientWidth)
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setPageWidth(e.contentRect.width)
+    })
+    ro.observe(el)
+    measureRo.current = ro
+  }, [])
+
+  // 主页左右滑动切换周次 + 连动翻页动画 (ScheduleScreen.kt HorizontalPager 同构):
+  // pointermove 位移→轨道 transform 跟手; 松手 pagerTargetWeek (半页阈值+fling)→落定/回弹;
   // 外部周次变化 (TopBar 箭头/跳周菜单/切表) → effect 清位移 (scrollToPage 同位)
-  const pager = useWeekPager((w) => setWeek(w), maxWeek, currentWeek)
+  const pager = useWeekPager((w) => setWeek(w), maxWeek, currentWeek, pageWidth)
+  // 只把事件处理器铺到滚动容器上 (offset/settling 是渲染状态, 不能当 DOM 属性)
+  const { offset: pagerOffsetPx, settling: pagerSettling, ...pagerHandlers } = pager
 
   // v7.10.5 会话级置顶 override — 网格 onPickTop 与详情弹窗 radio 共用真相源 (Android 同构)
   const [topOverrides, setTopOverrides] = useState<Record<string, number>>({})
@@ -310,13 +361,19 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
 
   const display = viewMode ?? prefs.startView
 
+  // 示例课表提示: seed 时记 sampleTableId; 用户关掉提示条 (sampleBannerDismissed) 后不再显示
+  // 必须留在下方三个 early return 之前 — hook 数量在早退分支里变化会触发 React #300
+  const [sampleBannerOff, setSampleBannerOff] = useState(false)
+  const sampleMeta = useLiveQuery(async () => ({
+    id: (await db.prefs.get('sampleTableId'))?.value,
+    dismissed: (await db.prefs.get('sampleBannerDismissed'))?.value,
+  }))
+
   if (importing) {
-    enter('addCourse')
     return <ImportView onDone={() => { leave(); setImporting(false) }} />
   }
 
   if (adding || editingCourse) {
-    enter('addCourse')
     return (
       <AddCourseView
         editingCourse={editingCourse}
@@ -328,39 +385,24 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
 
   // 建表流 (EmptyState 副按钮) — 插表后进 EditTableView (Android onCreateTable 同语义)
   if (editingTableId !== null) {
-    enter('editTable')
     return (
       <EditTableView
         tableId={editingTableId}
+        pendingNewTableId={pendingId}
         onBack={() => { leave(); setEditingTableId(null) }}
+        onDiscardPending={() => { void abandonPendingTable(); leave(); setEditingTableId(null) }}
         onSaved={() => { leave(); setEditingTableId(null) }}
         onDeleted={() => { leave(); setEditingTableId(null) }}
       />
     )
   }
 
-  async function createFirstTable() {
-    const n = (tableList ?? []).length + 1
-    const id = await insertTable({
-      name: `课表 ${n}`,
-      startDate: '',
-      timeJson: DEFAULT_TIME_JSON,
-      isDefault: (tableList ?? []).length === 0 ? 1 : 0,
-      maxWeek: 20,
-      createdAt: Date.now(),
-      smartConfigJson: '',
-      nodeCount: 12,
-    })
-    setEditingTableId(id)
-  }
-
   const hasTable = (tableList ?? []).length > 0
-  // 示例课表提示: seed 时记 sampleTableId; 用户关掉提示条 (sampleBannerDismissed) 后不再显示
-  const [sampleBannerOff, setSampleBannerOff] = useState(false)
-  const sampleMeta = useLiveQuery(async () => ({
-    id: (await db.prefs.get('sampleTableId'))?.value,
-    dismissed: (await db.prefs.get('sampleBannerDismissed'))?.value,
-  }))
+
+  // 空态建表 — MainActivity:432-438 同款待保存动线 (建空表不切选中 → EditTable → 不保存即丢弃)
+  const createFirstTable = () => {
+    void beginNewTable().then((id) => open('editTable', () => setEditingTableId(id)))
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }} ref={containerRef}>
@@ -381,7 +423,7 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
             <div style={{ position: 'absolute', left: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <NavCircleBtn
                 title={t('schedule_switch_table', { defaultValue: '切换课表' })}
-                onClick={() => { enter('editTable'); setShowSwitcher(true) }}
+                onClick={() => open('weekSwitcher', () => setShowSwitcher(true))}
               >
                 <SleepyLogo size={18} />
               </NavCircleBtn>
@@ -407,7 +449,7 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
               {/* 周次胶囊 — 在当前实际周点击弹跳周菜单, 否则一键跳回 (ScheduleScreen.kt:470-517) */}
               <div style={{ position: 'relative' }}>
                 <span
-                  onClick={() => (isOnActual ? (enter('editTable'), setJumpOpen(true)) : setWeek(null))}
+                  onClick={() => (isOnActual ? open('weekJump', () => setJumpOpen(true)) : setWeek(null))}
                   className="m3-label-large"
                   role="button"
                   aria-label={weekLabel}
@@ -501,13 +543,13 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
             <div style={{ position: 'absolute', right: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <NavCircleBtn
                 title={t('schedule_add_course', { defaultValue: '添加课程' })}
-                onClick={() => setAdding(true)}
+                onClick={() => open('addCourse', () => setAdding(true))}
               >
                 <IconAdd size={18} />
               </NavCircleBtn>
               <NavCircleBtn
                 title={t('schedule_share_table', { defaultValue: '分享课表' })}
-                onClick={() => { enter('editTable'); setShowShare(true) }}
+                onClick={() => open('shareSheet', () => setShowShare(true))}
               >
                 <IconIosShare size={18} />
               </NavCircleBtn>
@@ -555,18 +597,18 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
         </div>
       )}
 
-      {/* 主体 — 左右滑动切换周次 + 跟手翻页动画 (HorizontalPager 页面实时平移同构):
-          touchmove 位移→transform 跟手; 松手 pagerTargetWeek (阈值+fling)→翻页/回弹。
-          transition 只在松手后开 (跟手期间禁用, 否则位移滞后于手指)。
-          内容平移层独立于滚动层 — 滚动层 overflow:auto 管纵向, 平移层只管横向跟手 */}
-      <div style={{ flex: 1, overflow: 'auto' }} {...pager}>
-        <div
-          style={{
-            transform: `translateX(${pager.offset}px)`,
-            transition: pager.animating ? 'transform 200ms cubic-bezier(0.2, 0, 0, 1)' : 'none',
-            willChange: 'transform',
-          }}
-        >
+      {/* 主体 — 左右滑动切换周次 (ScheduleScreen.kt:239 HorizontalPager 同构):
+          轨道同时渲染 [上周|本周|下周] 三页并排, 整条平移 → 相邻两周连成一体一起移动
+          (旧实现只平移当前页, 拖出来是空白 = 用户反馈"没连起来")。
+          松手按半页位移 / fling 判定 → 落定动画滑到邻页槽位, 动画结束才提交周次,
+          轨道以新周重居中时画面正好接上, 无跳变。
+          滚动层 overflow 管纵向 (横向 hidden, 轨道 300% 宽不外溢), 轨道只管横向跟手;
+          touch-action:pan-y 把纵向滚动让给浏览器, 只抢横向。 */}
+      <div
+        ref={attachScroll}
+        style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', touchAction: 'pan-y' }}
+        {...pagerHandlers}
+      >
         {tableList === undefined ? null : !hasTable ? (
           // 真的没表: 导入或建表 (ScheduleScreen.kt:570-613 EmptyState)
           <div
@@ -580,54 +622,77 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
             }}
           >
             <EmptyStateCard
-              onGoImport={() => setImporting(true)}
-              onCreateTable={() => void createFirstTable()}
+              onGoImport={() => open('addCourse', () => setImporting(true))}
+              onCreateTable={createFirstTable}
             />
           </div>
         ) : allCourses === undefined ? null : allCourses.length === 0 ? (
           // 有表无课 (ScheduleScreen.kt:615-660 NoCourseState)
           <NoCourseCard
             tableName={defaultTable?.name ?? ''}
-            onAddCourse={() => setAdding(true)}
-            onImport={() => setImporting(true)}
+            onAddCourse={() => open('addCourse', () => setAdding(true))}
+            onImport={() => open('addCourse', () => setImporting(true))}
           />
         ) : defaultTable ? (
-          display === 'full' ? (
-            <FullWeekView
-              courses={weekCourses}
-              timeJson={defaultTable.timeJson}
-              greyDays={greyDays}
-              onCourseClick={(c) => { enter('editTable'); setDetailCourse(c) }}
-            />
-          ) : (
-            <div style={{ padding: '0 8px 8px' }}>
-              <CardsGridView
-                courses={weekCourses}
-                timeJson={defaultTable.timeJson}
-                startDate={defaultTable.startDate}
-                currentWeek={currentWeek}
-                // -32: wrapper '0 8px' 左右 16 + CardsGridView 自身 padding 8px 四边 16 —
-                // colW 按 padding 内真实可用宽算 (Android BoxWithConstraints
-                // 在 padding(8dp) 内测量同构), 不扣则 minWidth > 容器 → 周日列截断
-                containerWidth={containerWidth - 32}
-                greyDays={greyDays}
-                topOverrides={topOverrides}
-                onSetTopOverride={setTopOverride}
-                rotationSteps={rotationSteps}
-                onRotationStep={(key, step) =>
-                  setRotationSteps((prev) => {
-                    const next = { ...prev }
-                    if (step <= 0) delete next[key]
-                    else next[key] = step
-                    return next
-                  })
-                }
-                onCourseClick={(c) => { enter('editTable'); setDetailCourse(c) }}
-              />
-            </div>
-          )
+          <div
+            style={{
+              display: 'flex',
+              width: `${trackWeeks.length * 100}%`,
+              // 基准 = 把"本周"那一槽推到视口, 再叠加跟手位移
+              transform: `translate3d(calc(${(-trackIndex * (100 / trackWeeks.length)).toFixed(4)}% + ${pagerOffsetPx}px), 0, 0)`,
+              transition: pagerSettling
+                ? `transform ${PAGER_SETTLE_MS}ms cubic-bezier(0.2, 0, 0, 1)`
+                : 'none',
+              willChange: 'transform',
+            }}
+          >
+            {trackWeeks.map((w) => (
+              <div
+                key={w}
+                style={{
+                  width: `${100 / trackWeeks.length}%`,
+                  flexShrink: 0,
+                  boxSizing: 'border-box',
+                }}
+              >
+                {display === 'full' ? (
+                  <FullWeekView
+                    courses={coursesByWeek.get(w) ?? []}
+                    timeJson={defaultTable.timeJson}
+                    greyDays={greyDaysByWeek.get(w) ?? greyDays}
+                    onCourseClick={(c) => open('courseDetail', () => setDetailCourse(c))}
+                  />
+                ) : (
+                  <div style={{ padding: '0 8px 8px' }}>
+                    <CardsGridView
+                      courses={coursesByWeek.get(w) ?? []}
+                      timeJson={defaultTable.timeJson}
+                      startDate={defaultTable.startDate}
+                      currentWeek={w}
+                      // -32: wrapper '0 8px' 左右 16 + CardsGridView 自身 padding 8px 四边 16 —
+                      // colW 按 padding 内真实可用宽算 (Android BoxWithConstraints
+                      // 在 padding(8dp) 内测量同构), 不扣则 minWidth > 容器 → 周日列截断
+                      containerWidth={(pageWidth || containerWidth) - 32}
+                      greyDays={greyDaysByWeek.get(w) ?? greyDays}
+                      topOverrides={topOverrides}
+                      onSetTopOverride={setTopOverride}
+                      rotationSteps={rotationSteps}
+                      onRotationStep={(key, step) =>
+                        setRotationSteps((prev) => {
+                          const next = { ...prev }
+                          if (step <= 0) delete next[key]
+                          else next[key] = step
+                          return next
+                        })
+                      }
+                      onCourseClick={(c) => open('courseDetail', () => setDetailCourse(c))}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         ) : null}
-        </div>
         {/* Dock 悬浮底栏: 滚动尾部多留 Dock 总高 (CourseTableView.kt:376/655 同构),
             最后一张课程卡能滚到 Dock 上方完全可见 */}
         {navExtraBottom > 0 && <div style={{ height: navExtraBottom, flexShrink: 0 }} />}
@@ -670,8 +735,9 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
           timeJson={defaultTable.timeJson}
           onDismiss={() => { leave(); setDetailCourse(null) }}
           onEdit={(c) => {
-            leave(); setDetailCourse(null)
-            setEditingCourse(c)
+            leave()
+            setDetailCourse(null)
+            open('addCourse', () => setEditingCourse(c))
           }}
           onDefaultTopChanged={handleDefaultTopChanged}
         />

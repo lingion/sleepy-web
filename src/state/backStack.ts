@@ -26,6 +26,13 @@ export type BackKey =
   | 'reminder'
   | 'about'
   | 'license'
+  // web 扩展: 课表页的临时弹层 (Android 是 Compose 局部 dialog/sheet state,
+  // 不入 overlayStack;Web 需要「浏览器返回先关弹层」, 故入同一层栈但用独立 hash —
+  // ✗ 复用 editTable, 否则点一门课地址栏会跳到 #/管理/编辑课表)。
+  | 'courseDetail'
+  | 'weekSwitcher'
+  | 'weekJump'
+  | 'shareSheet'
 
 export type TabKey = 'schedule' | 'today' | 'manage' | 'mine'
 
@@ -41,6 +48,10 @@ export const HASH_BY_KEY: Record<BackKey, string> = {
   reminder: '#/我的/提醒',
   about: '#/我的/关于',
   license: '#/我的/许可证',
+  courseDetail: '#/课表/课程详情',
+  weekSwitcher: '#/课表/切换课表',
+  weekJump: '#/课表/周次跳转',
+  shareSheet: '#/课表/分享',
 }
 
 export const HASH_BY_TAB: Record<TabKey, string> = {
@@ -72,6 +83,8 @@ interface BackStackState {
   stack: BackKey[]
   push: (key: BackKey, hash?: string) => void
   pushTab: (tab: TabKey) => void
+  /** 规范化当前条目 hash 而不新增历史 (刷新/直达带 hash 进入时用) */
+  replaceTab: (tab: TabKey) => void
   pop: () => void
   popToRoot: () => void
   peek: () => BackKey | undefined
@@ -100,13 +113,27 @@ export const useBackStack = create<BackStackState>((set, get) => ({
     }
   },
 
+  replaceTab: (tab) => {
+    // 只规范化地址, 不新增历史 — 避免刷新/直达时在历史里留一个无内容的占位条目,
+    // 那会让"从课表页按返回"多按一次才离开 (Android 双击退出只需一次)。
+    try {
+      if (location.hash !== HASH_BY_TAB[tab]) history.replaceState({ sleepyTab: true, tab }, '', HASH_BY_TAB[tab])
+    } catch {
+      /* 非浏览器环境 (单测) */
+    }
+  },
+
   pop: () => {
     const { stack } = get()
     if (stack.length === 0) return
-    // 先出栈再 history.back() — popstate 到达时栈已出, popHandler 见长度一致不重复弹
+    // 乐观出栈 (UI 立即响应), 再让浏览器退掉这条历史;
+    // selfBackPending 记账 — popstate 到达时不得再弹一次 (否则一次返回跨两级)。
     set((s) => ({ stack: s.stack.slice(0, -1) }))
     try {
-      if ((history.state as { sleepyBack?: boolean } | null)?.sleepyBack) history.back()
+      if ((history.state as { sleepyBack?: boolean } | null)?.sleepyBack) {
+        selfBackPending = Math.min(selfBackPending + 1, 8)
+        history.back()
+      }
     } catch {
       /* 非浏览器环境 */
     }
@@ -116,7 +143,10 @@ export const useBackStack = create<BackStackState>((set, get) => ({
     // 一次清整摞 — 历史残留由 popHandler 的"栈空但历史仍是 sleepyBack"兜底逐条退
     set({ stack: [] })
     try {
-      if ((history.state as { sleepyBack?: boolean } | null)?.sleepyBack) history.back()
+      if ((history.state as { sleepyBack?: boolean } | null)?.sleepyBack) {
+        selfBackPending = Math.min(selfBackPending + 1, 8)
+        history.back()
+      }
     } catch {
       /* 非浏览器环境 */
     }
@@ -124,7 +154,11 @@ export const useBackStack = create<BackStackState>((set, get) => ({
 
   peek: () => get().stack[get().stack.length - 1],
 
-  reset: () => set({ stack: [] }),
+  reset: () => {
+    // 记账一并清零 — 否则一次没等到 popstate 的 pop 会永久吞掉后续一次真返回
+    selfBackPending = 0
+    set({ stack: [] })
+  },
 }))
 
 /**
@@ -135,6 +169,9 @@ export const useBackStack = create<BackStackState>((set, get) => ({
 type PopListener = (popped: BackKey | undefined, hash: string) => void
 const popListeners = new Set<PopListener>()
 let popstateInstalled = false
+// 自己调 history.back() 的次数 — pop() 已乐观出栈, history.back() 的 popstate 是
+// 异步的, 到达时若再弹一次 = 一次返回跨两级 (v7.10.8「每层只弹自己」被破坏)。
+let selfBackPending = 0
 
 /**
  * 注册活动视图回退监听器。模块只装一个 popstate handler,避免 App/Mine 等多个
@@ -156,12 +193,18 @@ export function installBackHandler(onPop?: PopListener): () => void {
 }
 
 function onPopState() {
+  const hash = pageHash(location.hash)
+  // 自己 pop() 触发的那次: 栈已同步, 只广播 hash, 不再弹一层
+  if (selfBackPending > 0) {
+    selfBackPending -= 1
+    for (const listener of popListeners) listener(undefined, hash)
+    return
+  }
   const { stack } = useBackStack.getState()
   let popped: BackKey | undefined
   if (stack.length > 0) {
     popped = stack[stack.length - 1]
     useBackStack.setState({ stack: stack.slice(0, -1) })
   }
-  const hash = pageHash(location.hash)
   for (const listener of popListeners) listener(popped, hash)
 }

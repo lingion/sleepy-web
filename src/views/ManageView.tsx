@@ -14,9 +14,8 @@ import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
-import { installBackHandler, useBackStack } from '../state/backStack'
-import { insertTable, setDefault } from '../data/repository'
-import { DEFAULT_TIME_JSON } from '../domain/timeTable'
+import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
+import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
 import { ImportView } from './ImportView'
 import { EditTableView } from './EditTableView'
 import { AddCourseView } from './AddCourseView'
@@ -46,6 +45,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   const [editingId, setEditingId] = useState<number | null>(null)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
+  const pendingId = usePendingTable((s) => s.pendingId)
 
   const list = tables ?? []
 
@@ -57,17 +57,18 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   }), [])
 
   // 二级页 push 入栈 (带 hash 地址, 浏览器返回可弹); 返回按钮 pop 出栈。
-  const enter = (key: Parameters<typeof push>[0]) => {
+  // 🚫 渲染期 push: 视图每次重渲染都会再入一层 (导入写库 → liveQuery 重渲染 →
+  // 栈里两个 addCourse → 返回一次弹不干净, 底栏卡在隐藏态)。只在事件处理器里入栈。
+  const open = (key: BackKey, show: () => void) => {
     push(key)
+    show()
   }
   const leave = () => back()
 
   if (importing) {
-    enter('addCourse')
     return <ImportView onDone={() => { leave(); setImporting(false) }} />
   }
   if (addingCourse) {
-    enter('addCourse')
     return (
       <AddCourseView
         onBack={() => { leave(); setAddingCourse(false) }}
@@ -76,49 +77,25 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
     )
   }
   if (exporting) {
-    enter('export')
     return <ExportView onBack={() => { leave(); setExporting(false) }} />
   }
   if (editingId !== null) {
-    enter('editTable')
     return (
       <EditTableView
         tableId={editingId}
+        pendingNewTableId={pendingId}
         onBack={() => { leave(); setEditingId(null) }}
+        onDiscardPending={() => { void abandonPendingTable(); leave(); setEditingId(null) }}
         onSaved={() => { leave(); setEditingId(null) }}
         onDeleted={() => { leave(); setEditingId(null) }}
       />
     )
   }
 
-  /** ScheduleViewModel.createEmptyTable(commitSelection=false) 1:1 —
-   *  名称「默认N」对已有名查重递增; startDate=上周一; 首表自动 isDefault=1
-   *  (MainActivity.kt:293 同款动线: 建后跳 EditTable 让用户立刻命名/设日期)。 */
-  async function handleNewTable() {
-    const existingNames = new Set(list.map((x) => x.name))
-    let index = list.length + 1
-    let name = t('default_table_with_num', { v1: index })
-    while (existingNames.has(name)) {
-      index += 1
-      name = t('default_table_with_num', { v1: index })
-    }
-    const now = new Date()
-    // 本周一 = 今天 - ((getDay()+6)%7) 天; 再减 7 天 = 上周一 (LocalDate.with(MONDAY).minusWeeks(1))
-    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) - 7)
-    const p = (x: number) => String(x).padStart(2, '0')
-    const lastWeekMonday = `${monday.getFullYear()}-${p(monday.getMonth() + 1)}-${p(monday.getDate())}`
-    const newId = await insertTable({
-      name,
-      timeJson: DEFAULT_TIME_JSON,
-      smartConfigJson: '',
-      isDefault: 0,
-      startDate: lastWeekMonday,
-      nodeCount: 12,
-      maxWeek: 20,
-      createdAt: Date.now(),
-    })
-    if (list.length === 0) await setDefault(newId)
-    setEditingId(newId)
+  // 新建动线 — MainActivity:311-317 同款: 建空表(不切选中) + 记住原默认表 + 跳 EditTable,
+  // 用户没保存就返回 → discardNewTable 删表落回原表 (pendingTable 状态机)。
+  const handleNewTable = () => {
+    void beginNewTable().then((newId) => open('editTable', () => setEditingId(newId)))
   }
 
   return (
@@ -182,33 +159,31 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
           icon={IconFileUpload}
           title={t('manage_import')}
           subtitle={t('manage_import_sub')}
-          onClick={() => setImporting(true)}
+          onClick={() => open('addCourse', () => setImporting(true))}
         />
         <ManageCard
           icon={IconAutoAwesome}
           title={t('manage_new_table')}
           subtitle={t('manage_new_table_sub')}
-          onClick={() => void handleNewTable()}
+          onClick={() => handleNewTable()}
         />
         <ManageCard
           icon={IconAdd}
           title={t('manage_manual_add')}
           subtitle={t('manage_manual_add_sub')}
-          onClick={() => setAddingCourse(true)}
+          onClick={() => open('addCourse', () => setAddingCourse(true))}
         />
         <ManageCard
           icon={IconEdit}
           title={t('manage_edit_current')}
           subtitle={t('manage_edit_current_sub')}
-          onClick={() => {
-            if (defaultTable) setEditingId(defaultTable.id)
-          }}
+          onClick={() => defaultTable && open('editTable', () => setEditingId(defaultTable.id))}
         />
         <ManageCard
           icon={IconShare}
           title={t('manage_export', '导出当前课表')}
           subtitle={t('manage_export_sub', '以原生格式 / WakeUp JSON / ICS / 文本分享')}
-          onClick={() => setExporting(true)}
+          onClick={() => open('export', () => setExporting(true))}
         />
       </div>
 

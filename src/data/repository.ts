@@ -6,7 +6,8 @@
 import { db, nextTableId, nextCourseId } from './db'
 import { undoManager } from './undoStore'
 import type { Course, Table } from './types'
-import { reclaimUnusedEdgeNodes, remapCourseNodes, timeToNode } from '../domain/timeTable'
+import { DEFAULT_TIME_JSON, reclaimUnusedEdgeNodes, remapCourseNodes, timeToNode } from '../domain/timeTable'
+import i18next from 'i18next'
 import { pruneConflictDefaultTop } from '../domain/conflictLayout'
 import { loadPrefs, savePrefs } from './db'
 
@@ -333,4 +334,51 @@ export async function duplicateTable(id: number): Promise<number> {
     await endBatch()
   }
   return newId
+}
+
+/** createEmptyTable — ScheduleViewModel.createEmptyTable 1:1 (ScheduleViewModel.kt:171-205)。
+ *  名称 default_table_with_num「默认N」从 size+1 起对已有名查重递增;
+ *  开学日 = 本周一再减一周 (LocalDate.with(MONDAY).minusWeeks(1)) — 让新一周开学前
+ *  当前周仍落在第 1 周; 首表自动置默认 (避免"无默认表")。
+ *  commitSelection=false → 不动选中 (新建→编辑→可丢弃动线, MainActivity:314)。 */
+export async function createEmptyTable(commitSelection = true): Promise<number> {
+  const tables = await db.timetables.orderBy('id').toArray()
+  const names = new Set(tables.map((tb) => tb.name))
+  let index = tables.length + 1
+  let name = String(i18next.t('default_table_with_num', { v1: index }))
+  while (names.has(name)) {
+    index += 1
+    name = String(i18next.t('default_table_with_num', { v1: index }))
+  }
+  const now = new Date()
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) - 7)
+  const p = (x: number) => String(x).padStart(2, '0')
+  const isFirstTable = tables.length === 0
+  const id = await insertTable({
+    name,
+    startDate: `${monday.getFullYear()}-${p(monday.getMonth() + 1)}-${p(monday.getDate())}`,
+    timeJson: DEFAULT_TIME_JSON,
+    smartConfigJson: '',
+    isDefault: 0,
+    nodeCount: 12,
+    maxWeek: 20,
+    createdAt: Date.now(),
+  })
+  // Web 的"当前课表"就是 DB 的 isDefault (Android 的 selectedTableId 是 VM 内存态)
+  if (isFirstTable || commitSelection) await setDefault(id)
+  return id
+}
+
+/** discardNewTable — ScheduleViewModel.discardNewTable 1:1 (ScheduleViewModel.kt:227-241)。
+ *  删掉从未被用户保存的新表, 选中落回原默认表 (原表已不在 → 现存默认表 → 第一张剩余表)。 */
+export async function discardNewTable(newId: number, fallbackId: number | null): Promise<void> {
+  await deleteTable(newId)
+  const remaining = await db.timetables.orderBy('id').toArray()
+  const targetId =
+    fallbackId != null && remaining.some((tb) => tb.id === fallbackId)
+      ? fallbackId
+      : remaining.find((tb) => tb.isDefault === 1)?.id ?? remaining[0]?.id
+  if (targetId != null && targetId !== remaining.find((tb) => tb.isDefault === 1)?.id) {
+    await setDefault(targetId)
+  }
 }

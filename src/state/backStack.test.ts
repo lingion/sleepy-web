@@ -10,14 +10,23 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 const pushState = vi.fn()
 const back = vi.fn()
 let hashState = ''
+let historyState: unknown = null
 
+/** 真机语义: pushState 把 state 挂到当前条目 — pop() 靠它判断该不该 back() */
 vi.stubGlobal('history', {
   pushState: (state: unknown, _title: string, url?: string) => {
     pushState(state, _title, url)
+    historyState = state
+    if (url) hashState = url.startsWith('#') ? url : `#${url.split('#')[1] ?? ''}`
+  },
+  replaceState: (state: unknown, _title: string, url?: string) => {
+    historyState = state
     if (url) hashState = url.startsWith('#') ? url : `#${url.split('#')[1] ?? ''}`
   },
   back,
-  state: null,
+  get state() {
+    return historyState
+  },
 })
 vi.stubGlobal(
   'location',
@@ -30,7 +39,7 @@ vi.stubGlobal(
   } as unknown as Location
 )
 
-import { useBackStack, tabFromHash, HASH_BY_KEY, HASH_BY_TAB } from './backStack'
+import { useBackStack, installBackHandler, tabFromHash, HASH_BY_KEY, HASH_BY_TAB } from './backStack'
 
 describe('useBackStack — 每页 hash 地址 (tab + 全部二级页)', () => {
   beforeEach(() => {
@@ -119,5 +128,70 @@ describe('useBackStack — MainActivity overlayStack 同构', () => {
     s.push('general')
     s.push('holiday')
     expect(s.peek()).toBe('holiday')
+  })
+})
+
+describe('useBackStack — 一次返回只退一层 (pop 与 popstate 不得重复弹)', () => {
+  beforeEach(() => {
+    pushState.mockClear()
+    back.mockClear()
+    hashState = ''
+    historyState = null
+    useBackStack.getState().reset()
+  })
+
+  it('pop 后浏览器补来的 popstate 不再弹第二层 (通用→假期 返回必须停在通用)', () => {
+    const popped: (string | undefined)[] = []
+    const off = installBackHandler((key) => popped.push(key))
+    useBackStack.getState().push('general')
+    useBackStack.getState().push('holiday')
+    useBackStack.getState().pop()
+    expect(back).toHaveBeenCalledTimes(1)
+    // history.back() 是异步的: popstate 在栈已乐观弹出之后才到达
+    hashState = HASH_BY_KEY.general
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    expect(useBackStack.getState().stack).toEqual(['general'])
+    expect(popped).toEqual([undefined])
+    off()
+  })
+
+  it('真·浏览器返回 (非本应用 pop) 才由 popstate 弹层并广播弹出的 key', () => {
+    const popped: (string | undefined)[] = []
+    const off = installBackHandler((key) => popped.push(key))
+    useBackStack.getState().push('general')
+    useBackStack.getState().push('holiday')
+    useBackStack.setState({ stack: ['general', 'holiday'] })
+    hashState = HASH_BY_KEY.general
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    expect(useBackStack.getState().stack).toEqual(['general'])
+    expect(popped).toEqual(['holiday'])
+    off()
+  })
+
+  it('连续两次 pop 各自只退一层 (两次 popstate 各消费一次记账)', () => {
+    useBackStack.getState().push('general')
+    useBackStack.getState().push('holiday')
+    useBackStack.getState().pop()
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    expect(useBackStack.getState().stack).toEqual(['general'])
+    useBackStack.getState().pop()
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    expect(useBackStack.getState().stack).toEqual([])
+  })
+})
+
+describe('useBackStack — 课表页临时弹层独立 hash (点课程不得跳到 #/管理/编辑课表)', () => {
+  it('弹层 key 各有自己的课表层地址', () => {
+    expect(HASH_BY_KEY.courseDetail).toBe('#/课表/课程详情')
+    expect(HASH_BY_KEY.weekSwitcher).toBe('#/课表/切换课表')
+    expect(HASH_BY_KEY.weekJump).toBe('#/课表/周次跳转')
+    expect(HASH_BY_KEY.shareSheet).toBe('#/课表/分享')
+  })
+
+  it('push(courseDetail): 地址落在课表层下, 不借用 editTable 的地址', () => {
+    useBackStack.getState().reset()
+    useBackStack.getState().push('courseDetail')
+    expect(hashState).toBe('#/课表/课程详情')
+    expect(useBackStack.getState().peek()).toBe('courseDetail')
   })
 })
