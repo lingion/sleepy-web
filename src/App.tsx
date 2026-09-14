@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from './state/prefsStore'
 import { installBackHandler, tabFromHash, useBackStack, type TabKey } from './state/backStack'
+import { abandonPendingTable } from './state/pendingTable'
 import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/icons'
 import { ScheduleView } from './views/ScheduleView'
 import { TodayView } from './views/TodayView'
@@ -32,11 +33,19 @@ export function App() {
   const [tab, setTab] = useState<Tab>(() => tabFromHash(window.location.hash))
   const [dockExtra, setDockExtra] = useState(76)
   const pushTab = useBackStack((s) => s.pushTab)
+  const replaceTab = useBackStack((s) => s.replaceTab)
+  // 不变量 (MainActivity.kt:301-397): 每个 overlay 分支都在底栏组合之前 return —
+  // 栈上只要有一层 (二级/三级皆算, 随栈深递增永远成立), 底栏两种形态都不存在。
+  const hasOverlay = useBackStack((s) => s.stack.length > 0)
 
   // tab hash 首次进入不新增历史;之后点击 tab 写入独立地址。
   useEffect(() => {
-    if (!window.location.hash) pushTab(tab)
-    return installBackHandler((_popped, hash) => {
+    if (window.location.hash) replaceTab(tab)
+    else pushTab(tab)
+    return installBackHandler((popped, hash) => {
+      // 浏览器返回退出 EditTable → 未保存的新表就地丢弃
+      // (MainActivity:271-277 BackHandler 在 popOverlay 之前先 discardNewTable)。
+      if (popped === 'editTable') void abandonPendingTable()
       // 二级层由其所在视图处理;退回 tab 层时 hash 直接决定当前 tab。
       const next = tabFromHash(hash)
       setTab(next)
@@ -52,16 +61,22 @@ export function App() {
   // Dock 滚动余量 (MainActivity dockOverlayPx→dockExtraDp 同构): 理论估算兜底
   // (首帧前, 64 高 + bottom 12 = 76), dock nav 实测高到位后覆盖 —
   // 猜值必小于真值, 实测保证最后一项能滚到 Dock 上方完全可见。
+  // overlay 在栈上时底栏不渲染, 跳过测量 (否则 ResizeObserver 观测到卸载节点会把
+  // dockExtra 污染成 0, 回主页面后底部留白消失)。
   const dockNavRef = useRef<HTMLElement>(null)
   useEffect(() => {
-    if (!navDock) return
+    if (!navDock || hasOverlay) return
     const el = dockNavRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => setDockExtra(el.offsetHeight + 12))
+    const measure = () => {
+      const h = el.offsetHeight
+      if (h > 0) setDockExtra(h + 12)
+    }
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
-    setDockExtra(el.offsetHeight + 12)
+    measure()
     return () => ro.disconnect()
-  }, [navDock])
+  }, [navDock, hasOverlay])
 
   // Tab 枚举顺序 = MainActivity.kt:173 Schedule/Today/Manage/Mine
   const items: [Tab, string][] = [
@@ -82,12 +97,14 @@ export function App() {
       }}
     >
       <main style={{ flex: 1, overflow: 'auto' }}>
-        {tab === 'schedule' && <ScheduleView navExtraBottom={navDock ? dockExtra : 0} />}
-        {tab === 'today' && <TodayView navExtraBottom={navDock ? dockExtra : 0} />}
-        {tab === 'manage' && <ManageView navExtraBottom={navDock ? dockExtra : 0} />}
-        {tab === 'mine' && <MineView navExtraBottom={navDock ? dockExtra : 0} />}
+        {tab === 'schedule' && <ScheduleView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
+        {tab === 'today' && <TodayView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
+        {tab === 'manage' && <ManageView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
+        {tab === 'mine' && <MineView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
       </main>
-      {navDock ? (
+      {/* 底栏闸门 = 返回栈是否为空 (Android 每个 overlay 分支都在底栏之前 return)。
+          栈非空 → 贴底通栏与悬浮 Dock 两种形态都不渲染, 底部滚动余量同时归零。 */}
+      {!hasOverlay && (navDock ? (
         // 悬浮胶囊 Dock (PillNavigationBar dock=true / DockNavigationBar):
         // iOS 悬浮 tab bar 语义 — 居中玻璃胶囊, 4 座位等宽恒显 icon+label 双行,
         // thumb (secondaryContainer) 包住整个座位, 选中文字 onSecondaryContainer
@@ -203,7 +220,7 @@ export function App() {
             )
           })}
         </nav>
-      )}
+      ))}
     </div>
   )
 }
