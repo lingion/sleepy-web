@@ -9,14 +9,68 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 // jsdom 环境没有真实 history 栈语义差异 — 用 vitest stub 全局 history 验证接线
 const pushState = vi.fn()
 const back = vi.fn()
+let hashState = ''
 
-vi.stubGlobal('history', { pushState, back, state: null })
+vi.stubGlobal('history', {
+  pushState: (state: unknown, _title: string, url?: string) => {
+    pushState(state, _title, url)
+    if (url) hashState = url.startsWith('#') ? url : `#${url.split('#')[1] ?? ''}`
+  },
+  back,
+  state: null,
+})
 vi.stubGlobal(
   'location',
-  { pathname: '/', search: '', hash: '' } as unknown as Location
+  {
+    pathname: '/',
+    search: '',
+    get hash() {
+      return hashState
+    },
+  } as unknown as Location
 )
 
-import { useBackStack } from './backStack'
+import { useBackStack, tabFromHash, HASH_BY_KEY, HASH_BY_TAB } from './backStack'
+
+describe('useBackStack — 每页 hash 地址 (tab + 全部二级页)', () => {
+  beforeEach(() => {
+    pushState.mockClear()
+    back.mockClear()
+    hashState = ''
+  })
+
+  it('push: 写本层 hash — push(general) → location.hash = #/我的/通用设置', () => {
+    const store = useBackStack
+    store.getState().reset()
+    store.getState().push('general')
+    expect(hashState).toBe('#/我的/通用设置')
+    const lastUrl = pushState.mock.calls[pushState.mock.calls.length - 1][2] as string
+    expect(lastUrl).toBe(HASH_BY_KEY.general)
+  })
+
+  it('pushTab: 切 tab 写 tab hash — pushTab(today) → #/今日 (不进返回栈)', () => {
+    useBackStack.getState().reset()
+    useBackStack.getState().pushTab('today')
+    expect(hashState).toBe(HASH_BY_TAB.today)
+    expect(useBackStack.getState().stack).toEqual([])
+  })
+
+  it('tabFromHash: 解码还原 — 编码 hash/#/今日/#/我的/#未匹配', () => {
+    expect(tabFromHash(encodeURIComponent('#/今日'))).toBe('today')
+    expect(tabFromHash('#/今日')).toBe('today')
+    expect(tabFromHash('#/我的')).toBe('mine')
+    expect(tabFromHash('#/管理')).toBe('manage')
+    expect(tabFromHash('#/未知页')).toBe('schedule')
+  })
+
+  it('顺序: 连续 push 两层 → hash 随层递增切换 (general → holiday)', () => {
+    useBackStack.getState().reset()
+    useBackStack.getState().push('general')
+    expect(hashState).toBe('#/我的/通用设置')
+    useBackStack.getState().push('holiday')
+    expect(hashState).toBe('#/我的/通用设置/节假日')
+  })
+})
 
 describe('useBackStack — MainActivity overlayStack 同构', () => {
   beforeEach(() => {
