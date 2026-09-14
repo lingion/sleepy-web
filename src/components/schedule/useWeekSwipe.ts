@@ -41,6 +41,14 @@ export const SWIPE_FLING_MIN_PX = 16
 export const SWIPE_DIRECTION_LOCK_PX = 8
 /** 松手落定动画时长 ms (Android pager snap 量级) */
 export const PAGER_SETTLE_MS = 260
+/**
+ * 触摸板/滚轮横滚翻页累计阈值 (px) — 桌面触摸板横滑发的是 wheel deltaX,
+ * 不是 pointer 拖拽; 不接 = 桌面"完全没法滑动"。累计 deltaX 过阈值翻一页,
+ * 一次手势只翻一页 (冷却期丢弃后续增量, Android 一次 fling 一页同语义)。
+ */
+export const WHEEL_PAGE_DELTA_PX = 60
+/** 滚轮翻页冷却 ms — 惯性滚动余量不再触发第二页 */
+export const WHEEL_COOLDOWN_MS = 350
 
 export interface SwipeHandlers {
   onTouchStart: (e: { touches: ArrayLike<{ clientX: number; clientY: number }> }) => void
@@ -112,6 +120,20 @@ export type DragLock = 'none' | 'h' | 'v'
 export function lockDirection(dx: number, dy: number): DragLock {
   if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_DIRECTION_LOCK_PX) return 'none'
   return Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+}
+
+/**
+ * 滚轮/触摸板横滚 → 目标周次 (纯函数可测): 累计 deltaX 过阈值才翻,
+ * 左滚 (deltaX>0) = 下一周 (内容左移, 与拖拽同向); 边界裁剪。
+ */
+export function wheelTargetWeek(
+  accDeltaX: number,
+  currentWeek: number,
+  maxWeek: number
+): number | null {
+  if (Math.abs(accDeltaX) < WHEEL_PAGE_DELTA_PX) return null
+  if (accDeltaX > 0) return currentWeek < maxWeek ? currentWeek + 1 : null
+  return currentWeek > 1 ? currentWeek - 1 : null
 }
 
 export function swipeTargetWeek(
@@ -232,6 +254,25 @@ export function useWeekPager(
     }
   }, [])
 
+  // 落定/回弹共用: 有目标 → 滑到邻页槽位, 动画结束提交周次; 无目标 → 回弹原页
+  const snapTo = useCallback((next: number | null) => {
+    clearSettle()
+    setSettling(true)
+    if (next !== null && widthRef.current > 0) {
+      setOffset(next > weekRef.current ? -widthRef.current : widthRef.current)
+      settleTimer.current = window.setTimeout(() => {
+        settleTimer.current = null
+        cbRef.current(next)
+      }, PAGER_SETTLE_MS)
+    } else {
+      setOffset(0)
+      settleTimer.current = window.setTimeout(() => {
+        settleTimer.current = null
+        setSettling(false)
+      }, PAGER_SETTLE_MS)
+    }
+  }, [clearSettle])
+
   // 外部周次变化 (TopBar 箭头/跳周菜单/切表, 以及本 hook 落定后的提交) →
   // 轨道无动画归零重新居中 = Android scrollToPage (非 animateScrollToPage)。
   useEffect(() => {
@@ -276,24 +317,8 @@ export function useWeekPager(
     const l = last.current
     const now = performance.now()
     const velocity = l && now !== l.t ? (e.clientX - l.x) / Math.max(1, now - l.t) : 0
-    const next = pagerTargetWeek(dx, velocity, widthRef.current, weekRef.current, maxRef.current)
-    setSettling(true)
-    if (next !== null && widthRef.current > 0) {
-      // 先滑到邻页槽位, 落定动画结束才提交周次 → 轨道重居中时画面正好接上
-      setOffset(next > weekRef.current ? -widthRef.current : widthRef.current)
-      settleTimer.current = window.setTimeout(() => {
-        settleTimer.current = null
-        cbRef.current(next)
-      }, PAGER_SETTLE_MS)
-    } else {
-      // 未过阈值 → 回弹原页
-      setOffset(0)
-      settleTimer.current = window.setTimeout(() => {
-        settleTimer.current = null
-        setSettling(false)
-      }, PAGER_SETTLE_MS)
-    }
-  }, [clearSettle])
+    snapTo(pagerTargetWeek(dx, velocity, widthRef.current, weekRef.current, maxRef.current))
+  }, [snapTo])
 
   const onPointerCancel = useCallback(() => {
     start.current = null
@@ -309,13 +334,57 @@ export function useWeekPager(
   const onTouchMoveNative = useCallback((e: TouchEvent) => {
     if (lock.current === 'h' && start.current) e.preventDefault()
   }, [])
+  // 原生 wheel (passive:false) — 触摸板横滑发 wheel deltaX 而非 pointer 拖拽,
+  // 不接 = 桌面"完全没法滑动"; preventDefault 同时掐掉 Chrome 横滑=前进后退导航。
+  const wheelAcc = useRef(0)
+  const wheelT = useRef(0)
+  const wheelCooldownUntil = useRef(0)
+  const onWheelNative = useCallback((e: WheelEvent) => {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return // 纵向滚动让给原生
+    if (start.current) return // 手指/鼠标正拖着, 不抢
+    e.preventDefault()
+    const now = performance.now()
+    if (now < wheelCooldownUntil.current) return // 一次手势只翻一页 (Android fling 同语义)
+    if (now - wheelT.current > 200) wheelAcc.current = 0 // 隔了 200ms = 新手势
+    wheelT.current = now
+    if (wheelAcc.current * e.deltaX < 0) wheelAcc.current = 0 // 反向清零
+    wheelAcc.current += e.deltaX
+    const next = wheelTargetWeek(wheelAcc.current, weekRef.current, maxRef.current)
+    if (next !== null) {
+      wheelAcc.current = 0
+      wheelCooldownUntil.current = now + WHEEL_COOLDOWN_MS
+      snapTo(next)
+    } else if (Math.abs(wheelAcc.current) >= WHEEL_PAGE_DELTA_PX) {
+      wheelAcc.current = 0 // 边界页不积累, 防离界后一泄如注连翻
+    }
+  }, [snapTo])
   const pagerEl = useRef<HTMLElement | null>(null)
   const attachPager = useCallback((el: HTMLElement | null) => {
-    if (pagerEl.current === el) return
-    pagerEl.current?.removeEventListener('touchmove', onTouchMoveNative)
+    // 元素级幂等: 已绑 handler 记在元素上, 绑定前先清该元素上的任何历史残留。
+    // ref 回调内联重建 / hook 重挂载复用同一 DOM 节点时, removeEventListener
+    // 可能因回调身份变化失配 → 监听器泄漏 → 一个 wheel 事件被处理 N 次 (连翻多页)。
+    type Bound = { touch: EventListener; wheel: EventListener }
+    type WithBound = HTMLElement & { __pagerHandlers?: Bound }
+    const detach = (e: WithBound) => {
+      const prev = e.__pagerHandlers
+      if (!prev) return
+      e.removeEventListener('touchmove', prev.touch)
+      e.removeEventListener('wheel', prev.wheel)
+      delete e.__pagerHandlers
+    }
+    const prevEl = pagerEl.current
+    if (prevEl && prevEl !== el) detach(prevEl as WithBound)
     pagerEl.current = el
-    el?.addEventListener('touchmove', onTouchMoveNative, { passive: false })
-  }, [onTouchMoveNative])
+    if (!el) return
+    detach(el as WithBound)
+    const bound: Bound = {
+      touch: onTouchMoveNative as EventListener,
+      wheel: onWheelNative as EventListener,
+    }
+    ;(el as WithBound).__pagerHandlers = bound
+    el.addEventListener('touchmove', bound.touch, { passive: false })
+    el.addEventListener('wheel', bound.wheel, { passive: false })
+  }, [onTouchMoveNative, onWheelNative])
   useEffect(() => () => attachPager(null), [attachPager])
 
   return { onPointerDown, onPointerMove, onPointerUp: finish, onPointerCancel, attachPager, offset, settling }

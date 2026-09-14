@@ -9,6 +9,9 @@ import {
   pagerTargetWeek,
   pagerTrackWeeks,
   lockDirection,
+  wheelTargetWeek,
+  WHEEL_PAGE_DELTA_PX,
+  WHEEL_COOLDOWN_MS,
   SWIPE_DIRECTION_LOCK_PX,
   SWIPE_PAGE_FRACTION,
   SWIPE_FLING_VELOCITY,
@@ -152,5 +155,28 @@ describe('lockDirection — 方向锁 (Android gesture arena 横移认领同构)
 
   it('slop = 8px (Android touch slop ~8dp 同量级)', () => {
     expect(SWIPE_DIRECTION_LOCK_PX).toBe(8)
+  })
+})
+
+describe('wheelTargetWeek — 触摸板/滚轮横滚翻页 (桌面 deltaX 通道)', () => {
+  it('累计未过 60px 阈值不翻', () => {
+    expect(wheelTargetWeek(0, 1, 10)).toBeNull()
+    expect(wheelTargetWeek(30, 1, 10)).toBeNull()
+    expect(wheelTargetWeek(-59, 5, 10)).toBeNull()
+  })
+
+  it('左滚 (deltaX>0) = 下一周; 右滚 = 上一周 (与拖拽同向)', () => {
+    expect(wheelTargetWeek(60, 3, 10)).toBe(4)
+    expect(wheelTargetWeek(-200, 3, 10)).toBe(2)
+  })
+
+  it('边界裁剪: 第 1 周右滚 / 末周左滚不翻', () => {
+    expect(wheelTargetWeek(-100, 1, 10)).toBeNull()
+    expect(wheelTargetWeek(100, 10, 10)).toBeNull()
+  })
+
+  it('阈值/冷却常量锁定 (一次手势一页)', () => {
+    expect(WHEEL_PAGE_DELTA_PX).toBe(60)
+    expect(WHEEL_COOLDOWN_MS).toBe(350)
   })
 })

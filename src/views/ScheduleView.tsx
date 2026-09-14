@@ -610,7 +610,7 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
           attachScroll(el)
           attachPager(el)
         }}
-        style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', touchAction: 'pan-y', userSelect: 'none' }}
+        style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', touchAction: 'pan-y', userSelect: 'none', overscrollBehaviorX: 'contain' }}
         {...pagerHandlers}
       >
         {tableList === undefined ? null : !hasTable ? (
