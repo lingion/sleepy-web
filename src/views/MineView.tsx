@@ -5,7 +5,7 @@
  *
  * 返回栈语义: 进页 push(浏览器返回可出栈), 返回按钮 pop(每层只弹自己 — v7.10.8 修复语义)。
  * popstate 只收回属于本页的层;customTheme 嵌在外观下 → 弹回 appearance;
- * jwImport 是 mine 顶层覆盖层 → 弹回 main。editTable 由 AllTablesPage 内部自管, 不在此列。
+ * editTable 由 AllTablesPage 内部自管, 不在此列。教务导入入口在管理页 (Android ImportSheet 同构)。
  */
 
 import { useEffect, useState } from 'react'
@@ -20,14 +20,13 @@ import { AboutPage } from './mine/AboutPage'
 import { LicensePage } from './mine/LicensePage'
 import { AllTablesPage } from './mine/AllTablesPage'
 import { CustomThemeEditorView } from './mine/CustomThemeEditorView'
-import { JwImportView } from './jw/JwImportView'
 
 type Page =
   | 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder' | 'license'
-  | 'customTheme' | 'jwImport'
+  | 'customTheme'
 
 /** MineView 自己拥有的返回层 — popstate 只在这些 key 弹出时收回页面状态 */
-const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'about', 'reminder', 'license', 'jwImport'])
+const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'about', 'reminder', 'license'])
 
 /** 刷新/直达恢复: 栈链栈顶 → 初始 page (App 挂载 effect 同步 restoreChain 重建历史) */
 export function minePageFromHash(hash: string): Page {
@@ -40,7 +39,6 @@ export function minePageFromHash(hash: string): Page {
     case 'about': return 'about'
     case 'license': return 'license'
     case 'reminder': return 'reminder'
-    case 'jwImport': return 'jwImport'
     default: return 'main'
   }
 }
@@ -95,8 +93,6 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
       )
     case 'customTheme':
       return <CustomThemeEditorView onBack={() => backTo('appearance')} editingId={editingThemeId} />
-    case 'jwImport':
-      return <JwImportView onBack={() => backTo('main')} />
     case 'export':
       return <ExportView onBack={() => backTo('main')} />
     case 'alltables':
@@ -117,7 +113,6 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
           onOpenAllTables={() => go('alltables', 'allTables')}
           onOpenAbout={() => go('about', 'about')}
           onOpenReminder={() => go('reminder', 'reminder')}
-          onOpenJwImport={() => go('jwImport', 'jwImport')}
         />
       )
   }

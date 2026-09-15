@@ -14,9 +14,10 @@ import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
-import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
+import { installBackHandler, useBackStack, chainFromHash, type BackKey } from '../state/backStack'
 import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
 import { ImportView } from './ImportView'
+import { JwImportView } from './jw/JwImportView'
 import { EditTableView } from './EditTableView'
 import { AddCourseView } from './AddCourseView'
 import { ExportView } from './ExportView'
@@ -40,11 +41,17 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
     [defaultTable?.id],
   )
   const [importing, setImporting] = useState(false)
+  // 教务导入层 — 深链直达时初始即开 (restoreChain 已建栈);旧 #/我的/教务导入 别名同判
+  const [jwImporting, setJwImporting] = useState(() => {
+    const chain = chainFromHash(window.location.hash)
+    return chain[chain.length - 1] === 'jwImport'
+  })
   const [addingCourse, setAddingCourse] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
+  const replace = useBackStack((s) => s.replace)
   const pendingId = usePendingTable((s) => s.pendingId)
 
   const list = tables ?? []
@@ -52,6 +59,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   // 浏览器返回时同步本地 page state (popstate 广播 popped key → 收回本视图的层)。
   useEffect(() => installBackHandler((key) => {
     if (key === 'addCourse') { setImporting(false); setAddingCourse(false) }
+    else if (key === 'jwImport') setJwImporting(false)
     else if (key === 'export') setExporting(false)
     else if (key === 'editTable') setEditingId(null)
   }), [])
@@ -65,8 +73,18 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   }
   const leave = () => back()
 
+  if (jwImporting) {
+    return <JwImportView onBack={() => { leave(); setJwImporting(false) }} />
+  }
   if (importing) {
-    return <ImportView onDone={() => { leave(); setImporting(false) }} />
+    return (
+      <ImportView
+        onDone={() => { leave(); setImporting(false) }}
+        // 教务直连 — Android「关 sheet + startActivity」: 导入层原地换成教务层,
+        // 历史条目不新增 → 教务页返回直达管理页 (不会退回导入页)。
+        onJwImport={() => { replace('jwImport'); setImporting(false); setJwImporting(true) }}
+      />
+    )
   }
   if (addingCourse) {
     return (

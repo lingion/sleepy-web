@@ -1,5 +1,5 @@
 /**
- * JwImportView — 教务导入 (#/我的/教务导入)。
+ * JwImportView — 教务导入 (#/管理/教务导入), 入口在管理页导入方式表。
  * ui/screen/imports/JwImportActivity.kt 状态机的 web 移植。
  *
  *   selectSchool ──选学校/直接输 URL──▶ capture ──拿到 HTML 解析>0 课──▶ configureConfirm

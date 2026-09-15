@@ -5,10 +5,11 @@
  * 解析端权威 groupId (sleepy-v1) → 走 insertCoursesKeepingGroups/replaceCoursesKeepingGroups。
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { IconExpandLess, IconExpandMore, IconInfo } from '../components/icons'
+import { IconDescription, IconExpandLess, IconExpandMore, IconFileUpload, IconInfo, IconQrCode2 } from '../components/icons'
 import { FormatDetailDialog } from '../components/FormatDetailDialog'
 import { FORMAT_KEYS, IMPORT_FORMATS, type ImportFormat } from '../components/formatHelp'
 import { db } from '../data/db'
@@ -41,6 +42,8 @@ type ApplyMode =
   | 'AppendNonConflict'
   | 'AppendAll'
   | 'AppendAsNew'
+
+type IconComponent = ComponentType<{ size?: number; color?: string }>
 
 interface CourseConflict {
   incoming: ParsedCourse
@@ -105,12 +108,14 @@ function toCourse(pc: ParsedCourse, tableId: number): Course {
   }
 }
 
-export function ImportView({ onDone }: { onDone: () => void }) {
+export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImport?: () => void }) {
   const { t, i18n } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) ?? []
   const defaultTable = tables.find((x) => x.isDefault === 1) ?? tables[0]
 
-  const [textExpanded, setTextExpanded] = useState(true)
+  // 默认折叠 — ImportSheet.kt:109 textExpanded = false 同构
+  const [textExpanded, setTextExpanded] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [inputText, setInputText] = useState('')
   // 格式详情弹窗 (ImportSheet.kt:366 detailFormat) — null = 未打开
   const [detailFormat, setDetailFormat] = useState<ImportFormat | null>(null)
@@ -384,71 +389,66 @@ export function ImportView({ onDone }: { onDone: () => void }) {
         {t('import_preview_sub')}
       </p>
 
-      {/* 粘贴文本 (折叠面板) */}
-      <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => setTextExpanded((v) => !v)}
-          onKeyDown={(e) => e.key === 'Enter' && setTextExpanded((v) => !v)}
-          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 600 }}
-        >
-          <span style={{ flex: 1 }} className="m3-body-large">{t('import_paste')}</span>
-          {/* Icons.Outlined.ExpandLess/ExpandMore 同构 (ImportSheet.kt:235 trailing) — 禁文本符号 */}
-          <span style={{ fontSize: 18, color: 'var(--md-on-surface-variant)', display: 'inline-flex' }}>
-            {textExpanded ? <IconExpandLess size={18} /> : <IconExpandMore size={18} />}
-          </span>
-        </div>
-        {textExpanded && (
-          <>
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={t('import_paste_hint')}
-              disabled={isLoading}
-              aria-label={t('import_paste')}
-              style={{
-                width: '100%', minHeight: 160, boxSizing: 'border-box', resize: 'vertical',
-                background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)',
-                border: '1px solid var(--md-outline)', borderRadius: 8, padding: 10,
-                fontSize: 13, fontFamily: 'monospace',
-              }}
-            />
-            <button
-              onClick={() => { setIsLoading(true); void buildPreview(inputText).finally(() => setIsLoading(false)) }}
-              disabled={isLoading || inputText.trim() === ''}
-              style={{
-                padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: 'var(--md-primary)', color: 'var(--md-on-primary)',
-                fontSize: 14, fontWeight: 600, opacity: isLoading || inputText.trim() === '' ? 0.5 : 1,
-              }}
-            >
-              {isLoading ? t('import_parsing') : t('import_preview')}
-            </button>
-          </>
-        )}
-      </div>
+      {/* 行 1：教务直连 — ImportSheet.kt:221-229 (关弹窗 → 拉起教务导入) */}
+      <ImportMethodRow
+        icon={IconQrCode2}
+        label={t('import_jw')}
+        onClick={() => onJwImport?.()}
+      />
 
-      {/* 从文件导入 */}
-      <div className="m3-card" style={{ padding: 16 }}>
-        <label
-          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 600 }}
-          className="m3-body-large"
-        >
-          <span style={{ flex: 1 }}>{t('import_file')}</span>
-          <input
-            type="file"
-            accept=".json,.txt,.csv,.html,.htm,.ics,.sleepy,text/plain,application/json,text/csv,text/html,text/calendar"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) handleFile(f)
-              e.target.value = ''
+      {/* 行 2：从文本导入 (可折叠) — ImportSheet.kt:232-287, 展开内容 padding-start 56 */}
+      <ImportMethodRow
+        icon={IconDescription}
+        label={t('import_paste')}
+        trailing={textExpanded ? IconExpandLess : IconExpandMore}
+        onClick={() => setTextExpanded((v) => !v)}
+      />
+      {textExpanded && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 4px 8px 56px' }}>
+          <textarea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder={t('import_paste_hint')}
+            disabled={isLoading}
+            aria-label={t('import_paste')}
+            style={{
+              width: '100%', minHeight: 160, boxSizing: 'border-box', resize: 'vertical',
+              background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)',
+              border: '1px solid var(--md-outline)', borderRadius: 8, padding: 10,
+              fontSize: 13, fontFamily: 'monospace',
             }}
           />
-          <span aria-hidden>↥</span>
-        </label>
-      </div>
+          <button
+            onClick={() => { setIsLoading(true); void buildPreview(inputText).finally(() => setIsLoading(false)) }}
+            disabled={isLoading || inputText.trim() === ''}
+            style={{
+              padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
+              background: 'var(--md-primary)', color: 'var(--md-on-primary)',
+              fontSize: 14, fontWeight: 600, opacity: isLoading || inputText.trim() === '' ? 0.5 : 1,
+            }}
+          >
+            {isLoading ? t('import_parsing') : t('import_preview')}
+          </button>
+        </div>
+      )}
+
+      {/* 行 3：从文件导入 — ImportSheet.kt:290-297 (触发系统选择器) */}
+      <ImportMethodRow
+        icon={IconFileUpload}
+        label={t('import_file')}
+        onClick={() => fileInputRef.current?.click()}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,.txt,.csv,.html,.htm,.ics,.sleepy,text/plain,application/json,text/csv,text/html,text/calendar"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) handleFile(f)
+          e.target.value = ''
+        }}
+      />
 
       {/* 支持的导入类型 — ImportSheet.kt FormatRow: • + 课名 + 说明 + ⓘ 详情 */}
       <div className="m3-card" style={{ padding: 16 }}>
@@ -964,6 +964,54 @@ function GhostBtn({ label, onClick }: { label: string; onClick: () => void }) {
       }}
     >
       {label}
+    </button>
+  )
+}
+
+/** ImportMethodRow — ImportSheet.kt:473-521 1:1:
+ *  40dp primary-container 圆角方块 (20dp on-primary-container 图标) + bodyLarge Medium 标签
+ *  padding-start 14 + 可选 trailing 图标 (on-surface-variant)。整行可点, vertical 14 / horizontal 4。 */
+function ImportMethodRow({
+  icon: Icon,
+  label,
+  trailing: Trailing,
+  onClick,
+}: {
+  icon: IconComponent
+  label: string
+  trailing?: IconComponent
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', width: '100%',
+        padding: '14px 4px', border: 'none', cursor: 'pointer', textAlign: 'left',
+        background: 'transparent', borderRadius: 12,
+      }}
+    >
+      <span
+        style={{
+          width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+          background: 'var(--md-primary-container)',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Icon size={20} color="var(--md-on-primary-container)" />
+      </span>
+      <span
+        className="m3-body-large"
+        style={{ flex: 1, marginLeft: 14, fontWeight: 500, color: 'var(--md-on-surface)' }}
+      >
+        {label}
+      </span>
+      {Trailing && (
+        <span style={{ display: 'inline-flex', color: 'var(--md-on-surface-variant)' }}>
+          <Trailing size={24} />
+        </span>
+      )}
     </button>
   )
 }

@@ -52,7 +52,9 @@ export const HASH_BY_KEY: Record<BackKey, string> = {
   about: '#/我的/关于',
   license: '#/我的/许可证',
   customTheme: '#/我的/外观/自定义主题',
-  jwImport: '#/我的/教务导入',
+  // 入口 = 管理 → 导入课表 → 教务直连 (Android ImportSheet 行 1 → JwImportActivity 同构),
+  // 故挂 #/管理 系;旧 #/我的/教务导入 深链由 tabFromHash/chainFromHash 兼容。
+  jwImport: '#/管理/教务导入',
   courseDetail: '#/课表/课程详情',
   weekSwitcher: '#/课表/切换课表',
   weekJump: '#/课表/周次跳转',
@@ -75,6 +77,8 @@ export function tabFromHash(hash: string): TabKey {
   const normalized = decodeURIComponent(hash).toLowerCase()
   if (normalized.startsWith(HASH_BY_TAB.today.toLowerCase())) return 'today'
   if (normalized.startsWith(HASH_BY_TAB.manage.toLowerCase())) return 'manage'
+  // 旧教务导入深链 (#/我的/教务导入) → 管理 tab (入口已迁到 导入课表 → 教务直连)
+  if (normalized === '#/我的/教务导入') return 'manage'
   if (normalized.startsWith(HASH_BY_TAB.mine.toLowerCase())) return 'mine'
   return 'schedule'
 }
@@ -102,6 +106,8 @@ const SUB_CHAINS: { hash: string; chain: BackKey[] }[] = [
   { hash: '#/我的/关于', chain: ['about'] },
   { hash: '#/我的/许可证', chain: ['about', 'license'] },
   { hash: '#/我的/提醒', chain: ['reminder'] },
+  { hash: '#/管理/教务导入', chain: ['jwImport'] },
+  // 旧深链别名: 恢复链照建, restoreChain pushState 会写成新 hash (URL 自动归一)
   { hash: '#/我的/教务导入', chain: ['jwImport'] },
 ]
 
@@ -135,6 +141,8 @@ interface BackStackState {
   /** 规范化当前条目 hash 而不新增历史 (刷新/直达带 hash 进入时用) */
   replaceTab: (tab: TabKey) => void
   pop: () => void
+  /** 顶栏换层 (不新增历史) — Android「关 sheet + 拉起 Activity」: 返回直达 tab 根 */
+  replace: (key: BackKey, hash?: string) => void
   popToRoot: () => void
   peek: () => BackKey | undefined
   reset: () => void
@@ -185,6 +193,17 @@ export const useBackStack = create<BackStackState>((set, get) => ({
       }
     } catch {
       /* 非浏览器环境 */
+    }
+  },
+
+  replace: (key, hash = HASH_BY_KEY[key]) => {
+    // 顶栏换层: 栈顶替换 + replaceState 改地址 — 历史条目数不变,
+    // 浏览器返回 = 回到被换层之下的位置 (Android: sheet 关闭后 activity 返回直达管理页)。
+    set((s) => ({ stack: [...s.stack.slice(0, -1), key] }))
+    try {
+      history.replaceState({ sleepyBack: true, key }, '', hash)
+    } catch {
+      /* 非浏览器环境 (单测) */
     }
   },
 
