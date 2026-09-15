@@ -12,8 +12,7 @@ import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import i18next from 'i18next'
 import type { Course, Table } from './types'
 
-/** 示例课程行 — [课名, 教师, 教室, 周几, 起节, 连节数, 起周, 止周, 单双周] */
-type SampleRow = [string, string, string, number, number, number, number, number, Course['type']]
+/** 示例课程行 — [课名, 教师, 教室, 周几, 起节, 连节数, 起周, 止周, 单双周] */type SampleRow = [string, string, string, number, number, number, number, number, Course['type']]
 
 // 一周典型大学课表 — 覆盖连堂/单周/双周/多天同课 (组色共享) 四种形态
 const SAMPLE_ROWS: SampleRow[] = [
@@ -41,7 +40,7 @@ export async function seedSampleTable(): Promise<void> {
     id: tableId,
     // i18next 未初始化 (单测) 时 t() 返回 key/undefined — 兜底中文真值
     name: i18next.t('sample_table_name') || '示例课表',
-    startDate: nextMondayIso(),
+    startDate: lastMondayIso(),
     timeJson: DEFAULT_TIME_JSON,
     isDefault: 1,
     maxWeek: 20,
@@ -96,11 +95,11 @@ function courseOf(r: SampleRow, id: number, tableId: number): Course {
   }
 }
 
-/** 下一个周一 ISO 日期 — 示例课表从"下周一开始", 周次语义即真实 */
-function nextMondayIso(): string {
+/** 上周一 ISO 日期 — 示例课表"已开学一周": 起算=上周一, 当前周=第2周 (用户指令 2026-09-15) */
+function lastMondayIso(): string {
   const d = new Date()
   const dow = d.getDay() === 0 ? 7 : d.getDay()
-  d.setDate(d.getDate() + (8 - dow))
+  d.setDate(d.getDate() - (dow - 1) - 7)
   const p = (x: number) => String(x).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }

@@ -158,14 +158,14 @@ export const DEFAULT_PREFS: Prefs = {
   themeMode: 'system',
   theme: 'default',
   lang: 'zh-CN',
-  displayMode: 'node',
+  displayMode: 'time', // 安卓 2026-09-14 出厂改 "time" (默认显示时间段)
   gridSubInfo: 'room',
   conflictStyle: 'rail',
   conflictStackInset: 7,
   conflictRailInset: 7,
   conflictFoldSize: 16,
-  startView: 'full',
-  showDate: false,
+  startView: 'cards', // 安卓出厂默认 cards (AppPrefs.kt:388)
+  showDate: true, // 安卓出厂默认 true (AppPrefs.kt:399)
   visibleDays: [1, 2, 3, 4, 5, 6, 7],
   gridScale: 1.0,
   weekScale: 1.0,

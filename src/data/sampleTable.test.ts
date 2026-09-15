@@ -20,6 +20,13 @@ describe('seedSampleTable — 首次打开默认示例课表', () => {
     expect(tables[0].startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     // startDate 必须是周一 (周次语义正确性)
     expect(new Date(tables[0].startDate + 'T00:00:00').getDay()).toBe(1)
+    // "已开学一周": 起点必须早于本周一 → 当前周次 ≥ 2 (用户指令 2026-09-15)
+    const now = new Date()
+    const dow = now.getDay() === 0 ? 7 : now.getDay()
+    const thisMonday = new Date(now)
+    thisMonday.setDate(now.getDate() - (dow - 1))
+    thisMonday.setHours(0, 0, 0, 0)
+    expect(new Date(tables[0].startDate + 'T00:00:00').getTime()).toBeLessThan(thisMonday.getTime())
 
     const courses = await db.courses.where('tableId').equals(tables[0].id).toArray()
     expect(courses).toHaveLength(9)

@@ -1,7 +1,7 @@
 /**
  * prefsStore 契约测试 — DEFAULT_PREFS 与 AppPrefs.kt getter 兜底值逐项对齐
- * 锁定 2026-09-12 修正: displayMode=node(非 full/cards)/gridSubInfo=room/conflictStyle=rail/
- * conflictStackInset=RailInset=7/showDate=false/navDock=false/widgetSeparator=true
+ * 锁定 2026-09-15 对齐: displayMode=time(安卓 09-14 出厂改)/startView=cards/showDate=true/
+ * gridSubInfo=room/conflictStyle=rail/conflictStackInset=RailInset=7/navDock=false/widgetSeparator=true
  * 以及 5 个补齐键 weekTwoColumnMode/weekHideEmptyDays/vertPunct/widgetColorless/courseColorless。
  */
 
@@ -11,8 +11,8 @@ import { DEFAULT_PREFS } from '../data/types'
 import { usePrefsStore, resolveIsDark } from './prefsStore'
 
 describe('DEFAULT_PREFS 对齐 AppPrefs.kt 兜底值', () => {
-  it('displayMode 默认 node (getDisplayMode → "node")', () => {
-    expect(DEFAULT_PREFS.displayMode).toBe('node')
+  it('displayMode 默认 time (AppPrefs.kt:230 出厂 "time", 2026-09-14 用户定版)', () => {
+    expect(DEFAULT_PREFS.displayMode).toBe('time')
   })
 
   it('gridSubInfo 默认 room (getGridSubInfo → "room")', () => {
@@ -32,8 +32,12 @@ describe('DEFAULT_PREFS 对齐 AppPrefs.kt 兜底值', () => {
     expect(DEFAULT_PREFS.conflictFoldSize).toBe(16)
   })
 
-  it('showDate 默认 false (isShowDate 兜底 false)', () => {
-    expect(DEFAULT_PREFS.showDate).toBe(false)
+  it('showDate 默认 true (AppPrefs.kt:399 isShowDate 兜底 true)', () => {
+    expect(DEFAULT_PREFS.showDate).toBe(true)
+  })
+
+  it('startView 默认 cards (AppPrefs.kt:388 出厂 "cards")', () => {
+    expect(DEFAULT_PREFS.startView).toBe('cards')
   })
 
   it('navDock 默认 false (isNavDock 兜底 false)', () => {
