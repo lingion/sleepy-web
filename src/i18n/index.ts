@@ -18,6 +18,7 @@ import { holidayExtra } from './extra/holiday'
 import { timeslotExtra } from './extra/timeslot'
 import { jwImportExtra } from './extra/jwimport'
 import { importSheetExtra } from './extra/importsheet'
+import { reminderExtra } from './extra/reminder'
 
 export const SUPPORTED_LANGS = ['en', 'zh-CN', 'zh-TW', 'ja', 'es', 'en-GB'] as const
 export type Lang = (typeof SUPPORTED_LANGS)[number]
@@ -67,6 +68,7 @@ const EXTRA_KEY_FILES: Array<Record<Lang, Record<string, string>>> = [
   timeslotExtra,
   jwImportExtra,
   importSheetExtra,
+  reminderExtra,
 ]
 
 /** 主 JSON 占位转换 + 逐层合并扩展键 → 该语言最终 translation 表。 */
