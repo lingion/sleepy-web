@@ -12,7 +12,7 @@ import { db } from '../../data/db'
 import { computeCurrentWeek } from '../ScheduleView'
 import {
   IconEdit, IconShare, IconPalette, IconTune, IconInfo,
-  IconNotifications, IconRefresh,
+  IconNotifications, IconRefresh, IconSchool,
 } from '../../components/icons'
 import type { Course } from '../../data/types'
 import { HDiv } from './shared'
@@ -25,6 +25,7 @@ export function MineHome({
   onOpenAllTables,
   onOpenAbout,
   onOpenReminder,
+  onOpenJwImport,
 }: {
   navExtraBottom?: number
   onOpenGeneral: () => void
@@ -33,6 +34,7 @@ export function MineHome({
   onOpenAllTables: () => void
   onOpenAbout: () => void
   onOpenReminder: () => void
+  onOpenJwImport: () => void
 }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
@@ -72,6 +74,9 @@ export function MineHome({
         <SettingsItem icon={<IconEdit size={20} />} label={t('all_tables')} onClick={onOpenAllTables} />
         <HDiv inset={72} />
         <SettingsItem icon={<IconShare size={20} />} label={t('mine_export')} onClick={onOpenExport} />
+        <HDiv inset={72} />
+        {/* 教务导入 — Android「导入课表 → 教务直连」在 web 的等价入口 (#/我的/教务导入) */}
+        <SettingsItem icon={<IconSchool size={20} />} label={t('jw_import_view_title')} onClick={onOpenJwImport} />
         <HDiv inset={72} />
         {/* 提醒 — web 无系统通知通道, 入口保留接通 to-do 占位页 */}
         <SettingsItem icon={<IconNotifications size={20} />} label={t('reminder_title')} onClick={onOpenReminder} />

@@ -117,6 +117,7 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
           onOpenAllTables={() => go('alltables', 'allTables')}
           onOpenAbout={() => go('about', 'about')}
           onOpenReminder={() => go('reminder', 'reminder')}
+          onOpenJwImport={() => go('jwImport', 'jwImport')}
         />
       )
   }
