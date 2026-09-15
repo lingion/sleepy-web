@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from './state/prefsStore'
-import { installBackHandler, tabFromHash, useBackStack, type TabKey } from './state/backStack'
+import { chainFromHash, installBackHandler, restoreChain, tabFromHash, useBackStack, type TabKey } from './state/backStack'
 import { abandonPendingTable } from './state/pendingTable'
 import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/icons'
 import { ScheduleView } from './views/ScheduleView'
@@ -39,8 +39,11 @@ export function App() {
   const hasOverlay = useBackStack((s) => s.stack.length > 0)
 
   // tab hash 首次进入不新增历史;之后点击 tab 写入独立地址。
+  // 直达/刷新落在二三级页 hash → 重建返回栈链 (replaceTab 会把子页 hash 抹平甩回 tab 根)。
   useEffect(() => {
-    if (window.location.hash) replaceTab(tab)
+    const chain = chainFromHash(window.location.hash)
+    if (chain.length > 0) restoreChain(chain, window.location.hash)
+    else if (window.location.hash) replaceTab(tab)
     else pushTab(tab)
     return installBackHandler((popped, hash) => {
       // 浏览器返回退出 EditTable → 未保存的新表就地丢弃

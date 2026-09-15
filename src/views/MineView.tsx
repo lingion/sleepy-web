@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
+import { chainFromHash, installBackHandler, useBackStack, type BackKey } from '../state/backStack'
 import { ExportView } from './ExportView'
 import { MineHome } from './mine/MineHome'
 import { GeneralSettingsPage } from './mine/GeneralSettingsPage'
@@ -29,8 +29,24 @@ type Page =
 /** MineView 自己拥有的返回层 — popstate 只在这些 key 弹出时收回页面状态 */
 const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'about', 'reminder', 'license', 'jwImport'])
 
+/** 刷新/直达恢复: 栈链栈顶 → 初始 page (App 挂载 effect 同步 restoreChain 重建历史) */
+export function minePageFromHash(hash: string): Page {
+  const chain = chainFromHash(hash)
+  switch (chain[chain.length - 1]) {
+    case 'general': return 'general'
+    case 'holiday': return 'holiday'
+    case 'appearance': return 'appearance'
+    case 'customTheme': return 'customTheme'
+    case 'about': return 'about'
+    case 'license': return 'license'
+    case 'reminder': return 'reminder'
+    case 'jwImport': return 'jwImport'
+    default: return 'main'
+  }
+}
+
 export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
-  const [page, setPage] = useState<Page>('main')
+  const [page, setPage] = useState<Page>(() => minePageFromHash(window.location.hash))
   // 编辑器微调目标: null = 新建 (Android editingTheme 同构)
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const back = useBackStack((s) => s.pop)

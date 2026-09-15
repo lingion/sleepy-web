@@ -88,6 +88,46 @@ export function pageHash(hash: string): string {
   }
 }
 
+/**
+ * 刷新/直达恢复链 — 二三级 hash → 应重建的返回栈 (链首在底)。
+ * 只列 mine 系无上下文页面 (设置页刷新恢复安全);schedule/manage 的弹层
+ * (添加课程/课程详情/编辑课表…) 依赖运行时上下文, 刷新回落 tab 根 (既有行为)。
+ * 顺序 = 最长优先精确匹配 (三级在前)。
+ */
+const SUB_CHAINS: { hash: string; chain: BackKey[] }[] = [
+  { hash: '#/我的/通用设置/节假日', chain: ['general', 'holiday'] },
+  { hash: '#/我的/外观/自定义主题', chain: ['appearance', 'customTheme'] },
+  { hash: '#/我的/通用设置', chain: ['general'] },
+  { hash: '#/我的/外观', chain: ['appearance'] },
+  { hash: '#/我的/关于', chain: ['about'] },
+  { hash: '#/我的/许可证', chain: ['about', 'license'] },
+  { hash: '#/我的/提醒', chain: ['reminder'] },
+  { hash: '#/我的/教务导入', chain: ['jwImport'] },
+]
+
+export function chainFromHash(hash: string): BackKey[] {
+  if (!hash) return []
+  const h = pageHash(hash)
+  for (const e of SUB_CHAINS) if (h === e.hash) return [...e.chain]
+  return []
+}
+
+/**
+ * 按链重建历史 + 栈 — 当前条目 replaceState 成 tab 根 (sleepyTab 占位),
+ * 再逐层 pushState 各级 hash (sleepyBack), 历史与站内逐级点进来完全一致:
+ * 浏览器返回 = 回上层, 到顶再返回 = 回 tab 根, 语义与 push/pop 同构。
+ */
+export function restoreChain(chain: BackKey[], hash: string): void {
+  const tab = tabFromHash(hash)
+  try {
+    history.replaceState({ sleepyTab: true, tab }, '', HASH_BY_TAB[tab])
+    for (const key of chain) history.pushState({ sleepyBack: true, key }, '', HASH_BY_KEY[key])
+  } catch {
+    /* 非浏览器环境 (单测) */
+  }
+  useBackStack.setState({ stack: [...chain] })
+}
+
 interface BackStackState {
   stack: BackKey[]
   push: (key: BackKey, hash?: string) => void

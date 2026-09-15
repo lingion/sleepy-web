@@ -39,7 +39,7 @@ vi.stubGlobal(
   } as unknown as Location
 )
 
-import { useBackStack, installBackHandler, tabFromHash, HASH_BY_KEY, HASH_BY_TAB } from './backStack'
+import { useBackStack, installBackHandler, tabFromHash, chainFromHash, restoreChain, HASH_BY_KEY, HASH_BY_TAB } from './backStack'
 
 describe('useBackStack — 每页 hash 地址 (tab + 全部二级页)', () => {
   beforeEach(() => {
@@ -202,5 +202,48 @@ describe('useBackStack — 课表页临时弹层独立 hash (点课程不得跳�
     useBackStack.getState().push('courseDetail')
     expect(hashState).toBe('#/课表/课程详情')
     expect(useBackStack.getState().peek()).toBe('courseDetail')
+  })
+})
+
+describe('useBackStack — 刷新/直达恢复链 (chainFromHash + restoreChain)', () => {
+  beforeEach(() => {
+    pushState.mockClear()
+    back.mockClear()
+    hashState = ''
+    historyState = null
+  })
+
+  it('chainFromHash: 三级页 → 完整链 (最长优先)', () => {
+    expect(chainFromHash('#/我的/通用设置/节假日')).toEqual(['general', 'holiday'])
+    expect(chainFromHash('#/我的/许可证')).toEqual(['about', 'license'])
+    expect(chainFromHash(encodeURIComponent('#/我的/外观/自定义主题'))).toEqual(['appearance', 'customTheme'])
+  })
+
+  it('chainFromHash: 二级页 → 单层链;tab 根/未知 → 空', () => {
+    expect(chainFromHash('#/我的/关于')).toEqual(['about'])
+    expect(chainFromHash('#/我的/提醒')).toEqual(['reminder'])
+    expect(chainFromHash('#/我的')).toEqual([])
+    expect(chainFromHash('#/今日')).toEqual([])
+    expect(chainFromHash('')).toEqual([])
+  })
+
+  it('restoreChain: 历史逐层重建 — replaceState tab 根 + 每层 pushState, 栈=链', () => {
+    useBackStack.getState().reset()
+    restoreChain(['about', 'license'], '#/我的/许可证')
+    expect(useBackStack.getState().stack).toEqual(['about', 'license'])
+    // replaceState 打头 (tab 根), 其后每层一次 pushState
+    expect(hashState).toBe('#/我的/许可证')
+    const pushed = pushState.mock.calls.map((c) => c[2])
+    expect(pushed).toEqual([HASH_BY_KEY.about, HASH_BY_KEY.license])
+    expect(pushState.mock.calls[0][0]).toEqual({ sleepyBack: true, key: 'about' })
+  })
+
+  it('minePageFromHash: 链顶 → 初始 page;非子页 hash → main', async () => {
+    const { minePageFromHash } = await import('../views/MineView')
+    expect(minePageFromHash('#/我的/许可证')).toBe('license')
+    expect(minePageFromHash('#/我的/通用设置/节假日')).toBe('holiday')
+    expect(minePageFromHash('#/我的/关于')).toBe('about')
+    expect(minePageFromHash('#/我的')).toBe('main')
+    expect(minePageFromHash('#/课表/课程详情')).toBe('main')
   })
 })
