@@ -8,7 +8,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { IconExpandLess, IconExpandMore } from '../components/icons'
+import { IconExpandLess, IconExpandMore, IconInfo } from '../components/icons'
+import { FormatDetailDialog } from '../components/FormatDetailDialog'
+import { FORMAT_KEYS, IMPORT_FORMATS, type ImportFormat } from '../components/formatHelp'
 import { db } from '../data/db'
 import {
   getTable,
@@ -110,6 +112,8 @@ export function ImportView({ onDone }: { onDone: () => void }) {
 
   const [textExpanded, setTextExpanded] = useState(true)
   const [inputText, setInputText] = useState('')
+  // 格式详情弹窗 (ImportSheet.kt:366 detailFormat) — null = 未打开
+  const [detailFormat, setDetailFormat] = useState<ImportFormat | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
@@ -446,27 +450,56 @@ export function ImportView({ onDone }: { onDone: () => void }) {
         </label>
       </div>
 
-      {/* 支持的导入类型 */}
+      {/* 支持的导入类型 — ImportSheet.kt FormatRow: • + 课名 + 说明 + ⓘ 详情 */}
       <div className="m3-card" style={{ padding: 16 }}>
         <div className="m3-title-small" style={{ fontWeight: 600, marginBottom: 8 }}>
           {t('import_supported_formats')}
         </div>
-        {(
-          [
-            ['format_wakeup_share', 'format_wakeup_desc'],
-            ['format_wakeup_json', 'format_json_desc'],
-            ['format_ics', 'format_ics_desc'],
-            ['format_csv', 'format_csv_desc'],
-            ['format_html', 'format_html_desc'],
-            ['format_plain', 'format_plain_desc'],
-          ] as [string, string][]
-        ).map(([name, desc]) => (
-          <div key={name} style={{ padding: '6px 0' }}>
-            <div className="m3-body-medium" style={{ fontWeight: 600 }}>{t(name)}</div>
-            <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t(desc)}</div>
-          </div>
-        ))}
+        {IMPORT_FORMATS.map((fmt) => {
+          const keys = FORMAT_KEYS[fmt]
+          return (
+            <div
+              key={fmt}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '3px 0' }}
+            >
+              <span aria-hidden style={{ color: 'var(--md-primary)', marginTop: 2 }}>•</span>
+              <span className="m3-body-small" style={{ width: 110, flexShrink: 0, fontWeight: 600 }}>
+                {t(keys.title)}
+              </span>
+              <span className="m3-body-small" style={{ flex: 1, color: 'var(--md-on-surface-variant)' }}>
+                {t(keys.desc)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setDetailFormat(fmt)}
+                aria-label={t('format_detail_content_desc')}
+                title={t('format_detail_content_desc')}
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginLeft: 6,
+                  marginTop: 2,
+                  padding: 2,
+                  border: 'none',
+                  background: 'transparent',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  color: 'var(--md-on-surface-variant)',
+                }}
+              >
+                <IconInfo size={16} />
+              </button>
+            </div>
+          )
+        })}
       </div>
+
+      {/* 格式详情弹窗 (ImportSheet.kt:366-369) */}
+      {detailFormat && (
+        <FormatDetailDialog format={detailFormat} onDismiss={() => setDetailFormat(null)} />
+      )}
 
       {errorMsg && (
         <div
