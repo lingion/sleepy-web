@@ -5,10 +5,11 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SleepyLogo, IconChevronRight, IconDownload } from '../../components/icons'
+import { SleepyLogo, IconChevronRight, IconDownload, IconContentCopy, IconCheck } from '../../components/icons'
 import { SettingsScaffold, HDiv } from './shared'
 import { ALL_ABIS, apkDownloadUrl, detectAbi, type Abi } from '../../domain/abi'
 
+const QQ_GROUP = '1063407652'
 
 export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpenLicense?: () => void }) {
   const t = useTranslation().t
@@ -16,6 +17,24 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
   // 架构探测: CH 高熵 → UA 正则 → arm64 兜底; 用户可点芯片手动改选
   const [abi, setAbi] = useState<Abi>('arm64-v8a')
   useEffect(() => { void detectAbi().then(setAbi) }, [])
+  const [qqCopied, setQqCopied] = useState(false)
+
+  const copyQqGroup = async () => {
+    try {
+      await navigator.clipboard.writeText(QQ_GROUP)
+    } catch {
+      const ta = document.createElement('textarea')
+      ta.value = QQ_GROUP
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      ta.remove()
+    }
+    setQqCopied(true)
+    window.setTimeout(() => setQqCopied(false), 2000)
+  }
 
   return (
     <SettingsScaffold title={t('about_title')} onBack={onBack}>
@@ -69,6 +88,31 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
               {a}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* QQ 群卡 — 一键复制群号, 在 QQ 搜索群号申请加入 */}
+      <div className="m3-card" style={{ padding: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div className="m3-title-medium">{t('about_qq_title')}</div>
+            <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 2 }}>
+              {t('about_qq_detail', { group: QQ_GROUP })}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { void copyQqGroup() }}
+            className="m3-label-large"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+              padding: '9px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
+              background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+            }}
+          >
+            {qqCopied ? <IconCheck size={16} /> : <IconContentCopy size={16} />}
+            {qqCopied ? t('about_qq_copied') : t('about_qq_copy')}
+          </button>
         </div>
       </div>
 
