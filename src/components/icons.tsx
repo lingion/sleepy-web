@@ -73,6 +73,7 @@ export const IconInfo = outlineSvg('M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 
 export const IconAdd = outlineSvg('M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z')
 
 export const IconFileUpload = outlineSvg('M18,15v3H6v-3H4v3c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2v-3H18z M7,9l1.41,1.41L11,7.83V16h2V7.83l2.59,2.58L17,9l-5-5L7,9z')
+export const IconDownload = outlineSvg('M19,9h-4V3H9v6H5l7,7L19,9z M5,18v2h14v-2H5z')
 
 export const IconAutoAwesome = outlineSvg('m19 9 1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25zm0 6-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25zm-7.5-5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zm-1.51 3.49L9 15.17l-.99-2.18L5.83 12l2.18-.99L9 8.83l.99 2.18 2.18.99-2.18.99z')
 

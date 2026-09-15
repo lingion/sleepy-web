@@ -3,14 +3,19 @@
  * web 无应用内更新检查, 省更新卡。
  */
 
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SleepyLogo, IconChevronRight } from '../../components/icons'
+import { SleepyLogo, IconChevronRight, IconDownload } from '../../components/icons'
 import { SettingsScaffold, HDiv } from './shared'
+import { ALL_ABIS, apkDownloadUrl, detectAbi, type Abi } from '../../domain/abi'
 
 
 export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpenLicense?: () => void }) {
   const t = useTranslation().t
   const version = '1.0.55'
+  // 架构探测: CH 高熵 → UA 正则 → arm64 兜底; 用户可点芯片手动改选
+  const [abi, setAbi] = useState<Abi>('arm64-v8a')
+  useEffect(() => { void detectAbi().then(setAbi) }, [])
 
   return (
     <SettingsScaffold title={t('about_title')} onBack={onBack}>
@@ -25,6 +30,45 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
         <div className="m3-headline-small" style={{ fontWeight: 700 }}>{t('app_name')}</div>
         <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>
           v1.0.55
+        </div>
+      </div>
+
+      {/* 下载卡 — 探测浏览器架构, 直链 GitHub Release 对应 ABI 资产; 芯片可手动改选 */}
+      <div className="m3-card" style={{ padding: 16 }}>
+        <div className="m3-title-medium" style={{ marginBottom: 4 }}>{t('about_download_title')}</div>
+        <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+          {t('about_download_sub', { abi })}
+        </div>
+        <a
+          href={apkDownloadUrl(abi)}
+          className="m3-label-large"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            marginTop: 12, padding: '12px 0', borderRadius: 20, textDecoration: 'none',
+            background: 'var(--md-primary)', color: 'var(--md-on-primary)',
+          }}
+        >
+          <IconDownload size={18} />
+          {t('about_download_btn', { abi })}
+        </a>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          {ALL_ABIS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setAbi(a)}
+              className="m3-label-medium"
+              style={{
+                flex: 1, padding: '7px 0', borderRadius: 16, cursor: 'pointer',
+                border: a === abi ? 'none' : '1px solid var(--md-outline)',
+                background: a === abi ? 'var(--md-secondary-container)' : 'transparent',
+                color: a === abi ? 'var(--md-on-secondary-container)' : 'var(--md-on-surface-variant)',
+                fontFamily: 'monospace', fontSize: 11,
+              }}
+            >
+              {a}
+            </button>
+          ))}
         </div>
       </div>
 
