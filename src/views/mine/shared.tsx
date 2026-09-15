@@ -70,30 +70,41 @@ export function ToggleRow({
   )
 }
 
-/** M3 Switch — checkedTrack=primary / checkedThumb=onPrimary (SwitchDefaults.colors 同参) */
+/**
+ * M3 Switch — material3 1.3.0 (compose-bom 2024.10.00) SwitchTokens 1:1:
+ * 轨道 52×32; 未选中 track=surface-container-highest + 2dp outline 描边 (inset ring,
+ * 不占布局); thumb 未选中 16dp@8,8=outline / 选中 24dp@4,24=onPrimary;
+ * 动画 FastSpatial 300ms emphasized (MotionSchemeKeyTokens.FastSpatial)。
+ * 1.3.0 默认无选中 ✓ 图标 (1.4+ expressive 才有), 故此处不画。
+ * button 元素 = 键盘可聚焦 (Space/Enter 原生), 与 Android focusable 对齐。
+ */
 export function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onChange(!checked)}
       role="switch"
       aria-checked={checked}
       style={{
-        width: 52, height: 32, borderRadius: 16,
+        width: 52, height: 32, borderRadius: 16, border: 'none', padding: 0,
         background: checked ? 'var(--md-primary)' : 'var(--md-surface-container-highest)',
+        // 2dp outline 描边画在轨道内侧 (Android Modifier.border(TrackOutlineWidth)); 选中时透明
+        boxShadow: checked ? 'none' : 'inset 0 0 0 2px var(--md-outline)',
         position: 'relative', cursor: 'pointer', flexShrink: 0,
-        transition: 'background 150ms',
+        transition: 'background 300ms cubic-bezier(0.05, 0.7, 0.1, 1), box-shadow 300ms cubic-bezier(0.05, 0.7, 0.1, 1)',
       }}
     >
       <div
         style={{
           width: checked ? 24 : 16, height: checked ? 24 : 16, borderRadius: 16,
           background: checked ? 'var(--md-on-primary)' : 'var(--md-outline)',
-          position: 'absolute', top: 4,
-          left: checked ? 24 : 4,
-          transition: 'all 150ms',
+          position: 'absolute',
+          top: checked ? 4 : 8,
+          left: checked ? 24 : 8,
+          transition: 'all 300ms cubic-bezier(0.05, 0.7, 0.1, 1)',
         }}
       />
-    </div>
+    </button>
   )
 }
 

@@ -17,6 +17,7 @@ import {
   IconChevronRight,
 } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { Switch } from './mine/shared'
 import { db } from '../data/db'
 import {
   getTable,
@@ -1068,10 +1069,9 @@ function ColorSection({
           <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
             {useDifferent ? t('color_use_different') : t('color_follow_group')}
           </span>
-          <button
-            role="switch"
-            aria-checked={useDifferent}
-            onClick={() => {
+          <Switch
+            checked={useDifferent}
+            onChange={() => {
               if (useDifferent) {
                 onChange({ colorMode: 0 })
               } else {
@@ -1079,23 +1079,7 @@ function ColorSection({
                 onChange({ colorMode: 1 })
               }
             }}
-            style={{
-              width: 52, height: 32, borderRadius: 16, border: 'none', cursor: 'pointer',
-              background: useDifferent ? 'var(--md-primary)' : 'var(--md-surface-container-highest)',
-              position: 'relative', padding: 0, flexShrink: 0,
-              transition: 'background 150ms',
-            }}
-          >
-            <div
-              style={{
-                width: useDifferent ? 24 : 16, height: useDifferent ? 24 : 16, borderRadius: 16,
-                background: useDifferent ? 'var(--md-on-primary)' : 'var(--md-outline)',
-                position: 'absolute', top: 4,
-                left: useDifferent ? 24 : 4,
-                transition: 'all 150ms',
-              }}
-            />
-          </button>
+          />
         </div>
       </div>
       {useDifferent && (
@@ -1377,27 +1361,7 @@ function SwitchRow({
         <span className="m3-body-medium">{label}</span>
         <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>{sub}</span>
       </div>
-      <button
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        style={{
-          width: 52, height: 32, borderRadius: 16, border: 'none', cursor: 'pointer',
-          background: checked ? 'var(--md-primary)' : 'var(--md-surface-container-highest)',
-          position: 'relative', padding: 0, flexShrink: 0,
-          transition: 'background 150ms',
-        }}
-      >
-        <div
-          style={{
-            width: checked ? 24 : 16, height: checked ? 24 : 16, borderRadius: 16,
-            background: checked ? 'var(--md-on-primary)' : 'var(--md-outline)',
-            position: 'absolute', top: 4,
-            left: checked ? 24 : 4,
-            transition: 'all 150ms',
-          }}
-        />
-      </button>
+      <Switch checked={checked} onChange={onChange} />
     </div>
   )
 }
