@@ -24,9 +24,9 @@ npm run dev        # 本地开发 (注意: 用户偏好静态验证, 跑 dev ser
 | res/values-* 6 语言 | `src/i18n/*.json` (619 keys 基准) |
 | MainActivity 4 Tab | `src/App.tsx` |
 
-## 教务解析 (16 协议族)
+## 教务解析 (30 协议族)
 
-粘贴教务 HTML/JSON → 16 协议族解析器 (正方双代 / 强智家族 / 强智App 等)， 覆盖 163/185 校。
+粘贴教务 HTML/JSON → 30 协议族解析器 (正方双代 / 强智家族 / 强智App / 超星 / 金智 / EAMS5 等)， 对齐 Android 主仓 `JwParserRegistry`。协议族以 `src/domain/jw/parserRegistry.ts` FACTORIES 为准；单校特有协议 (如 yethan/xju_post) 以 Android 端先行，Web 端按移植计划跟进。
 CORS 中转 Worker: `worker/` → https://sleepy-jw-proxy.lingion04.workers.dev (浏览器跨校抓取用)。
 
 ## 测试规则
