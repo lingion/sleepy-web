@@ -67,7 +67,7 @@ export interface SmartConfig {
   [key: string]: unknown
 }
 
-/** 课表实体 — TimeTableEntity.kt 1:1 */
+/** 課表实体 — TimeTableEntity.kt 1:1 */
 export interface Table {
   id: number
   name: string
@@ -82,6 +82,45 @@ export interface Table {
   nodeCount: number
   maxWeek: number
   createdAt: number
+  /**
+   * issue#40 绑定的独立时间节次表 (period_tables.id)。null/undefined = 未绑定(用旧 timeJson 兼容列)。
+   * 课程表 → 时间节次表的单向引用; 一张时间节次表可被多张课程表引用。
+   */
+  periodTableId?: number | null
+}
+
+/**
+ * 独立时间节次表 (issue#40) — "第 N 节是几点到几点"的真源, 与课程表平行的层级。
+ * PeriodTableEntity.kt 1:1。一张可被零或多张课程表引用 (Table.periodTableId 单向指向);
+ * 修改本表 = 所有引用它的课程表立即按新作息解释节次; 课程行按 startNode/step 绑定不重算。
+ */
+export interface PeriodTable {
+  id: number
+  /** 用户可见名称, 如"春季作息" */
+  name: string
+  /** 一天的节次数 */
+  nodesPerDay: number
+  /** TimeNode[] 序列化, 沿用 TimeTableUtils 单一解析来源 */
+  timeJson: string
+  /** 智慧节次配置 JSON。空串表示手动模式 */
+  smartConfigJson: string
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * 有效时间表水合 (issue#40 设计 §5.1) — TimeTableEntity.hydratedWith 1:1:
+ * 绑定存在 → 节次时间/智慧节次/节次数全部以所绑 periodTable 覆盖 (兼容列保留仅作回退);
+ * 未绑定或传入 null → 原样返回 (读旧兼容列, 行为与升级前一致)。
+ */
+export function hydratedWith(table: Table, periodTable: PeriodTable | null | undefined): Table {
+  if (!periodTable) return table
+  return {
+    ...table,
+    nodeCount: periodTable.nodesPerDay,
+    timeJson: periodTable.timeJson,
+    smartConfigJson: periodTable.smartConfigJson,
+  }
 }
 
 /** 假期设置实体 */

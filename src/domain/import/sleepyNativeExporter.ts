@@ -29,6 +29,25 @@ export interface ExportCourse {
   endTime: string
 }
 
+/**
+ * issue#40 §6: 新格式可选 periodTable 区块的数据载体 — SleepyNativeExporter.PeriodTableExport 1:1。
+ * id = 导出时该课程表绑定的 period_tables.id (导入端恢复共享关系的键); id 空 = 未绑定不写 P 区块。
+ */
+export interface PeriodTableExport {
+  id: number
+  name: string
+  nodesPerDay: number
+  timeJson: string
+}
+
+/** 纯作息导出的输入形态 — PeriodTableEntity 的字段子集 */
+export interface PeriodTableOnlyExport {
+  id: number
+  name: string
+  nodesPerDay: number
+  timeJson: string
+}
+
 /** 文件形态: 末尾追加 z|chk=crc32:xxxxxxxx (文件导出默认写) */
 export function exportSleepyV1File(
   tableName: string,
@@ -37,8 +56,9 @@ export function exportSleepyV1File(
   nodesPerDay: number,
   timeJson: string,
   courses: ExportCourse[],
+  periodTable?: PeriodTableExport | null,
 ): string {
-  const body = buildBody(tableName, startDate, maxWeek, nodesPerDay, timeJson, courses)
+  const body = buildBody(tableName, startDate, maxWeek, nodesPerDay, timeJson, courses, periodTable)
   return `${body}\nz|chk=crc32:${crc32Utf8(body)}`
 }
 
@@ -50,9 +70,59 @@ export function exportSleepyV1ShareText(
   nodesPerDay: number,
   timeJson: string,
   courses: ExportCourse[],
+  periodTable?: PeriodTableExport | null,
 ): string {
-  const body = buildBody(tableName, startDate, maxWeek, nodesPerDay, timeJson, courses)
+  const body = buildBody(tableName, startDate, maxWeek, nodesPerDay, timeJson, courses, periodTable)
   return `【来自Sleepy】\n课程分享：\n\n<<<SLEEPY-BEGIN>>>\n${body}\n<<<SLEEPY-END>>>`
+}
+
+/**
+ * v1.0.56 T11: 作息表单独导出 — sleepy-v1 纯 P 区块文本 (marker 包裹, 无 T/C 行)。
+ * 解析端: 0 C 行 + P 区块 → courses 空 + periodTable 非空 → 导入走 T9 纯作息路径
+ * (只建作息表, 不建空课表)。预设 12 节折叠 Pd, 其余逐节 Pn(与混合导出同文法)。
+ */
+export function exportPeriodTableShareText(pt: PeriodTableOnlyExport): string {
+  return `【来自Sleepy】\n作息分享：\n\n<<<SLEEPY-BEGIN>>>\n${buildPeriodOnlyBody(pt)}\n<<<SLEEPY-END>>>`
+}
+
+/**
+ * v1.0.56 T11: 作息表单独导出 — JSON 形态 (tableInfo 包装, WakeUp 语义)。
+ * timeList 用 WakeUp 原生字段名 startTime/endTime — 解析端 harvest 按此名收割。
+ */
+export function exportPeriodTableJson(pt: PeriodTableOnlyExport): string {
+  const nodes = parseNodes(pt.timeJson)
+  const timeArr = nodes
+    .map((n) => `{"node":${n.node},"startTime":"${n.start}","endTime":"${n.end}"}`)
+    .join(',')
+  return `{"name":${jsonQuote(pt.name)},"tableInfo":{"nodesPerDay":${Math.max(1, pt.nodesPerDay)},"timeList":[${timeArr}]}}`
+}
+
+function jsonQuote(s: string): string {
+  let out = '"'
+  for (const ch of s) {
+    if (ch === '"') out += '\\"'
+    else if (ch === '\\') out += '\\\\'
+    else if (ch === '\n') out += '\\n'
+    else if (ch === '\r') out += '\\r'
+    else if (ch === '\t') out += '\\t'
+    else if (ch.codePointAt(0)! < 0x20) out += `\\u${ch.codePointAt(0)!.toString(16).padStart(4, '0')}`
+    else out += ch
+  }
+  return `${out}"`
+}
+
+/** T11: 纯作息 body — magic + P 头 + Pd/Pn 行, 无 T/N/C 行 */
+function buildPeriodOnlyBody(pt: PeriodTableOnlyExport): string {
+  const sb: string[] = ['#sleepy-v1']
+  sb.push(`P${escape(pt.name)}|${pt.id}|${Math.max(1, pt.nodesPerDay)}`)
+  if (matchesNdPreset(pt.timeJson)) {
+    sb.push('Pd')
+  } else {
+    for (const n of parseNodes(pt.timeJson)) {
+      sb.push(`Pn${n.node}|${n.start}|${n.end}`)
+    }
+  }
+  return sb.join('\n')
 }
 
 function buildBody(
@@ -62,6 +132,7 @@ function buildBody(
   nodesPerDay: number,
   timeJson: string,
   courses: ExportCourse[],
+  periodTable?: PeriodTableExport | null,
 ): string {
   const sb: string[] = []
   sb.push('#sleepy-v1')
@@ -70,7 +141,20 @@ function buildBody(
   // n= 计数(§8.3): 散周 partition v1 简化 = 课程数; partition 实现完备后此处同步改
   sb.push(`T${escape(tableName === '' ? '导入的课表' : tableName)}|${startDate}|${maxWeek}|${nodesPerDay}|n=${courses.length}`)
 
-  // ---- 作息 (Nd 或逐节 N 行) (§5) ----
+  // ---- issue#40: P 行(独立时间节次表, §6 新格式可选区块) ----
+  // 携带绑定关系(periodTableId 非空)时输出; 旧版本读到 P 行走"未知行类型→dropped+warning"通道, 不硬拒。
+  if (periodTable) {
+    sb.push(`P${escape(periodTable.name)}|${periodTable.id}|${periodTable.nodesPerDay}`)
+    if (matchesNdPreset(periodTable.timeJson)) {
+      sb.push('Pd')
+    } else if (periodTable.timeJson.trim() !== '') {
+      for (const n of parseNodes(periodTable.timeJson)) {
+        sb.push(`Pn${n.node}|${n.start}|${n.end}`)
+      }
+    }
+  }
+
+  // ---- 作息 (Nd 或逐节 N 行) (§5) — 兼容列永远保留(§6 旧版本至少读到 timeJson) ----
   if (matchesNdPreset(timeJson)) {
     sb.push('Nd')
   } else if (timeJson.trim() !== '') {

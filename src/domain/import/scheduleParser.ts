@@ -1,5 +1,7 @@
 import { detectVersion, type Clock } from './sleepyNativeFormat'
-import { parseSleepyV1, type ParseResultV1, type ParsedCourse } from './sleepyNativeParser'
+import { parseSleepyV1, type ParseResultV1, type ParsedCourse, type ParsedPeriodTable } from './sleepyNativeParser'
+
+export type { ParsedPeriodTable }
 
 /**
  * 课表分派解析 — Kotlin ScheduleParser.kt 1:1 移植 (分派链 + 6 路子解析器)
@@ -218,37 +220,53 @@ function parseWakeUpShareText(text: string, defaultTableId: number): ParseResult
     courses = arr.map((o) => courseFromJson(o, defaultTableId, '#FF6750A4', ''))
   }
 
-  const [timeJson, nodesPerDay] = harvestTimeJsonFromTableInfo(root)
-  return lossless(name, startDate, courses, timeJson, nodesPerDay, false)
+  const harvested = harvestTimeFromTableInfo(root, name)
+  return lossless(name, startDate, courses, harvested.timeJson, harvested.nodesPerDay, false, harvested.periodTable)
 }
 
 function parseWakeUpJson(text: string, defaultTableId: number, defaultColor: string): ParseResult {
   const root = JSON.parse(text) as Record<string, unknown>
   const name = (root['name'] as string) ?? '导入的课表'
   const startDate = (root['startDate'] as string) ?? todayISO()
-  const arr = root['courses'] as WakeupCourseJson[]
-  if (!arr) throw new Error('找不到 courses 数组')
+  // v1.0.56 T11: 纯作息 JSON(只有 tableInfo.timeList, 无 courses)是合法形态 —
+  // 空课程 + periodTable 非空 → 导入端 T9 纯作息路径只建作息表
+  const rawCourses = root['courses'] as WakeupCourseJson[] | undefined
+  const timeListNonEmpty = (() => {
+    const list = (root['tableInfo'] as Record<string, unknown> | undefined)?.['timeList']
+    return Array.isArray(list) && list.length > 0
+  })()
+  const arr = rawCourses ?? (timeListNonEmpty ? [] : null)
+  if (arr === null) throw new Error('找不到 courses 数组')
   const courses = arr.map((o) => courseFromJson(o, defaultTableId, defaultColor, ''))
-  const [timeJson, nodesPerDay] = harvestTimeJsonFromTableInfo(root)
-  return lossless(name, startDate, courses, timeJson, nodesPerDay, false)
+  const harvested = harvestTimeFromTableInfo(root, name)
+  return lossless(name, startDate, courses, harvested.timeJson, harvested.nodesPerDay, false, harvested.periodTable)
 }
 
-/** 从 tableInfo 收割节次时间表: Sleepy 导出 time=原文 / WakeUp 原生 timeList 逐条转 */
-function harvestTimeJsonFromTableInfo(root: Record<string, unknown>): [string, number] {
+/**
+ * 从 tableInfo 收割节次时间表: Sleepy 导出 time=原文 / WakeUp 原生 timeList 逐条转。
+ * v1.0.56 T10: 收割结果同时产出 ParsedPeriodTable — 混合导入(课程+节次)时自动建一张
+ * 同名作息表并绑定, 不再只填课表兼容列。sourceId=0(无既有表可指)。
+ */
+function harvestTimeFromTableInfo(root: Record<string, unknown>, tableName: string): HarvestedTime {
   const tableInfo = root['tableInfo'] as Record<string, unknown> | undefined
-  if (!tableInfo) return ['', 0]
+  if (!tableInfo) return { timeJson: '', nodesPerDay: 0, periodTable: null }
   const declared = typeof tableInfo['nodesPerDay'] === 'number' ? tableInfo['nodesPerDay'] as number : 0
   // Sleepy 自家: time 字段就是 timeJson 原文
   const time = tableInfo['time'] as string | undefined
   if (time !== undefined && time.trim() !== '') {
     const nodes = parseNodesSafe(time)
     if (nodes.length > 0) {
-      return [time, Math.max(nodes[nodes.length - 1].node, declared)]
+      const nodesPerDay = Math.max(nodes[nodes.length - 1].node, declared)
+      return {
+        timeJson: time,
+        nodesPerDay,
+        periodTable: { sourceId: 0, name: tableName, nodesPerDay, timeJson: time },
+      }
     }
   }
   // WakeUp 原生: timeList 数组
   const timeList = tableInfo['timeList'] as Array<Record<string, unknown>> | undefined
-  if (!timeList) return ['', declared]
+  if (!timeList) return { timeJson: '', nodesPerDay: declared, periodTable: null }
   const nodeTimes = new Map<number, [Clock, Clock]>()
   for (const o of timeList) {
     const node = typeof o['node'] === 'number' ? o['node'] as number : 0
@@ -256,8 +274,20 @@ function harvestTimeJsonFromTableInfo(root: Record<string, unknown>): [string, n
     const et = typeof o['endTime'] === 'string' ? parseHmLenient(o['endTime'] as string) : null
     if (node >= 1 && st && et && clockBefore(st, et)) nodeTimes.set(node, [st, et])
   }
-  if (nodeTimes.size === 0) return ['', declared]
-  return [buildTimeJson(nodeTimes), Math.max(Math.max(...nodeTimes.keys()), declared)]
+  if (nodeTimes.size === 0) return { timeJson: '', nodesPerDay: declared, periodTable: null }
+  const builtJson = buildTimeJson(nodeTimes)
+  const nodesPerDay = Math.max(Math.max(...nodeTimes.keys()), declared)
+  return {
+    timeJson: builtJson,
+    nodesPerDay,
+    periodTable: { sourceId: 0, name: tableName, nodesPerDay, timeJson: builtJson },
+  }
+}
+
+interface HarvestedTime {
+  timeJson: string
+  nodesPerDay: number
+  periodTable: ParsedPeriodTable | null
 }
 
 /** "08:00" / "8:00" / "0800" → Clock; 非法 null */
@@ -313,6 +343,8 @@ function lossless(
   timeJson: string,
   declaredNodes: number,
   groupIdsAuthoritative: boolean,
+  // v1.0.56 T10: 混合导入自动建作息表 — 非 null 时落库端(ImportAsNew)自动建同名作息表并绑定
+  periodTable: ParsedPeriodTable | null = null,
 ): ParseResult {
   const courseReach = courses.length === 0
     ? 0
@@ -327,6 +359,7 @@ function lossless(
     warnings: [],
     maxWeek: 0,
     groupIdsAuthoritative,
+    periodTable,
   }
 }
 
@@ -414,6 +447,7 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
       warnings: [],
       maxWeek: 0,
       groupIdsAuthoritative: false,
+      periodTable: null,
     }
   }
 
@@ -798,6 +832,7 @@ function parseSimpleText(text: string, defaultTableId: number, defaultColor: str
     warnings: [],
     maxWeek: 0,
     groupIdsAuthoritative: false,
+    periodTable: null,
   }
 }
 
@@ -1050,6 +1085,7 @@ function parseCsv(text: string, defaultTableId: number, defaultColor: string): P
     warnings: [],
     maxWeek: 0,
     groupIdsAuthoritative: false,
+    periodTable: null,
   }
 }
 

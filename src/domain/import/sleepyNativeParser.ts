@@ -35,6 +35,17 @@ export interface ParsedCourse {
   endTime: string
 }
 
+/**
+ * issue#40: 独立时间节次表解析产物 — ScheduleParser.ParsedPeriodTable 1:1。
+ * sourceId = 导出端 P 头携带的原表 id (导入端恢复共享关系的键; 0=无既有表可指)。
+ */
+export interface ParsedPeriodTable {
+  sourceId: number
+  name: string
+  nodesPerDay: number
+  timeJson: string
+}
+
 export interface ParseResultV1 {
   tableName: string
   startDate: string
@@ -46,6 +57,8 @@ export interface ParseResultV1 {
   warnings: string[]
   maxWeek: number
   groupIdsAuthoritative: boolean
+  /** issue#40 §6: P 区块解析结果; null=文件无独立作息表声明 */
+  periodTable: ParsedPeriodTable | null
 }
 
 const MAGIC_WINDOW = 32
@@ -121,6 +134,10 @@ export function parseSleepyV1(
   const nodeTimes = new Map<number, [Clock, Clock]>()
   const ndApplied = new Set<number>()
   let ndSeen = false
+  // issue#40 §6: P 区块状态 (P 头 / Pd 预设 / Pn 逐节)
+  const periodHeaders: PeriodHeaderInfo[] = []
+  const periodNodeTimes = new Map<number, [Clock, Clock]>()
+  let pdSeen = false
   const seenExactLines = new Set<string>()
   let seenCourseLines = false
   let secondTableHeader = false
@@ -166,6 +183,19 @@ export function parseSleepyV1(
         seenExactLines.add(line)
         parseNodeLine(line, nodeTimes, dropped)
       }
+    } else if (prefix === 'P') {
+      // issue#40 §6: 独立时间节次表区块 — P(头) / Pd(预设) / Pn(逐节)。
+      // 旧版本把 P 系行走"未知行类型"通道丢弃并上报; 本版本解析恢复共享关系。
+      if (line.length >= 2 && (line[1] === 'd' || line[1] === 'D')) {
+        pdSeen = true
+      } else if (line.length >= 3 && (line[1] === 'n' || line[1] === 'N') && line[2] !== '|' && line[2] !== '\\') {
+        parsePeriodNodeLine(line.substring(2), periodNodeTimes, dropped)
+      } else if (line.includes('|')) {
+        parsePeriodHeader(line, periodHeaders, dropped, warnings)
+      } else {
+        // 裸 P / Pd 变体残缺 — 上报不硬拒
+        dropped.push(shorten(line))
+      }
     } else if (prefix === 'C') {
       seenCourseLines = true
       seenExactLines.add(line)
@@ -186,6 +216,24 @@ export function parseSleepyV1(
       }
     }
   }
+
+  // issue#40: Pd 展开(同 ND_PRESET 常量) + periodTable 组装
+  // 与 Kotlin 同条件: pdSeen(出现过 Pd) 且有 P 头才展开预设
+  if (pdSeen && periodHeaders.length > 0) {
+    for (let i = 0; i < ND_PRESET.length; i++) {
+      const node = i + 1
+      if (!periodNodeTimes.has(node)) periodNodeTimes.set(node, ND_PRESET[i])
+    }
+  }
+  const periodTable: ParsedPeriodTable | null =
+    periodHeaders.length > 0 && periodNodeTimes.size > 0
+      ? {
+          sourceId: periodHeaders[0].sourceId,
+          name: periodHeaders[0].name,
+          nodesPerDay: periodHeaders[0].nodesPerDay,
+          timeJson: serializeNodeTimes(periodNodeTimes),
+        }
+      : null
 
   // chk 校验(§6.3-Q: 警告不硬拒); 范围 = magic 行(含)至 z 行(不含)的原文行
   if (chkLine !== null) {
@@ -229,14 +277,7 @@ export function parseSleepyV1(
   }
 
   // timeJson 序列化(稀疏语义: 只写声明过的节, 按 node 升序)
-  let timeJson = ''
-  if (nodeTimes.size > 0) {
-    const parts = [...nodeTimes.keys()].sort((a, b) => a - b).map((node) => {
-      const [s, e] = nodeTimes.get(node)!
-      return `{"node":${node},"start":"${fmtClock(s)}","end":"${fmtClock(e)}"}`
-    })
-    timeJson = `[${parts.join(',')}]`
-  }
+  const timeJson = serializeNodeTimes(nodeTimes)
 
   // ---- groupId 分区(§3.4) ----
   assignFinalGroupIds(courses, tableName, tokens)
@@ -258,6 +299,7 @@ export function parseSleepyV1(
     warnings,
     maxWeek: maxWeekClamped ?? 20,
     groupIdsAuthoritative: true,
+    periodTable,
   }
 }
 
@@ -368,6 +410,69 @@ function parseNodeLine(
 
 function clockBefore(a: Clock, b: Clock): boolean {
   return a.h < b.h || (a.h === b.h && a.m < b.m)
+}
+
+// ---- P 区块 (§6, issue#40) ----
+
+interface PeriodHeaderInfo {
+  sourceId: number
+  name: string
+  nodesPerDay: number
+}
+
+/** nodeTimes map → 稀疏 timeJson 字符串(按 node 升序); 空 map = 空串 */
+function serializeNodeTimes(nodeTimes: Map<number, [Clock, Clock]>): string {
+  if (nodeTimes.size === 0) return ''
+  const parts = [...nodeTimes.keys()].sort((a, b) => a - b).map((node) => {
+    const [s, e] = nodeTimes.get(node)!
+    return `{"node":${node},"start":"${fmtClock(s)}","end":"${fmtClock(e)}"}`
+  })
+  return `[${parts.join(',')}]`
+}
+
+function parsePeriodHeader(
+  line: string,
+  into: PeriodHeaderInfo[],
+  dropped: string[],
+  warnings: string[],
+): void {
+  // into 最多收一条 — 二次 P 头 = 形状异常, 丢弃上报
+  if (into.length > 0) {
+    dropped.push(shorten(line))
+    return
+  }
+  const cols = splitRespectingEscape(line.substring(1))
+  const name = unescape((cols[0] ?? '').trim())
+  const id = toIntOrNull((cols[1] ?? '').trim())
+  const npd = toIntOrNull((cols[2] ?? '').trim())
+  if (name === '' || id === null || id < 1) {
+    dropped.push(shorten(line))
+    warnings.push('时间节次表区块无法解析，已退回课程表内作息')
+    return
+  }
+  into.push({ sourceId: id, name, nodesPerDay: npd ?? 12 })
+}
+
+/** Pn 节次行: 同 N 行文法(node|start|end), body=line.substring(2) */
+function parsePeriodNodeLine(
+  body: string,
+  nodeTimes: Map<number, [Clock, Clock]>,
+  dropped: string[],
+): void {
+  const cols = splitRespectingEscape(body)
+  const nodeNo = toIntOrNull((cols[0] ?? '').trim())
+  const start = cols[1] !== undefined ? parseClock(cols[1]) : null
+  const end = cols[2] !== undefined ? parseClock(cols[2]) : null
+  const ok = nodeNo !== null && nodeNo > 0 && start !== null && end !== null && clockBefore(start, end)
+  if (!ok || nodeNo === null || start === null || end === null) {
+    dropped.push(shorten(`Pn${body}`))
+    return
+  }
+  if (nodeTimes.has(nodeNo)) {
+    dropped.push(shorten(`Pn${body}`)) // 重复节号: 首行生效
+    return
+  }
+  nodeTimes.set(nodeNo, [start, end])
 }
 
 // ---- C 行 (§3.1, 恒 10 列 + issue#26 可选第 11 列=课程别名) ----
