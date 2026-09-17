@@ -21,6 +21,7 @@ import { holidaySetsForYear, useHolidayStore } from '../state/holidayStore'
 import { decideGrey } from '../domain/holiday/ranges'
 import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
 import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
+import { useScheduleSessionStore } from '../state/scheduleSessionStore'
 import { undoManager, useUndoStore } from '../data/undoStore'
 import { CardsGridView, dateOfWeek } from '../components/schedule/CardsGridView'
 import { FullWeekView } from '../components/schedule/FullWeekView'
@@ -139,10 +140,14 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const updatePrefs = usePrefsStore((s) => s.update)
-  // 视图模式: 会话级 state, 初始值取 startView 偏好 — 手动切换不写回 (Android MainActivity
-  // ViewMode 同语义: getStartView 只决定启动进入哪一视图)
-  const [viewMode, setViewMode] = useState<'full' | 'cards' | null>(null)
-  const [week, setWeek] = useState<number | null>(null)
+  // 视图模式 + 周次: 会话层持有 (useScheduleSessionStore — 基线 §1.4 AppRoot 会话契约) —
+  // 本组件随 overlay/tab 切换卸载重建, 状态在 store 里不丢。
+  // 启动初值落 startView/真实周; 手动切换只写会话态不回写 prefs (Android 同)。
+  const viewMode = useScheduleSessionStore((s) => s.viewMode)
+  const setViewMode = useScheduleSessionStore((s) => s.setViewMode)
+  const week = useScheduleSessionStore((s) => s.week)
+  const setWeek = useScheduleSessionStore((s) => s.setWeek)
+  const resetForTableSwitch = useScheduleSessionStore((s) => s.resetForTableSwitch)
   const [containerWidth, setContainerWidth] = useState(800)
   const [pageWidth, setPageWidth] = useState(0)
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
@@ -672,7 +677,7 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
             })()
             leave()
             setShowSwitcher(false)
-            setWeek(null)
+            resetForTableSwitch()
             setTopOverrides({})
             setRotationSteps({})
           }}
