@@ -77,8 +77,8 @@ describe('EditTable 保存路径 — updateTableRemappingCourses', () => {
   beforeEach(async () => {
     await db.delete()
     await db.open()
-    useUndoStore.getState().undoStack.length = 0
-    useUndoStore.getState().redoStack.length = 0
+    useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
+     // 单槽模型: 上述 setState 已含全部状态
   })
 
   it('issue#28 P3: 12节砍到10节, 13-16节课程不残留 — remap 到有效范围', async () => {

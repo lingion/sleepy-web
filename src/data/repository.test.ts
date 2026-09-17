@@ -21,6 +21,7 @@ import {
   tableCount,
   assignGroupIds,
   getDefaultTable,
+  duplicateTable,
 } from './repository'
 import { useUndoStore } from './undoStore'
 import type { Course } from './types'
@@ -55,8 +56,8 @@ function mkCourse(partial: Partial<Course>): Omit<Course, 'id'> {
 }
 
 beforeEach(async () => {
-  // 每测重建数据库 + undo 栈
-  useUndoStore.setState({ undoStack: [], redoStack: [], batchDepth: 0, lastLabel: null })
+  // 每测重建数据库 + undo 单槽
+  useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
   await Promise.all([db.timetables.clear(), db.courses.clear(), db.prefs.clear()])
 })
 
@@ -185,43 +186,75 @@ describe('课程 CRUD (capture 6-14)', () => {
   })
 })
 
-describe('undo/redo — 撤回链', () => {
-  it('insertCourse 后 undo 恢复空, redo 恢复', async () => {
+describe('undo — 单级撤回 (UndoManager.kt v7.10.16w 1:1)', () => {
+  it('insertCourse 后 undo 恢复空', async () => {
     const tableId = await insertTable({ name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1 })
     await insertCourse(mkCourse({ tableId }))
     expect(await db.courses.count()).toBe(1)
     expect(await useUndoStore.getState().undo()).toBe(true)
     expect(await db.courses.count()).toBe(0)
-    expect(await useUndoStore.getState().redo()).toBe(true)
-    expect(await db.courses.count()).toBe(1)
   })
 
-  it('批内只保首个快照 (beginBatch/endBatch)', async () => {
+  it('单级语义: 撤回后无快照可再撤 (无 redo)', async () => {
+    const tableId = await insertTable({ name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1 })
+    await insertCourse(mkCourse({ tableId }))
+    expect(await useUndoStore.getState().undo()).toBe(true)
+    expect(await useUndoStore.getState().undo()).toBe(false)
+    expect(useUndoStore.getState().canUndo()).toBe(false)
+  })
+
+  it('批内只保首个快照, 且锚定批开始前时点 (beginBatch/endBatch)', async () => {
     const tableId = await insertTable({ name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1 })
     useUndoStore.getState().beginBatch()
     await insertCourse(mkCourse({ tableId, courseName: '一' }))
     await insertCourse(mkCourse({ tableId, courseName: '二' }))
     await insertCourse(mkCourse({ tableId, courseName: '三' }))
     await useUndoStore.getState().endBatch()
-    // Android UndoManager: 批内 capture 全部静默 → 栈里只有批外 insertTable 的动作前快照
-    expect(useUndoStore.getState().undoStack.length).toBe(1)
-    // 一次 undo 回到建表+插课之前 (快照=动作前时点=空库)
+    expect(await db.courses.count()).toBe(3)
+    // Android v7.10.16w: 批内首拍锚定"本批开始前"(= 建表后空课), 非旧动作快照。
+    // 一次 undo = 撤整批: 三门课全消失, 表保留 (表是批外动作建的)
     await useUndoStore.getState().undo()
     expect(await db.courses.count()).toBe(0)
-    expect(await db.timetables.count()).toBe(0)
+    expect(await db.timetables.count()).toBe(1)
     expect(await useUndoStore.getState().undo()).toBe(false)
+  })
+
+  it('v7.10.16w 撤回锚定: 批开始前旧快照作废 — 复制课表→批内导入→撤回回到导入前(副本仍在)', async () => {
+    // 旧实现 `batchDepth > 0 && undoStack.length > 0` 直接 return — 复制课表(复合批)
+    // 留下的旧快照会被本批误当成动作起点, 撤回跳过本动作直接回到更早, 副本被连根拔。
+    // 现在 beginBatch 时把旧快照过期: 本动作首拍必落到"本动作开始前"的库态 —
+    // 每个用户动作的撤回点 = 该动作自己开始前, 动作链上不跳步。
+    const tableId = await insertTable({ name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1 })
+    await insertCourse(mkCourse({ tableId, courseName: '原课' }))
+    const dupId = await duplicateTable(tableId) // 复合批动作: 留下"复制开始前"快照
+    expect(await db.timetables.count()).toBe(2)
+    // 下一用户动作: 批内追加导入 (两拍都静默, 首拍锚定"导入开始前"= 两张表+两门课)
+    useUndoStore.getState().beginBatch()
+    await insertCourse(mkCourse({ tableId: dupId, courseName: '导入一' }))
+    await insertCourse(mkCourse({ tableId: dupId, courseName: '导入二' }))
+    await useUndoStore.getState().endBatch()
+    expect(await db.courses.count()).toBe(4)
+    // 一次 undo = 回到"导入动作开始前" — 副本与其复制的原课仍在, 导入的两门被撤
+    expect(await useUndoStore.getState().undo()).toBe(true)
+    expect(await db.timetables.count()).toBe(2)
+    expect(await db.courses.count()).toBe(2)
+    const names = (await db.courses.toArray()).map((c) => c.courseName).sort()
+    expect(names).toEqual(['原课', '原课'])
+  })
+
+  it('undo 恢复默认表指向 (isDefault 随快照回滚)', async () => {
+    const a = await insertTable({ name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1 })
+    const b = await insertTable({ name: 'B', timeJson: '[]', smartConfigJson: '', isDefault: 0, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 2 })
+    const { setDefault } = await import('./repository')
+    await setDefault(b)
+    expect((await db.timetables.get(b))?.isDefault).toBe(1)
+    await useUndoStore.getState().undo() // 撤回 setDefault 前的最后动作 — 快照= B 建表前
+    const tables = await db.timetables.toArray()
+    expect(tables.find((t) => t.id === a)?.isDefault).toBe(1)
+    expect(tables.find((t) => t.id === b)).toBeUndefined()
   })
 
   it('undo 到空后返回 false', async () => {
     expect(await useUndoStore.getState().undo()).toBe(false)
-  })
-
-  it('新动作清空 redo 栈', async () => {
-    const tableId = await insertTable({ name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1 })
-    await insertCourse(mkCourse({ tableId }))
-    await useUndoStore.getState().undo()
-    expect(useUndoStore.getState().canRedo()).toBe(true)
-    await insertCourse(mkCourse({ tableId, courseName: 'new' }))
-    expect(useUndoStore.getState().canRedo()).toBe(false)
   })
 })

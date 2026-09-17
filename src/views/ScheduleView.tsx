@@ -176,8 +176,8 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
   }
   const leave = () => back()
 
-  // 撤回深度 — 响应式订阅 ( getState() 不触发重渲染, 仅作渲染条件用)
-  const undoDepth = useUndoStore((s) => s.undoStack.length)
+  // 撤回按钮显隐 — 单槽有快照即显示 (Android hasSnapshot 同义, 响应式订阅)
+  const undoDepth = useUndoStore((s) => (s.slot ? 1 : 0))
 
   const tableList = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) as Table[] | undefined
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
