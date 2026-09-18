@@ -12,7 +12,7 @@ import { db } from '../../data/db'
 import { computeCurrentWeek } from '../ScheduleView'
 import {
   IconEdit, IconShare, IconPalette, IconTune, IconInfo,
-  IconNotifications, IconRefresh,
+  IconNotifications, IconRefresh, IconSchedule,
 } from '../../components/icons'
 import type { Course } from '../../data/types'
 import { HDiv } from './shared'
@@ -23,6 +23,7 @@ export function MineHome({
   onOpenAppearance,
   onOpenExport,
   onOpenAllTables,
+  onOpenPeriodTables,
   onOpenAbout,
   onOpenReminder,
 }: {
@@ -31,6 +32,7 @@ export function MineHome({
   onOpenAppearance: () => void
   onOpenExport: () => void
   onOpenAllTables: () => void
+  onOpenPeriodTables: () => void
   onOpenAbout: () => void
   onOpenReminder: () => void
 }) {
@@ -70,6 +72,9 @@ export function MineHome({
       {/* 设置入口列表 — SettingsItem 序列 1:1 (MineScreen.kt:115-125) */}
       <div className="m3-card" style={{ padding: 0 }}>
         <SettingsItem icon={<IconEdit size={20} />} label={t('all_tables')} onClick={onOpenAllTables} />
+        <HDiv inset={72} />
+        {/* issue#40: 时间节次表入口 — 与课表管理并列 (MineScreen.kt:119 SettingsItem 同位) */}
+        <SettingsItem icon={<IconSchedule size={20} />} label={t('mine_period_tables')} onClick={onOpenPeriodTables} />
         <HDiv inset={72} />
         <SettingsItem icon={<IconShare size={20} />} label={t('mine_export')} onClick={onOpenExport} />
         <HDiv inset={72} />
