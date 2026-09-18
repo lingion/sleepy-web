@@ -54,6 +54,11 @@ export function PeriodTableEditView({
   const { t } = useTranslation()
   const periodTable = useLiveQuery(() => getPeriodTable(id), [id])
   const allTables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
+  // v1.0.56 T6: 第三 Tab「作息表」数据源 — 取入候选(排除自己)
+  const allPeriodTables = useLiveQuery(async () => {
+    const all = await db.periodTables.toArray()
+    return all.filter((pt) => pt.id !== id)
+  }, [id]) ?? []
 
   const [name, setName] = useState<string | null>(null)
   const [rowsDraft, setRowsDraft] = useState<TimeSlotRow[] | null>(null)
@@ -65,6 +70,9 @@ export function PeriodTableEditView({
   const [showCopyDialog, setShowCopyDialog] = useState(false)
   const [copyName, setCopyName] = useState('')
   const [showShareSheet, setShowShareSheet] = useState(false)
+  // v1.0.56 T6: 第三 Tab「作息表」— 取入: 选中另一张作息表把节次内容拷进编辑区
+  // (成为本表内容起点), 非活绑 — 绑定只存在于课表上。排除自己禁自引用。
+  const [selectedImportTableId, setSelectedImportTableId] = useState<number | null>(null)
   const [pendingPreview, setPendingPreview] = useState<{
     updated: PeriodTable
     changedCourses: Array<{ courseName: string; startNode: number; step: number; oldTime: string | null; newTime: string | null; changedNodes: number[] }>
@@ -182,7 +190,7 @@ export function PeriodTableEditView({
           }}
         />
       </div>
-      {/* 节次时间表 */}
+      {/* 节次时间表 — v1.0.56 T6 第三 Tab「作息表」取入 */}
       <TimeSlotSection
         expanded={timeSlotsExpanded}
         onToggle={() => setTimeSlotsExpanded((v) => !v)}
@@ -191,6 +199,22 @@ export function PeriodTableEditView({
         smartConfig={smartConfig}
         onSmartConfigChange={setSmartConfig}
         onSave={handleSave}
+        periodTableOptions={allPeriodTables.map((pt) => ({
+          id: pt.id, name: pt.name, nodesPerDay: pt.nodesPerDay,
+        }))}
+        selectedPeriodTableId={selectedImportTableId}
+        excludePeriodTableId={id}
+        onSelectPeriodTable={(pickedId) => {
+          setSelectedImportTableId(pickedId)
+          const picked = allPeriodTables.find((pt) => pt.id === pickedId)
+          if (!picked) return
+          // 取入 = 把该表节次内容拷进当前编辑区 (PeriodTableEditScreen.kt:284-300 1:1)
+          const imported = parseTimeSlotRows(picked.timeJson)
+          setRowsDraft(imported)
+          setSmartConfig(
+            decodeSmartConfig(picked.smartConfigJson) ?? inferSmartConfig(imported),
+          )
+        }}
       />
       {error && (
         <div role="alert" className="m3-body-medium" style={{ color: 'var(--md-error)' }}>{error}</div>
