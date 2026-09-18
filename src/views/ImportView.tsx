@@ -154,6 +154,14 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
     if (parseResult.courses.length === 0 && parseResult.periodTable != null) {
       const courseNames = tables.map((x) => x.name)
       const periodNames = (await db.periodTables.toArray()).map((x) => x.name)
+      previewRef.current = {
+        targetTableId: tableId,
+        targetTableName: '',
+        parseResult,
+        existingCourses: [],
+        conflicts: [],
+        multiLocationWarnings: [],
+      }
       setPurePeriodName(
         suggestUniqueName(parseResult.periodTable.name, courseNames, periodNames, t('period_table_new')),
       )
