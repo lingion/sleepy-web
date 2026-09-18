@@ -26,6 +26,8 @@ import {
 } from '../data/repository'
 import { useUndoStore } from '../data/undoStore'
 import { parseSchedule, type ParseResult } from '../domain/import/scheduleParser'
+import { insertPeriodTable } from '../data/repository'
+import { suggestUniqueName } from './mine/periodTableNames'
 import type { ParsedCourse } from '../domain/import/sleepyNativeParser'
 import { daysExceedingTwoLanes } from '../domain/conflictLayout'
 import {
@@ -112,6 +114,10 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
   const { t, i18n } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) ?? []
   const defaultTable = tables.find((x) => x.isDefault === 1) ?? tables[0]
+  // T9 纯作息唯一名判重用 — 作息表名单
+  const periodTableNames = useLiveQuery(async () => (await db.periodTables.toArray()).map((x) => x.name), []) ?? []
+  // 纯作息确认时 parseResult 已随 preview 清空 — 用 ref 保底最后一次解析结果
+  const previewRef = useRef<ImportPreview | null>(null)
 
   // 默认折叠 — ImportSheet.kt:109 textExpanded = false 同构
   const [textExpanded, setTextExpanded] = useState(false)
@@ -127,6 +133,8 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
   const [confirmedStartDate, setConfirmedStartDate] = useState('')
   const [confirmedTimeJson, setConfirmedTimeJson] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
+  // v1.0.56 T9 纯作息导入 — courses 空 + periodTable 非空时走独立命名框, 只建作息表
+  const [purePeriodName, setPurePeriodName] = useState<string | null>(null)
 
   async function buildPreview(text: string) {
     if (!text.trim()) {
@@ -141,6 +149,16 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
       return
     }
     const parseResult = result.value
+    // v1.0.56 T9: 纯作息导入(只有 P 区块/节次, 零课程) — 不进课程确认框,
+    // 弹独立命名框(预填全局唯一名), 确认只建作息表不建空课表 (ImportSheet.kt:419 isPurePeriod)
+    if (parseResult.courses.length === 0 && parseResult.periodTable != null) {
+      const courseNames = tables.map((x) => x.name)
+      const periodNames = (await db.periodTables.toArray()).map((x) => x.name)
+      setPurePeriodName(
+        suggestUniqueName(parseResult.periodTable.name, courseNames, periodNames, t('period_table_new')),
+      )
+      return
+    }
     const existingTable = tableId === 0 ? undefined : await getTable(tableId)
     const existingCourses = tableId === 0 ? [] : await getCourses(tableId)
     const conflicts: CourseConflict[] =
@@ -167,14 +185,16 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
         )
       }
     }
-    setPreview({
+    const p: ImportPreview = {
       targetTableId: tableId,
       targetTableName: existingTable?.name ?? t('manage_current_table'),
       parseResult,
       existingCourses,
       conflicts,
       multiLocationWarnings,
-    })
+    }
+    previewRef.current = p
+    setPreview(p)
   }
 
   /** applyImportPreview — 唯一写库点, 复合动作批边界包裹 */
@@ -525,6 +545,43 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
         </p>
       )}
 
+      {/* v1.0.56 T9: 纯作息导入命名框 — ImportSheet.kt:419-490 1:1 */}
+      {preview === null && purePeriodName !== null && (
+        <PurePeriodDialog
+          name={purePeriodName}
+          existingNames={[
+            ...tables.map((x) => x.name),
+            ...periodTableNames,
+          ]}
+          onNameChange={setPurePeriodName}
+          onDismiss={() => setPurePeriodName(null)}
+          onConfirm={async (finalName) => {
+            const p = previewRef.current
+            setPurePeriodName(null)
+            if (!p) return
+            const undo = useUndoStore.getState()
+            undo.beginBatch()
+            try {
+              const courseNames = tables.map((x) => x.name)
+              const periodNames = (await db.periodTables.toArray()).map((x) => x.name)
+              const unique = suggestUniqueName(finalName, courseNames, periodNames, t('period_table_new'))
+              const pt = p.parseResult.periodTable!
+              await insertPeriodTable({
+                name: unique,
+                nodesPerDay: Math.max(1, pt.nodesPerDay),
+                timeJson: pt.timeJson,
+                smartConfigJson: '',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              })
+              onDone()
+            } finally {
+              await useUndoStore.getState().endBatch()
+            }
+          }}
+        />
+      )}
+
       {/* 预览对话框 */}
       {preview && (
         <PreviewDialog
@@ -605,6 +662,83 @@ function setEq(a: Set<number>, b: Set<number>): boolean {
   if (a.size !== b.size) return false
   for (const v of a) if (!b.has(v)) return false
   return true
+}
+
+
+/** v1.0.56 T9 纯作息导入命名框 — ImportSheet.kt:419-490 1:1 (预填唯一名/撞名报错/色块按钮) */
+function PurePeriodDialog({
+  name, existingNames, onNameChange, onDismiss, onConfirm,
+}: {
+  name: string
+  existingNames: string[]
+  onNameChange: (v: string) => void
+  onDismiss: () => void
+  onConfirm: (finalName: string) => void
+}) {
+  const { t } = useTranslation()
+  const candidate = name.trim()
+  const nameTaken =
+    candidate !== '' && existingNames.filter((n) => n === candidate).length > 0
+  return (
+    <div
+      onClick={onDismiss}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="m3-card"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
+      >
+        <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('period_table_import_title')}</h2>
+        <p className="m3-body-medium" style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>
+          {t('period_table_import_body')}
+        </p>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+            {t('period_table_name_label')}
+          </span>
+          <input
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            autoFocus
+            style={{
+              background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)',
+              border: `1px solid ${nameTaken ? 'var(--md-error)' : 'var(--md-outline)'}`,
+              borderRadius: 8, padding: '8px 10px', fontSize: 14,
+            }}
+          />
+          {nameTaken && (
+            <span className="m3-body-small" style={{ color: 'var(--md-error)' }}>
+              {t('period_table_name_taken')}
+            </span>
+          )}
+        </label>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+          <button onClick={onDismiss} style={{
+            padding: '8px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
+            background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)', fontSize: 13,
+          }}>{t('cancel')}</button>
+          <button
+            disabled={candidate === '' || nameTaken}
+            onClick={() => onConfirm(candidate)}
+            style={{
+              padding: '8px 16px', borderRadius: 12, border: 'none',
+              cursor: candidate === '' || nameTaken ? 'not-allowed' : 'pointer',
+              background: candidate === '' || nameTaken ? 'var(--md-surface-container-high)' : 'var(--md-primary)',
+              color: candidate === '' || nameTaken ? 'var(--md-on-surface-variant)' : 'var(--md-on-primary)',
+              fontSize: 13, fontWeight: 600,
+            }}
+          >{t('period_table_import_confirm')}</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── 预览对话框 — ImportPreviewDialog.kt ─────────────────────────────────
