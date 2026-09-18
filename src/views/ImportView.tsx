@@ -243,6 +243,23 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
         await warnBadDays(p.parseResult.courses.map((c) => toCourse(c, p.targetTableId)))
         onDone()
       } else if (mode === 'ImportAsNew') {
+        // issue#40 §6: 新格式带 P 区块 → 建 period_tables 并绑定(恢复共享关系);
+        // 旧格式 periodTable=null → 不建(课表用自己兼容列, 不误共享)。
+        // v1.0.56 T10: 自动建表走全局唯一名顺延(撞名加后缀, 禁与既有课表/作息表同名)
+        let importedPeriodTableId: number | null = null
+        const parsedPt = p.parseResult.periodTable
+        if (parsedPt != null) {
+          const courseNames = tables.map((x) => x.name)
+          const periodNames = await db.periodTables.toArray().then((arr) => arr.map((x) => x.name))
+          importedPeriodTableId = await insertPeriodTable({
+            name: suggestUniqueName(parsedPt.name, courseNames, periodNames, t('period_table_new')),
+            nodesPerDay: Math.max(1, parsedPt.nodesPerDay),
+            timeJson: parsedPt.timeJson,
+            smartConfigJson: '',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          })
+        }
         const newTableId = await insertTable({
           name: uniqueImportedTableName(
             confirmedTableName || p.parseResult.tableName,
@@ -252,6 +269,7 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
           timeJson: confirmedTimeJson,
           smartConfigJson: '',
           isDefault: 0,
+          periodTableId: importedPeriodTableId,
           startDate: normalizeStartDate(confirmStart),
           nodeCount:
             p.parseResult.nodesPerDay > 0
