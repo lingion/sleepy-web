@@ -26,19 +26,25 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { getCourses, getDefaultTable } from '../data/repository'
 import { exportWakeUpJson, exportWakeUpShareText, exportIcs } from '../domain/import/scheduleExporter'
-import { exportSleepyV1File, exportSleepyV1ShareText } from '../domain/import/sleepyNativeExporter'
-import type { Table, Course } from '../data/types'
+import { exportSleepyV1File, exportSleepyV1ShareText, exportPeriodTableShareText, exportPeriodTableJson } from '../domain/import/sleepyNativeExporter'
+import type { Table, Course, PeriodTable } from '../data/types'
 import type { ExportCourse } from '../domain/import/scheduleExporter'
 
 export function ExportView({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) ?? []
   const defaultTable = useLiveQuery(() => getDefaultTable(), [])
+  // v1.0.56 T11: 作息表候选 — 展开框下半列 (ExportScreen.kt allPeriodTables 1:1)
+  const periodTables = useLiveQuery(() => db.periodTables.orderBy('id').toArray(), []) ?? []
   const { notice, show } = useAutoNotice()
 
   // 导出目标课表 — 本地选择, 不污染主页 selectedTableId
   const [exportTableId, setExportTableId] = useState<number | null>(null)
-  const effectiveId = exportTableId ?? defaultTable?.id ?? tables[0]?.id
+  // v1.0.56 T11: 二元选择 — exportPeriodTableId 非空 = 导作息表; null = 跟随课表
+  // (ExportScreen.kt:94-98 1:1: null,null = 未选跟随当前课表)
+  const [exportPeriodTableId, setExportPeriodTableId] = useState<number | null>(null)
+  const selectedPeriodTable = periodTables.find((pt) => pt.id === exportPeriodTableId) ?? null
+  const effectiveId = exportPeriodTableId != null ? null : (exportTableId ?? defaultTable?.id ?? tables[0]?.id)
   const table = tables.find((tb) => tb.id === effectiveId)
   const [pickerOpen, setPickerOpen] = useState(false)
   // Android state.selectedTableId (主页当前表) 的 web 对应 = 默认课表
@@ -104,7 +110,29 @@ export function ExportView({ onBack }: { onBack: () => void }) {
     }
   }
 
-  if (tables.length === 0 || !table) {
+  // v1.0.56 T11: 作息表两项导出 (ExportScreen.kt:193-234 1:1)
+  async function handlePeriodNative() {
+    if (!selectedPeriodTable) return
+    const fileName = `sleepy_${selectedPeriodTable.name}_${await stamp()}.sleepy`
+    try {
+      await downloadFile(fileName, exportPeriodTableShareText(selectedPeriodTable), 'text/plain')
+      show(t('export_saved_to', { v1: fileName, defaultValue: `已保存到 Download/Sleepy/${fileName}` }))
+    } catch {
+      show(t('export_failed', '导出失败，请重试'))
+    }
+  }
+  async function handlePeriodJson() {
+    if (!selectedPeriodTable) return
+    const fileName = `sleepy_${selectedPeriodTable.name}_${await stamp()}.json`
+    try {
+      await downloadFile(fileName, exportPeriodTableJson(selectedPeriodTable), 'application/json')
+      show(t('export_saved_to', { v1: fileName, defaultValue: `已保存到 Download/Sleepy/${fileName}` }))
+    } catch {
+      show(t('export_failed', '导出失败，请重试'))
+    }
+  }
+
+  if ((tables.length === 0 && periodTables.length === 0) || (!table && !selectedPeriodTable)) {
     return (
       <div style={{ padding: 16 }}>
         <Header onBack={onBack} title={t('export_title')} />
@@ -132,40 +160,65 @@ export function ExportView({ onBack }: { onBack: () => void }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div className="m3-title-medium" style={{ fontWeight: 700, flex: 1 }}>{table.name}</div>
+          <div className="m3-title-medium" style={{ fontWeight: 700, flex: 1 }}>
+            {selectedPeriodTable?.name ?? table!.name}
+          </div>
           {/* Icons.Outlined.ExpandMore 的 web 等价 — icons.tsx 暂无该图标, 用 chevron 旋转 (见文件头注记) */}
           <IconChevronLeft size={24} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }} />
         </div>
         <div className="m3-body-medium">
-          {/* startDate '—' 兜底为 web 添加 (Android 直传原文, 空串直接空) */}
-          {t('export_course_count', { v1: courses.length })} · {t('export_start_date', { v1: table.startDate || '—' })}
+          {selectedPeriodTable != null
+            ? `${t('period_tables_title')} · ${t('period_table_nodes_count', { v1: selectedPeriodTable.nodesPerDay })}`
+            : (
+              <>
+                {/* startDate '—' 兜底为 web 添加 (Android 直传原文, 空串直接空) */}
+                {t('export_course_count', { v1: courses.length })} · {t('export_start_date', { v1: table!.startDate || '—' })}
+              </>
+            )}
         </div>
       </button>
 
-      {/* 格式选项 — Android clip(shapes.large=16dp) surfaceContainer (ExportScreen.kt:185-189) */}
+      {/* 格式选项 — 选中作息表只剩原生+JSON 两项 (ExportScreen.kt:191-194 用户 2026-09-16);
+          选中课表完整四项 */}
       <div
         className="m3-card"
         style={{ padding: 0, overflow: 'hidden', borderRadius: 16, background: 'var(--md-surface-container)' }}
       >
-        <ExportItem
-          icon={<IconCode size={24} />} title={t('export_json_title')} subtitle={t('export_json_subtitle')}
-          onClick={() => { void handleJson() }}
-        />
-        <Hairline />
-        <ExportItem
-          icon={<IconShare size={24} />} title={t('export_share_title')} subtitle={t('export_share_subtitle')}
-          onClick={() => { void handleShareText() }}
-        />
-        <Hairline />
-        <ExportItem
-          icon={<IconCalendarMonth size={24} />} title={t('export_ics_title')} subtitle={t('export_ics_subtitle')}
-          onClick={() => { void handleIcs() }}
-        />
-        <Hairline />
-        <ExportItem
-          icon={<IconStar size={24} />} title={t('export_native_title')} subtitle={t('export_native_subtitle')}
-          onClick={() => { void handleNative() }}
-        />
+        {selectedPeriodTable != null ? (
+          <>
+            <ExportItem
+              icon={<IconStar size={24} />} title={t('period_table_share_native_title')} subtitle={t('period_table_share_native_sub')}
+              onClick={() => { void handlePeriodNative() }}
+            />
+            <Hairline />
+            <ExportItem
+              icon={<IconCode size={24} />} title={t('period_table_share_json_title')} subtitle={t('period_table_share_json_sub')}
+              onClick={() => { void handlePeriodJson() }}
+            />
+          </>
+        ) : (
+          <>
+            <ExportItem
+              icon={<IconCode size={24} />} title={t('export_json_title')} subtitle={t('export_json_subtitle')}
+              onClick={() => { void handleJson() }}
+            />
+            <Hairline />
+            <ExportItem
+              icon={<IconShare size={24} />} title={t('export_share_title')} subtitle={t('export_share_subtitle')}
+              onClick={() => { void handleShareText() }}
+            />
+            <Hairline />
+            <ExportItem
+              icon={<IconCalendarMonth size={24} />} title={t('export_ics_title')} subtitle={t('export_ics_subtitle')}
+              onClick={() => { void handleIcs() }}
+            />
+            <Hairline />
+            <ExportItem
+              icon={<IconStar size={24} />} title={t('export_native_title')} subtitle={t('export_native_subtitle')}
+              onClick={() => { void handleNative() }}
+            />
+          </>
+        )}
       </div>
 
       {/* M3 snackbar 等价 — inverse token 未导出, on-surface/surface 近似, 4s 自动消失 */}
@@ -187,9 +240,12 @@ export function ExportView({ onBack }: { onBack: () => void }) {
       {pickerOpen && (
         <Picker
           tables={tables}
-          selectedId={table.id}
+          periodTables={periodTables}
+          selectedTableId={selectedPeriodTable != null ? null : table!.id}
+          selectedPeriodTableId={exportPeriodTableId}
           homeTableId={homeTableId}
-          onPick={(id) => { setExportTableId(id); setPickerOpen(false) }}
+          onPickTable={(id) => { setExportPeriodTableId(null); setExportTableId(id); setPickerOpen(false) }}
+          onPickPeriodTable={(id) => { setExportPeriodTableId(id); setPickerOpen(false) }}
           onDismiss={() => setPickerOpen(false)}
         />
       )}
@@ -399,16 +455,23 @@ function Hairline() {
 }
 
 /**
- * 选表弹窗 — ExportScreen.kt:270-327 AlertDialog (行样式对齐 TableSwitcherDialog 用户定版)。
- * web 保留底部弹层形态 (平台差异, 见文件头注记), 内容 1:1:
- * 标题 / maxHeight 360 滚动 / gap 4 / 行 8dp 圆角 primaryContainer:surfaceContainer
- * / bodyMedium+Medium 名 2 行截断 / 当前表徽标 labelSmall / 选中行尾 Check 18dp primary。
+ * 选表弹窗 — ExportScreen.kt:270-327 + 2026-09-16 展开框重构 1:1:
+ * 上半全部课表 + 横向分隔线 + 下半全部作息表 (课表优先展开完, 用户指定顺序)。
+ * 作息表行 subtitle = period_tables_title「作息表」; 选中态 primaryContainer+对勾。
+ * web 保留底部弹层形态 (平台差异, 见文件头注记), 行样式 1:1。
  */
 function Picker({
-  tables, selectedId, homeTableId, onPick, onDismiss,
+  tables, periodTables, selectedTableId, selectedPeriodTableId, homeTableId,
+  onPickTable, onPickPeriodTable, onDismiss,
 }: {
-  tables: Table[]; selectedId: number; homeTableId: number | undefined
-  onPick: (id: number) => void; onDismiss: () => void
+  tables: Table[]
+  periodTables: PeriodTable[]
+  selectedTableId: number | null
+  selectedPeriodTableId: number | null
+  homeTableId: number | undefined
+  onPickTable: (id: number) => void
+  onPickPeriodTable: (id: number) => void
+  onDismiss: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -429,13 +492,13 @@ function Picker({
         </div>
         <div style={{ maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {tables.map((tb) => {
-            const isSelected = tb.id === selectedId
+            const isSelected = tb.id === selectedTableId
             const isHome = tb.id === homeTableId
             return (
               <button
                 key={tb.id}
                 type="button"
-                onClick={() => onPick(tb.id)}
+                onClick={() => onPickTable(tb.id)}
                 style={{
                   display: 'flex', alignItems: 'center', width: '100%',
                   borderRadius: 8, padding: '10px 8px', border: 'none', cursor: 'pointer', textAlign: 'left',
@@ -460,6 +523,45 @@ function Picker({
                       {t('export_current_table_badge', '当前课表')}
                     </div>
                   )}
+                </div>
+                {isSelected && <IconCheck size={18} color="var(--md-primary)" style={{ flexShrink: 0 }} />}
+              </button>
+            )
+          })}
+          {/* 横向分隔线 — 有作息表才画 (ExportScreen.kt:365-370) */}
+          {periodTables.length > 0 && (
+            <div style={{ height: 1, margin: '8px 0', background: 'var(--md-outline-variant)' }} />
+          )}
+          {/* 下半: 全部作息表 */}
+          {periodTables.map((pt) => {
+            const isSelected = pt.id === selectedPeriodTableId
+            return (
+              <button
+                key={pt.id}
+                type="button"
+                onClick={() => onPickPeriodTable(pt.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', width: '100%',
+                  borderRadius: 8, padding: '10px 8px', border: 'none', cursor: 'pointer', textAlign: 'left',
+                  background: isSelected ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
+                  color: isSelected ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 14, lineHeight: '20px', fontWeight: 500,
+                      display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden',
+                    }}
+                  >
+                    {pt.name}
+                  </div>
+                  <div
+                    className="m3-label-small"
+                    style={{ color: isSelected ? 'var(--md-on-primary-container)' : 'var(--md-on-surface-variant)' }}
+                  >
+                    {t('period_tables_title')}
+                  </div>
                 </div>
                 {isSelected && <IconCheck size={18} color="var(--md-primary)" style={{ flexShrink: 0 }} />}
               </button>
