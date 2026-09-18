@@ -26,6 +26,8 @@ export type BackKey =
   | 'reminder'
   | 'about'
   | 'license'
+  | 'periodTables'
+  | 'periodTableEdit'
   // 预注册覆盖层 (路由已接, 触发入口待对应分区补齐): 自定义主题编辑器 / 教务导入
   | 'customTheme'
   | 'jwImport'
@@ -51,6 +53,8 @@ export const HASH_BY_KEY: Record<BackKey, string> = {
   reminder: '#/我的/提醒',
   about: '#/我的/关于',
   license: '#/我的/许可证',
+  periodTables: '#/我的/作息表',
+  periodTableEdit: '#/我的/作息表/编辑',
   customTheme: '#/我的/外观/自定义主题',
   // 入口 = 管理 → 导入课表 → 教务直连 (Android ImportSheet 行 1 → JwImportActivity 同构),
   // 故挂 #/管理 系;旧 #/我的/教务导入 深链由 tabFromHash/chainFromHash 兼容。
@@ -101,6 +105,8 @@ export function pageHash(hash: string): string {
 const SUB_CHAINS: { hash: string; chain: BackKey[] }[] = [
   { hash: '#/我的/通用设置/节假日', chain: ['general', 'holiday'] },
   { hash: '#/我的/外观/自定义主题', chain: ['appearance', 'customTheme'] },
+  { hash: '#/我的/作息表/编辑', chain: ['periodTables', 'periodTableEdit'] },
+  { hash: '#/我的/作息表', chain: ['periodTables'] },
   { hash: '#/我的/通用设置', chain: ['general'] },
   { hash: '#/我的/外观', chain: ['appearance'] },
   { hash: '#/我的/关于', chain: ['about'] },

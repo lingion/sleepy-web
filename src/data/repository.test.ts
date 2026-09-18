@@ -29,6 +29,8 @@ import {
   deletePeriodTable,
   bindPeriodTable,
   savePeriodTableForTable,
+  updatePeriodTableContent,
+  copyPeriodTableAs,
 } from './repository'
 import { useUndoStore } from './undoStore'
 import type { Course } from './types'
@@ -296,7 +298,7 @@ describe('作息表 PeriodTable (issue#40 v8) — 6 方法 + undo 覆盖', () =>
     expect(after && after.updatedAt >= 999).toBe(true) // updatedAt 刷新为当前时刻 (Date.now())
   })
 
-  it('deletePeriodTable 解绑相关课表 (periodTableId 置 null), 不删课表', async () => {
+  it('deletePeriodTable: 被绑定时拒绝 (Android 悬空引用守卫), 解绑后可删', async () => {
     const ptId = await insertPeriodTable(mkPT())
     const tId = await insertTable({
       name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1,
@@ -304,10 +306,16 @@ describe('作息表 PeriodTable (issue#40 v8) — 6 方法 + undo 覆盖', () =>
     })
     await insertCourse(mkCourse({ tableId: tId, courseName: '保留' }))
     expect((await db.timetables.get(tId))?.periodTableId).toBe(ptId)
-    await deletePeriodTable(ptId)
+    // 被绑定 → 拒绝删除, PT 与绑定都原样 (Android ScheduleRepository.deletePeriodTable 同)
+    expect(await deletePeriodTable(ptId)).toBe(false)
+    expect(await getPeriodTable(ptId)).toBeDefined()
+    // 解绑 → 可删
+    await bindPeriodTable(tId, null)
+    expect(await deletePeriodTable(ptId)).toBe(true)
     expect(await getPeriodTable(ptId)).toBeUndefined()
+    // 课表与其课程原样保留
     const t = await db.timetables.get(tId)
-    expect(t?.periodTableId).toBeNull()
+    expect(t).toBeDefined()
     expect((await db.courses.toArray()).find((c) => c.courseName === '保留')).toBeDefined()
   })
 
@@ -366,5 +374,51 @@ describe('作息表 PeriodTable (issue#40 v8) — 6 方法 + undo 覆盖', () =>
     // 课表也回 1 张
     expect((await db.timetables.toArray()).length).toBe(1)
     expect((await db.timetables.get(tId))?.name).toBe('A')
+  })
+
+  it('updatePeriodTableContent 同步覆写绑定课表的节点数据 (issue#40 共享生效)', async () => {
+    const ptId = await insertPeriodTable(mkPT({ name: '共享', timeJson: '[1,"08:00",2,"08:45"]' }))
+    const tId = await insertTable({
+      name: '绑它', timeJson: '[1,"08:00",2,"08:45"]', smartConfigJson: 'cfg1', isDefault: 1,
+      startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1, periodTableId: ptId,
+    })
+    const otherId = await insertTable({
+      name: '没绑', timeJson: '[1,"09:00",2,"09:45"]', smartConfigJson: 'cfg2', isDefault: 0,
+      startDate: '', nodeCount: 10, maxWeek: 20, createdAt: 2,
+    })
+    const cId = await insertCourse(mkCourse({ tableId: tId, courseName: '不动课程' }))
+    const pt = (await getPeriodTable(ptId))!
+    const affected = await updatePeriodTableContent({
+      ...pt, nodesPerDay: 10, timeJson: '[1,"08:30",2,"09:15"]', smartConfigJson: 'cfg9',
+    })
+    expect(affected).toBe(1) // 只影响绑定的那张
+    const bound = await db.timetables.get(tId)
+    expect(bound?.timeJson).toBe('[1,"08:30",2,"09:15"]')
+    expect(bound?.nodeCount).toBe(10)
+    expect(bound?.smartConfigJson).toBe('cfg9')
+    // 未绑定课表零变化
+    const other = await db.timetables.get(otherId)
+    expect(other?.timeJson).toBe('[1,"09:00",2,"09:45"]')
+    // 课程行零改动
+    const c = await db.courses.get(cId)
+    expect(c?.courseName).toBe('不动课程')
+    expect(c?.startNode).toBe(1)
+  })
+
+  it('copyPeriodTableAs: 名占用返回 -2, 成功返回新 id 且源不动', async () => {
+    const srcId = await insertPeriodTable(mkPT({ name: '原表' }))
+    const tId = await insertTable({
+      name: '占名', timeJson: '[]', smartConfigJson: '', isDefault: 1,
+      startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1,
+    })
+    expect(await copyPeriodTableAs(srcId, '占名')).toBe(-2) // 课表占名
+    const newId = await copyPeriodTableAs(srcId, '新副本')
+    expect(newId).toBeGreaterThan(0)
+    const copy = await getPeriodTable(newId)
+    const src = await getPeriodTable(srcId)
+    expect(copy?.name).toBe('新副本')
+    expect(copy?.timeJson).toBe(src?.timeJson)
+    expect(copy?.id).not.toBe(src?.id)
+    expect(tId).toBeGreaterThan(0)
   })
 })

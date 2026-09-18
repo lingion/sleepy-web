@@ -73,13 +73,14 @@ export async function updatePeriodTable(pt: PeriodTable): Promise<void> {
   await db.periodTables.put({ ...pt, updatedAt: Date.now() })
 }
 
-/** 17. deletePeriodTable — 删除 (绑定该表的课表 periodTableId 置 null, 不删课表) */
-export async function deletePeriodTable(id: number): Promise<void> {
+/** 17. deletePeriodTable — 删除。被课表绑定时拒绝 (Android 返回 false + blocked 提示,
+ *  禁止产生悬空引用; 撤回可回滚删除)。返回 true = 已删。 */
+export async function deletePeriodTable(id: number): Promise<boolean> {
+  const bound = await db.timetables.where('periodTableId').equals(id).count()
+  if (bound > 0) return false
   await undoManager.capture('deletePeriodTable')
-  await db.transaction('rw', db.periodTables, db.timetables, async () => {
-    await db.periodTables.delete(id)
-    await db.timetables.where('periodTableId').equals(id).modify({ periodTableId: null })
-  })
+  await db.periodTables.delete(id)
+  return true
 }
 
 /** 18. bindPeriodTable — 课表绑定独立作息表 (单向写: 只改 periodTableId,
@@ -108,6 +109,55 @@ export async function savePeriodTableForTable(
     nodesPerDay: table.nodeCount,
     timeJson: table.timeJson,
     smartConfigJson: table.smartConfigJson ?? '',
+    createdAt: now,
+    updatedAt: now,
+  })
+  return id
+}
+
+/** 20. updatePeriodTableContent — 修改共享作息表内容 (issue#40: 全部绑定课表立即生效)。
+ *  Android ScheduleRepository.savePeriodTable 1:1: 同步把绑定课表的
+ *  timeJson/nodesPerDay/smartConfigJson 覆写为本表内容 (课程行零改动)。返回受影响课表数。 */
+export async function updatePeriodTableContent(pt: PeriodTable): Promise<number> {
+  const existing = await db.periodTables.get(pt.id)
+  if (!existing) return 0
+  await undoManager.capture('updatePeriodTableContent')
+  const stamped = { ...pt, updatedAt: Date.now() }
+  const boundIds = await db.timetables.where('periodTableId').equals(pt.id).primaryKeys()
+  await db.transaction('rw', db.periodTables, db.timetables, async () => {
+    await db.periodTables.put(stamped)
+    for (const id of boundIds) {
+      const bound = await db.timetables.get(id as number)
+      if (bound) {
+        await db.timetables.put({
+          ...bound,
+          timeJson: stamped.timeJson,
+          nodeCount: stamped.nodesPerDay,
+          smartConfigJson: stamped.smartConfigJson,
+        })
+      }
+    }
+  })
+  return boundIds.length
+}
+
+/** 21. copyPeriodTableAs — 复制作息表 (v1.0.56 T8: 复制先命名, 确认才落库)。
+ *  返回新 id; -2 = 名被占用 (Android 同语义返回码)。 */
+export async function copyPeriodTableAs(sourceId: number, newName: string): Promise<number> {
+  const src = await db.periodTables.get(sourceId)
+  if (!src) return -1
+  const courseNames = (await db.timetables.toArray()).map((t) => t.name)
+  const periodNames = (await db.periodTables.toArray()).map((p) => p.name)
+  if (newName.trim() !== '' && (courseNames.includes(newName) || periodNames.includes(newName))) {
+    return -2
+  }
+  await undoManager.capture('copyPeriodTableAs')
+  const now = Date.now()
+  const id = await nextPeriodTableId()
+  await db.periodTables.put({
+    ...src,
+    id,
+    name: newName.trim() === '' ? src.name : newName,
     createdAt: now,
     updatedAt: now,
   })
