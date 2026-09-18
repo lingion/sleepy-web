@@ -191,6 +191,14 @@ export interface Prefs {
   holidayStyle: 'grey' | 'strikethrough'
   /** 补班日忽略 — 默认 true (AppPrefs KEY_HOLIDAY_IGNORE_WORKDAY) */
   holidayIgnoreWorkday: boolean
+  /** 实验室: 网格视图自适应行高 — 默认 false (AppPrefs KEY_GRID_ADAPTIVE_HEIGHT) */
+  gridAdaptiveHeight: boolean
+  /** 实验室: 网格视图双指捏放行高 — 默认 false, 关=手势不挂 (AppPrefs KEY_GRID_PINCH_ZOOM) */
+  gridPinchZoom: boolean
+  /** 实验室: 全学期无晚课自动收起晚间节次 — 默认 false (AppPrefs KEY_GRID_AUTO_HIDE_EMPTY_EVENING) */
+  gridAutoHideEmptyEvening: boolean
+  /** 实验室: 晚间起始时间 "HH:mm" — 默认 18:00 (AppPrefs KEY_GRID_EVENING_START) */
+  gridEveningStart: string
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -226,6 +234,10 @@ export const DEFAULT_PREFS: Prefs = {
   holidayGreyWeekend: true,
   holidayStyle: 'grey',
   holidayIgnoreWorkday: true,
+  gridAdaptiveHeight: false,
+  gridPinchZoom: false,
+  gridAutoHideEmptyEvening: false,
+  gridEveningStart: '18:00',
 }
 
 /** inWeek(week) — CourseEntity.kt L125-134 1:1 */

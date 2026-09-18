@@ -28,13 +28,7 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
       return next
     })
 
-  const languages: Array<[Prefs['lang'], string]> = [
-    ['zh-CN', '简体中文'],
-    ['zh-TW', '繁體中文'],
-    ['en', 'English'],
-    ['ja', '日本語'],
-    ['es', 'Español'],
-  ]
+  const languages: Array<[Prefs['lang'], string]> = LanguageCardLanguages
 
   return (
     <SettingsScaffold title={t('mine_general')} onBack={onBack}>
@@ -293,29 +287,127 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
 
       <HDiv />
 
-      {/* ── 分组④ 语言 ── */}
+      {/* ── 分组④ 语言 (v1.0.56 T4: 折叠卡 — 收起只显当前语言, 点开展开 5 项) ── */}
       <SectionHeader title={t('settings_language')} />
 
-      <div className="m3-card" style={{ padding: 16 }}>
-        {languages.map(([code, label], i) => (
-          <div key={code}>
-            <div
-              onClick={() => void update({ lang: code })}
-              style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 4px', cursor: 'pointer',
-              }}
-            >
-              <span className="m3-body-large" style={{ color: prefs.lang === code ? 'var(--md-primary)' : 'var(--md-on-surface)' }}>
-                {label}
-              </span>
-              {prefs.lang === code && <CheckIcon />}
+      <LanguageCard
+        prefs={prefs}
+        currentLabel={languages.find(([code]) => code === prefs.lang)?.[1] ?? prefs.lang}
+        onChange={(code) => void update({ lang: code })}
+      />
+
+      {/* ── 分组⑤ 实验室 (v1.0.56: 实验性功能, 默认全关) ── */}
+      <SectionHeader title={t('settings_lab')} />
+      <p className="m3-body-small" style={{ margin: '0 0 8px', color: 'var(--md-on-surface-variant)' }}>
+        {t('settings_lab_sub')}
+      </p>
+      <div className="m3-card" style={{ display: 'flex', flexDirection: 'column', padding: 16 }}>
+        <ToggleRow
+          label={t('settings_grid_adaptive_height')}
+          subtitle={t('settings_grid_adaptive_height_sub')}
+          checked={prefs.gridAdaptiveHeight}
+          onChange={(v) => void update({ gridAdaptiveHeight: v })}
+        />
+        <HDiv />
+        <ToggleRow
+          label={t('settings_grid_pinch_zoom')}
+          subtitle={t('settings_grid_pinch_zoom_sub')}
+          checked={prefs.gridPinchZoom}
+          onChange={(v) => void update({ gridPinchZoom: v })}
+        />
+        <HDiv />
+        <ToggleRow
+          label={t('settings_grid_auto_hide_evening')}
+          subtitle={t('settings_grid_auto_hide_evening_sub')}
+          checked={prefs.gridAutoHideEmptyEvening}
+          onChange={(v) => void update({ gridAutoHideEmptyEvening: v })}
+        />
+        {prefs.gridAutoHideEmptyEvening && (
+          <>
+            <HDiv />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0' }}>
+              <span className="m3-body-large" style={{ flex: 1 }}>{t('settings_grid_evening_start')}</span>
+              <input
+                type="time"
+                value={prefs.gridEveningStart}
+                onChange={(e) => void update({ gridEveningStart: e.target.value })}
+                aria-label={t('settings_grid_evening_start')}
+                style={{ width: 150, padding: '8px 12px', background: 'var(--md-surface-container-high)', border: 'none', borderRadius: 8, color: 'var(--md-on-surface)', font: 'inherit' }}
+              />
             </div>
-            {i < languages.length - 1 && <HDiv />}
-          </div>
-        ))}
+          </>
+        )}
       </div>
     </SettingsScaffold>
+  )
+}
+
+/**
+ * LanguageCard — 折叠卡: 收起只显当前语言 (v1.0.56 T4, GeneralSettingsScreen.kt L672-735 1:1)。
+ * 选中语言直接写 prefs.lang (i18n.changeLang 已在 prefsStore syncSideEffects 触发)。
+ */
+const LanguageCardLanguages: Array<[Prefs['lang'], string]> = [
+  ['zh-CN', '简体中文'],
+  ['zh-TW', '繁體中文'],
+  ['en', 'English'],
+  ['ja', '日本語'],
+  ['es', 'Español'],
+]
+
+function LanguageCard({ prefs, onChange, currentLabel }: {
+  prefs: { lang: Prefs['lang'] }
+  onChange: (code: Prefs['lang']) => void
+  currentLabel: string
+}) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+  const languages = LanguageCardLanguages
+  return (
+    <div className="m3-card" style={{ background: 'var(--md-surface-container)' }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{ display: 'flex', alignItems: 'center', padding: 16, cursor: 'pointer' }}
+      >
+        <div style={{ flex: 1 }}>
+          <div className="m3-title-small" style={{ fontWeight: 600 }}>{t('settings_language')}</div>
+          <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{currentLabel}</div>
+        </div>
+        <span
+          style={{
+            color: 'var(--md-on-surface-variant)',
+            transform: expanded ? 'rotate(180deg)' : 'none',
+            transition: 'transform 180ms',
+            display: 'inline-flex',
+          }}
+        >
+          {expanded ? <IconExpandLess size={18} /> : <IconExpandMore size={18} />}
+        </span>
+      </div>
+      {expanded && (
+        <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {languages.map(([code, label], i) => {
+            const selected = prefs.lang === code
+            return (
+              <div key={code}>
+                <div
+                  onClick={() => onChange(code)}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 4px', cursor: 'pointer',
+                  }}
+                >
+                  <span className="m3-body-large" style={{ color: selected ? 'var(--md-primary)' : 'var(--md-on-surface)' }}>
+                    {label}
+                  </span>
+                  {selected && <CheckIcon />}
+                </div>
+                {i < languages.length - 1 && <HDiv />}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
