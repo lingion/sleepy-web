@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconClose, IconDelete } from '../../components/icons'
+import { IconCheck, IconClose, IconDelete } from '../../components/icons'
 import { SegmentedSwitcher } from './shared'
 import {
   breakDisplayLabel,
@@ -22,8 +22,16 @@ import { appendEmptyRow, removeAndRenumber, type TimeSlotRow } from '../../domai
 
 // ── 节次时间表折叠节 — TimeSlotEditor.kt 1:1 (手动/自动 Tab + 智慧节次) ─────
 
+/** v1.0.56 T6 第三 Tab「作息表」选项 — 调用方从库映射, 组件不触库 (TimeSlotEditor.PeriodTableOption 1:1) */
+export interface PeriodTableOption {
+  id: number
+  name: string
+  nodesPerDay: number
+}
+
 export function TimeSlotSection({
   expanded, onToggle, rows, onRowsChange, smartConfig, onSmartConfigChange, onSave,
+  periodTableOptions, selectedPeriodTableId, onSelectPeriodTable, excludePeriodTableId,
 }: {
   expanded: boolean
   onToggle: () => void
@@ -32,9 +40,18 @@ export function TimeSlotSection({
   smartConfig: SmartPeriodConfig
   onSmartConfigChange: (cfg: SmartPeriodConfig) => void
   onSave: (rows: TimeSlotRow[]) => void
+  /** 非空 = 显示第三 Tab「作息表」(EditTableScreen 换绑 / PeriodTableEditScreen 取入) */
+  periodTableOptions?: PeriodTableOption[]
+  /** null = 未绑定; 选中态由调用方持有, 组件零写库 */
+  selectedPeriodTableId?: number | null
+  onSelectPeriodTable?: (id: number | null) => void
+  /** 作息表编辑页排除自己 (禁自引用) */
+  excludePeriodTableId?: number | null
 }) {
   const { t } = useTranslation()
-  const [mode, setMode] = useState<'manual' | 'auto'>('manual')
+  const [mode, setMode] = useState<'manual' | 'auto' | 'periodTable'>('manual')
+  const hasPeriodTableTab =
+    (periodTableOptions?.length ?? 0) > 0 || (selectedPeriodTableId != null)
 
   // Android LaunchedEffect(mode, smartConfig): 自动模式下 config 一变即 derive rows 同步上层
   useEffect(() => {
@@ -64,16 +81,103 @@ export function TimeSlotSection({
       {expanded && (
         <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <SegmentedSwitcher
-            options={[t('mode_manual'), t('mode_auto')]}
-            selected={mode === 'manual' ? 0 : 1}
-            onSelect={(i) => setMode(i === 0 ? 'manual' : 'auto')}
+            options={
+              hasPeriodTableTab
+                ? [t('mode_manual'), t('mode_auto'), t('period_tables_tab')]
+                : [t('mode_manual'), t('mode_auto')]
+            }
+            selected={mode === 'manual' ? 0 : mode === 'auto' ? 1 : 2}
+            onSelect={(i) => setMode(i === 0 ? 'manual' : i === 1 ? 'auto' : 'periodTable')}
           />
           {mode === 'manual' ? (
             <ManualTimeSlotEditor rows={rows} onRowsChange={onRowsChange} onSave={onSave} />
-          ) : (
+          ) : mode === 'auto' ? (
             <SmartPeriodEditor config={smartConfig} onConfigChange={onSmartConfigChange} />
+          ) : (
+            <PeriodTableBindTab
+              options={(periodTableOptions ?? []).filter((o) => o.id !== excludePeriodTableId)}
+              selectedId={selectedPeriodTableId ?? null}
+              onSelect={(id) => onSelectPeriodTable?.(id)}
+            />
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── 第三 Tab 作息表 — PeriodTableBindTab 1:1 (未绑定 + 全部作息表, maxHeight 滚动) ──
+
+function PeriodTableBindTab({
+  options, selectedId, onSelect,
+}: {
+  options: PeriodTableOption[]
+  selectedId: number | null
+  onSelect: (id: number | null) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 6,
+        maxHeight: 240, overflowY: 'auto',
+      }}
+    >
+      {/* 未绑定 = 不绑, 用解析出的/本表内置节次 */}
+      <BindChoiceRow
+        title={t('period_table_unbound')}
+        selected={selectedId === null}
+        onClick={() => onSelect(null)}
+      />
+      {options.map((opt) => (
+        <BindChoiceRow
+          key={opt.id}
+          title={opt.name}
+          subtitle={t('period_table_nodes_count', { v1: opt.nodesPerDay })}
+          selected={selectedId === opt.id}
+          onClick={() => onSelect(opt.id)}
+        />
+      ))}
+    </div>
+  )
+}
+
+/** 选中态=primaryContainer 色块+对勾 (UI 纯色块禁描边规则, BindChoiceRow 同构) */
+function BindChoiceRow({
+  title, subtitle, selected, onClick,
+}: {
+  title: string
+  subtitle?: string
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        borderRadius: 12, padding: '10px 12px', cursor: 'pointer',
+        background: selected ? 'var(--md-primary-container)' : 'var(--md-surface)',
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <div
+          className="m3-body-medium"
+          style={{ color: selected ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)' }}
+        >
+          {title}
+        </div>
+        {subtitle != null && (
+          <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{subtitle}</div>
+        )}
+      </div>
+      {selected && (
+        <span style={{ color: 'var(--md-on-primary-container)', display: 'inline-flex' }}>
+          <IconCheck size={18} />
+        </span>
       )}
     </div>
   )

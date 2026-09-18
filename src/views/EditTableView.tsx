@@ -14,6 +14,9 @@ import {
   updateTableRemappingCourses,
   deleteTable,
   countCourses,
+  loadPeriodTables,
+  bindPeriodTable,
+  updatePeriodTableContent,
 } from '../data/repository'
 import {
   parseTimeSlotRows,
@@ -61,6 +64,8 @@ export function EditTableView({
     if (!table) return 0
     return await countCourses(table.id)
   }, [table?.id]) ?? 0
+  // issue#40: 全部作息表(换绑选择器数据源 §4.3) + 本表当前绑定
+  const allPeriodTables = useLiveQuery(() => loadPeriodTables(), []) ?? []
 
   const [name, setName] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<string | null>(null)
@@ -72,6 +77,12 @@ export function EditTableView({
   const [smartConfig, setSmartConfig] = useState<SmartPeriodConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  // issue#40: 换绑选择(§5.3) — null 起始 = 未动过; 确认时才写 periodTableId。
+  // pendingBind != table.periodTableId 时保存流程走换绑分支。
+  const [pendingBind, setPendingBind] = useState<number | null>(null)
+  const [pendingBindInit, setPendingBindInit] = useState(false)
+  // issue#40 §5.3: 换绑确认弹窗 — 非 null 时弹「确认换绑」, 确认才真正写 periodTableId
+  const [pendingRebind, setPendingRebind] = useState<number | null>(null)
 
   // 返回分层 (EditTableScreen.kt:142): 待保存的新表 → 退出即丢弃, 普通编辑 → 直接返回
   const handleBack = () => {
@@ -92,6 +103,11 @@ export function EditTableView({
   if (table && smartConfig === null) {
     setSmartConfig(decodeSmartConfig(table.smartConfigJson) ?? inferSmartConfig(parseTimeSlotRows(table.timeJson)))
   }
+  // pendingBind 初始化一次性 — table.periodTableId (remember(table.id, table.periodTableId) 等价)
+  if (table && !pendingBindInit) {
+    setPendingBind(table.periodTableId ?? null)
+    setPendingBindInit(true)
+  }
 
   if (!table || name === null || startDate === null || maxWeekText === null || rowsDraft === null || smartConfig === null) {
     if (tables.length > 0 && !table) {
@@ -111,6 +127,15 @@ export function EditTableView({
   const tableStart = startDate
   const tableMaxWeek = maxWeekText
   const smartJson = encodeSmartConfig(smartConfig)
+  // issue#40: 编辑的就是"有效时间表" — 绑定了独立作息表时节次编辑区展示/修改该作息表
+  // (多张绑定课表同享); 换绑修复: 有效表跟随 pendingBind(下拉改选立即切换编辑区来源),
+  // 否则已绑定表的 effectivePeriodTable 恒非空, 保存永远走"写回旧表"分支, 换绑成死代码。
+  // 换绑下拉改选 → 编辑区切到 pendingBind 所指表的节次内容 (Android effectivePeriodTable
+  // 跟随 pendingBind 同构); 未绑定时回退本表兼容列
+  const effectivePeriodTable =
+    pendingBind != null ? allPeriodTables.find((pt) => pt.id === pendingBind) ?? null : null
+  const effectiveTimeJson = effectivePeriodTable?.timeJson ?? tbl.timeJson
+  const effectiveSmartJson = effectivePeriodTable?.smartConfigJson ?? tbl.smartConfigJson
 
   function handleSave(newRows: TimeSlotRow[]) {
     const maxWeek = /^\d+$/.test(tableMaxWeek) ? parseInt(tableMaxWeek, 10) : 20
@@ -124,14 +149,38 @@ export function EditTableView({
     }
     setError(null)
     const trimmedName = tableName.trim()
-    void updateTableRemappingCourses({
-      ...tbl,
-      name: trimmedName === '' ? tbl.name : trimmedName,
-      startDate: normalizeStartDate(tableStart),
-      maxWeek,
-      timeJson: buildTimeJsonFromRows(newRows),
-      smartConfigJson: smartJson,
-    }).then(settle(onSaved))
+    const newTimeJson = buildTimeJsonFromRows(newRows)
+    const bindChanged = pendingBind !== (tbl.periodTableId ?? null)
+    if (bindChanged && pendingBind != null) {
+      // issue#40 §5.3: 换绑须先预览确认 — 弹换绑确认框, 确认才写
+      setPendingRebind(pendingBind)
+      return
+    }
+    void (async () => {
+      if (bindChanged) {
+        // issue#40 §5.3: 解绑 — 只写 periodTableId=null, 课程行零改动
+        await bindPeriodTable(tbl.id, null)
+      } else if (effectivePeriodTable != null) {
+        // issue#40: 节次编辑区改的是共享作息表 — 写回 period_tables +
+        // 同步全部绑定课表兼容列(§5.2); 课程行零改动(§9.1)
+        await updatePeriodTableContent({
+          ...effectivePeriodTable,
+          timeJson: newTimeJson,
+          smartConfigJson: smartJson,
+          nodesPerDay: Math.max(1, newRows.length),
+        })
+      } else {
+        await updateTableRemappingCourses({
+          ...tbl,
+          name: trimmedName === '' ? tbl.name : trimmedName,
+          startDate: normalizeStartDate(tableStart),
+          maxWeek,
+          timeJson: newTimeJson,
+          smartConfigJson: smartJson,
+        })
+      }
+      settle(onSaved)()
+    })()
   }
 
   return (
@@ -161,15 +210,20 @@ export function EditTableView({
         />
       </div>
 
-      {/* 节次时间表 (可折叠) */}
+      {/* 节次时间表 (可折叠) — v1.0.56 T6 第三 Tab「作息表」= 换绑入口 */}
       <TimeSlotSection
         expanded={timeSlotsExpanded}
         onToggle={() => setTimeSlotsExpanded((v) => !v)}
         rows={slotRows}
         onRowsChange={setRowsDraft}
-        smartConfig={smartConfig}
+        smartConfig={decodeSmartConfig(effectiveSmartJson) ?? inferSmartConfig(parseTimeSlotRows(effectiveTimeJson))}
         onSmartConfigChange={setSmartConfig}
         onSave={handleSave}
+        periodTableOptions={allPeriodTables.map((pt) => ({
+          id: pt.id, name: pt.name, nodesPerDay: pt.nodesPerDay,
+        }))}
+        selectedPeriodTableId={pendingBind}
+        onSelectPeriodTable={setPendingBind}
       />
 
       {error && (
@@ -226,6 +280,36 @@ export function EditTableView({
               style={{ padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', color: 'var(--md-error)', background: 'transparent', fontWeight: 600 }}
             >
               {t('delete')}
+            </button>
+          </div>
+        </Overlay>
+      )}
+
+      {/* issue#40 §5.3: 换绑确认 — 换绑后本课表按新作息表解释节次, 自定义时间课程不受影响 */}
+      {pendingRebind != null && (
+        <Overlay onDismiss={() => setPendingRebind(null)}>
+          <h2 className="m3-title-medium" style={{ margin: 0 }}>
+            {t('period_table_bind_preview_title')}
+          </h2>
+          <p className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>
+            {t('period_table_bind_preview_body')}
+          </p>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={() => setPendingRebind(null)} style={{ ...ghostBtnStyle }}>
+              {t('cancel')}
+            </button>
+            <button
+              onClick={() => {
+                const targetId = pendingRebind
+                setPendingRebind(null)
+                void bindPeriodTable(table.id, targetId).then(settle(onSaved))
+              }}
+              style={{
+                padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontWeight: 600,
+              }}
+            >
+              {t('period_table_preview_confirm')}
             </button>
           </div>
         </Overlay>
