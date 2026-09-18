@@ -21,10 +21,16 @@ export const MINUTES_DEBOUNCE_MS = 500
 export interface ReminderPrefs {
   /** KEY_REMINDER — master 总开关, 默认 false */
   masterEnabled: boolean
-  /** KEY_DAILY_ENABLED — 每日提醒, 默认 true (仅 master 开时生效) */
+  /** KEY_DAILY_ENABLED — 每日提醒卡头总开关, 默认 true (仅 master 开时生效) */
   dailyEnabled: boolean
+  /** KEY_TODAY_REMINDER_ENABLED — 今日摘要子开关 (PR48), 默认 true */
+  todayEnabled: boolean
   /** KEY_DAILY_TIME — "HH:mm", 默认 "07:00" */
   dailyTime: string
+  /** KEY_TOMORROW_REMINDER_ENABLED — 明日预告 (PR48), 默认 false */
+  tomorrowEnabled: boolean
+  /** KEY_TOMORROW_REMINDER_TIME — "HH:mm", 默认 "22:00" (前一天晚上推送) */
+  tomorrowTime: string
   /** KEY_BEFORE_CLASS_ENABLED — 课前提醒, 默认 false */
   beforeClassEnabled: boolean
   /** KEY_BEFORE_CLASS_MINUTES — 提前分钟数, 默认 10 */
@@ -41,7 +47,10 @@ export interface ReminderPrefs {
 export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
   masterEnabled: false,
   dailyEnabled: true,
+  todayEnabled: true,
   dailyTime: '07:00',
+  tomorrowEnabled: false,
+  tomorrowTime: '22:00',
   beforeClassEnabled: false,
   beforeClassMinutes: 10,
   bannerEnabled: true,
@@ -53,7 +62,10 @@ export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
 const KEYS = {
   masterEnabled: 'sleepy_reminder_master',
   dailyEnabled: 'sleepy_daily_reminder',
+  todayEnabled: 'sleepy_today_reminder',
   dailyTime: 'sleepy_daily_reminder_time',
+  tomorrowEnabled: 'sleepy_tomorrow_reminder',
+  tomorrowTime: 'sleepy_tomorrow_reminder_time',
   beforeClassEnabled: 'sleepy_before_class_enabled',
   beforeClassMinutes: 'sleepy_before_class_minutes',
   bannerEnabled: 'sleepy_before_class_banner',
@@ -98,7 +110,10 @@ export function loadReminderPrefs(): ReminderPrefs {
   return clampReminderPrefs({
     masterEnabled: parseBool(raw[KEYS.masterEnabled]),
     dailyEnabled: parseBool(raw[KEYS.dailyEnabled]),
+    todayEnabled: parseBool(raw[KEYS.todayEnabled]),
     dailyTime: raw[KEYS.dailyTime] ?? undefined,
+    tomorrowEnabled: parseBool(raw[KEYS.tomorrowEnabled]),
+    tomorrowTime: raw[KEYS.tomorrowTime] ?? undefined,
     beforeClassEnabled: parseBool(raw[KEYS.beforeClassEnabled]),
     beforeClassMinutes: raw[KEYS.beforeClassMinutes] === null ? undefined : Number(raw[KEYS.beforeClassMinutes]),
     bannerEnabled: parseBool(raw[KEYS.bannerEnabled]),
@@ -113,7 +128,10 @@ export function persistReminderPrefs(p: ReminderPrefs): void {
   try {
     localStorage.setItem(KEYS.masterEnabled, String(p.masterEnabled))
     localStorage.setItem(KEYS.dailyEnabled, String(p.dailyEnabled))
+    localStorage.setItem(KEYS.todayEnabled, String(p.todayEnabled))
     localStorage.setItem(KEYS.dailyTime, p.dailyTime)
+    localStorage.setItem(KEYS.tomorrowEnabled, String(p.tomorrowEnabled))
+    localStorage.setItem(KEYS.tomorrowTime, p.tomorrowTime)
     localStorage.setItem(KEYS.beforeClassEnabled, String(p.beforeClassEnabled))
     localStorage.setItem(KEYS.beforeClassMinutes, String(p.beforeClassMinutes))
     localStorage.setItem(KEYS.bannerEnabled, String(p.bannerEnabled))
@@ -130,7 +148,10 @@ export function clampReminderPrefs(patch: Partial<ReminderPrefs>): ReminderPrefs
   return {
     masterEnabled: typeof patch.masterEnabled === 'boolean' ? patch.masterEnabled : d.masterEnabled,
     dailyEnabled: typeof patch.dailyEnabled === 'boolean' ? patch.dailyEnabled : d.dailyEnabled,
+    todayEnabled: typeof patch.todayEnabled === 'boolean' ? patch.todayEnabled : d.todayEnabled,
     dailyTime: isHHmm(patch.dailyTime) ? (patch.dailyTime as string) : d.dailyTime,
+    tomorrowEnabled: typeof patch.tomorrowEnabled === 'boolean' ? patch.tomorrowEnabled : d.tomorrowEnabled,
+    tomorrowTime: isHHmm(patch.tomorrowTime) ? (patch.tomorrowTime as string) : d.tomorrowTime,
     beforeClassEnabled: typeof patch.beforeClassEnabled === 'boolean' ? patch.beforeClassEnabled : d.beforeClassEnabled,
     beforeClassMinutes: clampMinutes(patch.beforeClassMinutes),
     bannerEnabled: typeof patch.bannerEnabled === 'boolean' ? patch.bannerEnabled : d.bannerEnabled,
@@ -189,6 +210,10 @@ export interface ReminderVisibility {
   /** 时间选择行 + 每日预览 (master && daily) */
   dailyTimeRow: boolean
   dailyPreview: boolean
+  /** 今日摘要行 + 时间 + 预览 (master && daily — Android 在 if (dailyEnabled) 块内) */
+  todayRow: boolean
+  /** 明日预告行 + 时间 + 预览 (master && daily — Android 在 if (dailyEnabled) 块内) */
+  tomorrowRow: boolean
   /** 课前提醒卡 (master) */
   beforeClassCard: boolean
   /** 提前分钟 + 课前预览 + 横幅 + 流体云 (master && beforeClass) */
@@ -206,6 +231,8 @@ export function reminderVisibility(p: ReminderPrefs): ReminderVisibility {
     dailyCard: p.masterEnabled,
     dailyTimeRow: p.masterEnabled && p.dailyEnabled,
     dailyPreview: p.masterEnabled && p.dailyEnabled,
+    todayRow: p.masterEnabled && p.dailyEnabled,
+    tomorrowRow: p.masterEnabled && p.dailyEnabled,
     beforeClassCard: p.masterEnabled,
     beforeClassMinutes: beforeSub,
     beforeClassPreview: beforeSub,

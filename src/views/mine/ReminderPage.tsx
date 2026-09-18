@@ -36,7 +36,8 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
   const update = useReminderStore((s) => s.update)
   const vis = reminderVisibility(prefs)
 
-  const [showTimePicker, setShowTimePicker] = useState(false)
+  // DailyReminderTimeTarget.{Today,Tomorrow} 1:1 — null = 弹窗关闭
+  const [showTimePicker, setShowTimePicker] = useState<'today' | 'tomorrow' | null>(null)
   const [minutesInput, setMinutesInput] = useState(() => String(prefs.beforeClassMinutes))
   const [fieldsMenuExpanded, setFieldsMenuExpanded] = useState(false)
   const [notifyState, setNotifyState] = useState<NotifyState>(() =>
@@ -97,7 +98,9 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
         )}
       </ReminderCard>
 
-      {/* Sub-settings — only visible when master is on */}
+      {/* Sub-settings — only visible when master is on.
+          v1.0.57 PR48: 每日提醒卡改单卡母子结构 — 卡头总开关 + 今日摘要子项(开关+时间+预览)
+          + 明日预告子项(开关+时间+预览), 全在 if (dailyEnabled) 内。 */}
       {vis.dailyCard && (
         <ReminderCard>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 4 }}>
@@ -112,22 +115,50 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
           {vis.dailyTimeRow && (
             <>
               <SubDivider />
-              {/* Time picker row */}
+              <ReminderToggleRow
+                title={t('reminder_daily_today_toggle_title')}
+                subtitle={t('reminder_daily_today_toggle_sub')}
+                checked={prefs.todayEnabled}
+                onChange={(v) => update({ todayEnabled: v })}
+              />
+              {/* 今日摘要时间行 */}
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => setShowTimePicker(true)}
+                onClick={() => setShowTimePicker('today')}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') setShowTimePicker(true)
+                  if (e.key === 'Enter' || e.key === ' ') setShowTimePicker('today')
                 }}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', cursor: 'pointer' }}
               >
                 <span className="m3-body-medium" style={{ color: 'var(--md-on-surface)' }}>{t('reminder_daily_time_label')}</span>
                 <span className="m3-body-large" style={{ fontWeight: 500, color: 'var(--md-primary)' }}>{prefs.dailyTime}</span>
               </div>
-              <SubDivider />
-              <p className="m3-body-small" style={{ margin: '8px 4px 8px 52px', color: 'var(--md-on-surface-variant)' }}>
+              <p className="m3-body-small" style={{ margin: '8px 4px 8px 4px', color: 'var(--md-on-surface-variant)' }}>
                 {t('reminder_daily_preview')}
+              </p>
+              <SubDivider />
+              <ReminderToggleRow
+                title={t('reminder_tomorrow_toggle_title')}
+                subtitle={t('reminder_tomorrow_toggle_sub')}
+                checked={prefs.tomorrowEnabled}
+                onChange={(v) => update({ tomorrowEnabled: v })}
+              />
+              {/* 明日预告时间行 */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowTimePicker('tomorrow')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') setShowTimePicker('tomorrow')
+                }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', cursor: 'pointer' }}
+              >
+                <span className="m3-body-medium" style={{ color: 'var(--md-on-surface)' }}>{t('reminder_tomorrow_time_label')}</span>
+                <span className="m3-body-large" style={{ fontWeight: 500, color: 'var(--md-primary)' }}>{prefs.tomorrowTime}</span>
+              </div>
+              <p className="m3-body-small" style={{ margin: '8px 4px 8px 4px', color: 'var(--md-on-surface-variant)' }}>
+                {t('reminder_tomorrow_preview')}
               </p>
             </>
           )}
@@ -248,15 +279,16 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
         </ReminderCard>
       )}
 
-      {/* Time picker dialog */}
-      {showTimePicker && (
+      {/* Time picker dialog — DailyReminderTimeTarget.Today/Tomorrow 分流落库 */}
+      {showTimePicker !== null && (
         <TimePickerDialog
-          initial={prefs.dailyTime}
+          initial={showTimePicker === 'today' ? prefs.dailyTime : prefs.tomorrowTime}
           onConfirm={(time) => {
-            update({ dailyTime: time })
-            setShowTimePicker(false)
+            if (showTimePicker === 'today') update({ dailyTime: time })
+            else update({ tomorrowTime: time })
+            setShowTimePicker(null)
           }}
-          onDismiss={() => setShowTimePicker(false)}
+          onDismiss={() => setShowTimePicker(null)}
         />
       )}
     </SettingsScaffold>
