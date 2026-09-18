@@ -22,6 +22,13 @@ import {
   assignGroupIds,
   getDefaultTable,
   duplicateTable,
+  loadPeriodTables,
+  getPeriodTable,
+  insertPeriodTable,
+  updatePeriodTable,
+  deletePeriodTable,
+  bindPeriodTable,
+  savePeriodTableForTable,
 } from './repository'
 import { useUndoStore } from './undoStore'
 import type { Course } from './types'
@@ -58,7 +65,7 @@ function mkCourse(partial: Partial<Course>): Omit<Course, 'id'> {
 beforeEach(async () => {
   // 每测重建数据库 + undo 单槽
   useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
-  await Promise.all([db.timetables.clear(), db.courses.clear(), db.prefs.clear()])
+  await Promise.all([db.timetables.clear(), db.courses.clear(), db.prefs.clear(), db.periodTables.clear()])
 })
 
 describe('课表 CRUD (capture 1-5)', () => {
@@ -256,5 +263,108 @@ describe('undo — 单级撤回 (UndoManager.kt v7.10.16w 1:1)', () => {
 
   it('undo 到空后返回 false', async () => {
     expect(await useUndoStore.getState().undo()).toBe(false)
+  })
+})
+
+describe('作息表 PeriodTable (issue#40 v8) — 6 方法 + undo 覆盖', () => {
+  const mkPT = (over: Partial<Parameters<typeof insertPeriodTable>[0]> = {}) => ({
+    name: '标准',
+    nodesPerDay: 12,
+    timeJson: '[1,"08:00",2,"09:50"]',
+    smartConfigJson: '',
+    createdAt: 1,
+    updatedAt: 1,
+    ...over,
+  })
+
+  it('insertPeriodTable + loadPeriodTables + getPeriodTable', async () => {
+    const id1 = await insertPeriodTable(mkPT({ name: '夏季', createdAt: 100 }))
+    const id2 = await insertPeriodTable(mkPT({ name: '冬季', createdAt: 200 }))
+    const all = await loadPeriodTables()
+    expect(all.map((p) => p.id)).toEqual([id1, id2]) // 按 createdAt 升序
+    const got = await getPeriodTable(id1)
+    expect(got?.name).toBe('夏季')
+  })
+
+  it('updatePeriodTable 改节点时间', async () => {
+    const id = await insertPeriodTable(mkPT({ name: '原' }))
+    const pt = (await getPeriodTable(id))!
+    await updatePeriodTable({ ...pt, name: '改', timeJson: '[]', updatedAt: 999 })
+    const after = await getPeriodTable(id)
+    expect(after?.name).toBe('改')
+    expect(after?.timeJson).toBe('[]')
+    expect(after && after.updatedAt >= 999).toBe(true) // updatedAt 刷新为当前时刻 (Date.now())
+  })
+
+  it('deletePeriodTable 解绑相关课表 (periodTableId 置 null), 不删课表', async () => {
+    const ptId = await insertPeriodTable(mkPT())
+    const tId = await insertTable({
+      name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1,
+      startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1, periodTableId: ptId,
+    })
+    await insertCourse(mkCourse({ tableId: tId, courseName: '保留' }))
+    expect((await db.timetables.get(tId))?.periodTableId).toBe(ptId)
+    await deletePeriodTable(ptId)
+    expect(await getPeriodTable(ptId)).toBeUndefined()
+    const t = await db.timetables.get(tId)
+    expect(t?.periodTableId).toBeNull()
+    expect((await db.courses.toArray()).find((c) => c.courseName === '保留')).toBeDefined()
+  })
+
+  it('bindPeriodTable 单向写: 改 periodTableId 不动节点数据/课程', async () => {
+    const ptA = await insertPeriodTable(mkPT({ name: 'A表', timeJson: '[1,"08:00",2,"09:50"]' }))
+    const tId = await insertTable({
+      name: '课', timeJson: '[1,"08:00",2,"09:50"]', smartConfigJson: 'X', isDefault: 1,
+      startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1,
+    })
+    const cId = await insertCourse(mkCourse({ tableId: tId, startNode: 1, step: 2 }))
+    const before = await db.timetables.get(tId)
+    expect(before?.periodTableId == null).toBe(true)
+    // 绑定
+    await bindPeriodTable(tId, ptA)
+    const after = await db.timetables.get(tId)
+    expect(after?.periodTableId).toBe(ptA)
+    expect(after?.timeJson).toBe(before?.timeJson) // 节点数据原样
+    expect(after?.smartConfigJson).toBe(before?.smartConfigJson) // 配置原样
+    expect(after?.nodeCount).toBe(before?.nodeCount) // 节数原样
+    // 课程零变化
+    const c = await db.courses.get(cId)
+    expect(c?.startNode).toBe(1)
+    expect(c?.step).toBe(2)
+  })
+
+  it('savePeriodTableForTable 从课表当前 timeJson 另存为新作息表', async () => {
+    const tId = await insertTable({
+      name: 'A', timeJson: '[1,"08:30",2,"10:00"]', smartConfigJson: 'smart', isDefault: 1,
+      startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1,
+    })
+    const newId = await savePeriodTableForTable(tId, 'A 副本')
+    expect(newId).toBeGreaterThan(0)
+    const saved = await getPeriodTable(newId)
+    expect(saved?.name).toBe('A 副本')
+    expect(saved?.timeJson).toBe('[1,"08:30",2,"10:00"]')
+    expect(saved?.smartConfigJson).toBe('smart')
+    expect(saved?.nodesPerDay).toBe(12)
+  })
+
+  it('undo 恢复 periodTables + 恢复顺序 periodTables→time_tables→courses', async () => {
+    const ptId = await insertPeriodTable(mkPT({ name: '将被撤', createdAt: 100 }))
+    const tId = await insertTable({
+      name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1,
+      startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1,
+    })
+    expect((await loadPeriodTables()).length).toBe(1)
+    // 第二次插入: 单槽覆盖, snapshot 此时 = 1 张 PT + 1 张 timetable
+    await insertPeriodTable(mkPT({ name: 'B', createdAt: 200 }))
+    expect((await loadPeriodTables()).length).toBe(2)
+    // 撤回 = 回到第二次 insert 之前: 1 张 PT
+    expect(await useUndoStore.getState().undo()).toBe(true)
+    const pts = await loadPeriodTables()
+    expect(pts.length).toBe(1)
+    expect(pts[0].name).toBe('将被撤')
+    expect(pts[0].id).toBe(ptId)
+    // 课表也回 1 张
+    expect((await db.timetables.toArray()).length).toBe(1)
+    expect((await db.timetables.get(tId))?.name).toBe('A')
   })
 })
