@@ -3,9 +3,9 @@
  * 14 写方法全部 captureForUndo; 复合动作 beginBatch/endBatch。
  */
 
-import { db, nextTableId, nextCourseId } from './db'
+import { db, nextTableId, nextCourseId, nextPeriodTableId } from './db'
 import { undoManager } from './undoStore'
-import type { Course, Table } from './types'
+import type { Course, PeriodTable, Table } from './types'
 import { DEFAULT_TIME_JSON, reclaimUnusedEdgeNodes, remapCourseNodes, timeToNode } from '../domain/timeTable'
 import i18next from 'i18next'
 import { pruneConflictDefaultTop } from '../domain/conflictLayout'
@@ -46,6 +46,74 @@ export async function countCourses(tableId: number): Promise<number> {
 }
 
 // ---- 写 (14 方法, 全部 captureForUndo) ---------------------------------
+
+// ---- 作息表 (issue#40 v8: PeriodTableDao 1:1) ---------------------------
+
+/** 读: 全部独立作息表 (createdAt 升序 — Android PeriodTableDao.getAll 同序) */
+export async function loadPeriodTables(): Promise<PeriodTable[]> {
+  return db.periodTables.orderBy('createdAt').toArray()
+}
+
+/** 读: 单张独立作息表 */
+export async function getPeriodTable(id: number): Promise<PeriodTable | undefined> {
+  return db.periodTables.get(id)
+}
+
+/** 15. insertPeriodTable — 新建/导入独立作息表 */
+export async function insertPeriodTable(pt: Omit<PeriodTable, 'id'> & { id?: number }): Promise<number> {
+  await undoManager.capture('insertPeriodTable')
+  const id = pt.id && pt.id > 0 ? pt.id : await nextPeriodTableId()
+  await db.periodTables.put({ ...pt, id })
+  return id
+}
+
+/** 16. updatePeriodTable — 编辑保存 */
+export async function updatePeriodTable(pt: PeriodTable): Promise<void> {
+  await undoManager.capture('updatePeriodTable')
+  await db.periodTables.put({ ...pt, updatedAt: Date.now() })
+}
+
+/** 17. deletePeriodTable — 删除 (绑定该表的课表 periodTableId 置 null, 不删课表) */
+export async function deletePeriodTable(id: number): Promise<void> {
+  await undoManager.capture('deletePeriodTable')
+  await db.transaction('rw', db.periodTables, db.timetables, async () => {
+    await db.periodTables.delete(id)
+    await db.timetables.where('periodTableId').equals(id).modify({ periodTableId: null })
+  })
+}
+
+/** 18. bindPeriodTable — 课表绑定独立作息表 (单向写: 只改 periodTableId,
+ *  不动 Table.nodeCount/timeJson/smartConfigJson — 节点数据由 hydratedWith 在读路径投影,
+ *  与 Android bindPeriodTable 单向语义 1:1: 绑定不触碰课程节次) */
+export async function bindPeriodTable(tableId: number, periodTableId: number | null): Promise<void> {
+  await undoManager.capture('bindPeriodTable')
+  const table = await db.timetables.get(tableId)
+  if (!table) return
+  await db.timetables.put({ ...table, periodTableId: periodTableId ?? null })
+}
+
+/** 19. savePeriodTableForTable — 从课表当前 timeJson 另存为新独立作息表 */
+export async function savePeriodTableForTable(
+  tableId: number,
+  name: string
+): Promise<number> {
+  await undoManager.capture('savePeriodTableForTable')
+  const table = await db.timetables.get(tableId)
+  if (!table) return -1
+  const now = Date.now()
+  const id = await nextPeriodTableId()
+  await db.periodTables.put({
+    id,
+    name,
+    nodesPerDay: table.nodeCount,
+    timeJson: table.timeJson,
+    smartConfigJson: table.smartConfigJson ?? '',
+    createdAt: now,
+    updatedAt: now,
+  })
+  return id
+}
+
 
 /** 1. insertTable */
 export async function insertTable(table: Omit<Table, 'id'> & { id?: number }): Promise<number> {

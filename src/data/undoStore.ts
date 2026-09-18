@@ -10,18 +10,20 @@
  *   "本动作开始前"的库态 — 每个用户动作的撤回点 = 该动作自己开始前, 动作链上不跳步。
  * - restoring 抑制恢复动作自身的捕获, 防止 undo 生成新的 undo
  * - 快照含 defaultTableId: 撤回恢复默认表指向 (isDefault 随快照回滚)
+ * - v8 扩展: 快照覆盖 period_tables — 恢复顺序 periodTables→time_tables→courses
  * - App 进程被杀快照即失效(不落盘) — web 同为内存态
  *
- * Web 端实现: Zustand store 存单槽全量快照 (数据库全量 {tables, courses} 深拷贝)。
+ * Web 端实现: Zustand store 存单槽全量快照 (数据库全量 {periodTables, tables, courses} 深拷贝)。
  * 数据量级 (一张表几百门课) 全量快照开销可忽略, 与 Android UndoManager 语义一致。
  */
 
 import { create } from 'zustand'
 import { db } from './db'
-import type { Course, Table } from './types'
+import type { Course, PeriodTable, Table } from './types'
 
 /** 全量数据库快照 */
 interface Snapshot {
+  periodTables: PeriodTable[]
   tables: Table[]
   courses: Course[]
 }
@@ -65,6 +67,7 @@ export const useUndoStore = create<UndoState & UndoActions>((set, get) => ({
       set({ batchCaptured: true })
     }
     const snapshot: Snapshot = {
+      periodTables: await db.periodTables.toArray(),
       tables: await db.timetables.toArray(),
       courses: await db.courses.toArray(),
     }
@@ -88,7 +91,10 @@ export const useUndoStore = create<UndoState & UndoActions>((set, get) => ({
     set({ restoring: true })
     try {
       // isDefault 是 Table 字段本身 — 全量重插即恢复默认表指向 (Android setDefault 同效)
-      await db.transaction('rw', db.timetables, db.courses, async () => {
+      // 恢复顺序与 Android ScheduleRepository.restore 1:1: periodTables → time_tables → courses
+      await db.transaction('rw', db.periodTables, db.timetables, db.courses, async () => {
+        await db.periodTables.clear()
+        await db.periodTables.bulkPut(slot.periodTables)
         await db.timetables.clear()
         await db.timetables.bulkPut(slot.tables)
         await db.courses.clear()
