@@ -19,14 +19,15 @@ import { ReminderPage } from './mine/ReminderPage'
 import { AboutPage } from './mine/AboutPage'
 import { LicensePage } from './mine/LicensePage'
 import { AllTablesPage } from './mine/AllTablesPage'
+import { PeriodTablesPage } from './mine/PeriodTablesPage'
 import { CustomThemeEditorView } from './mine/CustomThemeEditorView'
 
 type Page =
   | 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder' | 'license'
-  | 'customTheme'
+  | 'customTheme' | 'periodTables'
 
 /** MineView 自己拥有的返回层 — popstate 只在这些 key 弹出时收回页面状态 */
-const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'about', 'reminder', 'license'])
+const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'periodTables', 'about', 'reminder', 'license'])
 
 /** 刷新/直达恢复: 栈链栈顶 → 初始 page (App 挂载 effect 同步 restoreChain 重建历史) */
 export function minePageFromHash(hash: string): Page {
@@ -39,6 +40,7 @@ export function minePageFromHash(hash: string): Page {
     case 'about': return 'about'
     case 'license': return 'license'
     case 'reminder': return 'reminder'
+    case 'periodTables': return 'periodTables'
     default: return 'main'
   }
 }
@@ -56,6 +58,7 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
     if (key === 'holiday') setPage('general')
     else if (key === 'customTheme') setPage('appearance')
     else if (key === 'license') setPage('about')
+    else if (key === 'periodTableEdit') setPage('periodTables')
     else if (MINE_KEYS.has(key ?? '')) setPage('main')
   }), [])
 
@@ -97,6 +100,8 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
       return <ExportView onBack={() => backTo('main')} />
     case 'alltables':
       return <AllTablesPage onBack={() => backTo('main')} />
+    case 'periodTables':
+      return <PeriodTablesPage onBack={() => backTo('main')} />
     case 'about':
       return <AboutPage onBack={() => backTo('main')} onOpenLicense={() => go('license', 'license')} />
     case 'license':
@@ -111,6 +116,7 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
           onOpenAppearance={() => go('appearance', 'appearance')}
           onOpenExport={() => go('export', 'export')}
           onOpenAllTables={() => go('alltables', 'allTables')}
+          onOpenPeriodTables={() => go('periodTables', 'periodTables')}
           onOpenAbout={() => go('about', 'about')}
           onOpenReminder={() => go('reminder', 'reminder')}
         />
