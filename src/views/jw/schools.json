@@ -2804,5 +2804,38 @@
       "bupt"
     ],
     "sortKeyFull": "beijingyoudiandaxuexinjiaowu"
+  },
+  {
+    "sortKey": "G",
+    "name": "广西农业职业技术大学",
+    "url": "https://jwxt.gxnzd.com.cn/jwglxt/xtgl/login_slogin.html",
+    "type": "zf_new",
+    "aliases": [
+      "gxnzd"
+    ],
+    "sortKeyFull": "guangxinongyezhiyejishudaxue"
+  },
+  {
+    "sortKey": "X",
+    "name": "西南交通大学",
+    "url": "https://yhxt.swjtu.edu.cn/",
+    "type": "yethan",
+    "aliases": [
+      "swjtu",
+      "yethan"
+    ],
+    "sortKeyFull": "xinanjiaotongdaxue"
+  },
+  {
+    "sortKey": "X",
+    "name": "新疆大学",
+    "url": "https://yjspy.xju.edu.cn/Gstudent/Default.aspx",
+    "type": "xju_post",
+    "status": "grad_supported",
+    "aliases": [
+      "xju",
+      "yjspy.xju.edu.cn"
+    ],
+    "sortKeyFull": "xinjiangdaxue"
   }
 ]

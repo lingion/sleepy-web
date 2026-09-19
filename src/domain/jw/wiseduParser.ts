@@ -129,3 +129,46 @@ export function weekRuns(skzc: string): Array<[number, number, number]> {
   }
   return runs.map(([a, b]) => [a, b, 0] as [number, number, number])
 }
+
+// ── JwWhutParser (whut) — Kotlin JwWhutParser.kt 1:1 ─────────────────────
+// 金智 jwapp 变体: 主通道 wdkbby 微应用 (datas.cxxszhxqkb.rows), 节次 DM
+// 6/7/13 缺位需映射物理节次; 表外 DM 原值直通禁丢行。
+
+/** WHUT 节次 DM → 物理节次 (1..13); 序列 1..5, 8..12, 14..16 (6/7/13 缺位) */
+export const WHUT_SECTION_DM_TO_NODE: Readonly<Record<number, number>> = {
+  1: 1, 2: 2, 3: 3, 4: 4, 5: 5,
+  8: 6, 9: 7, 10: 8, 11: 9, 12: 10,
+  14: 11, 15: 12, 16: 13,
+}
+
+export function mapWhutSectionDm(dm: number): number {
+  return WHUT_SECTION_DM_TO_NODE[dm] ?? dm
+}
+
+export class JwWhutParser extends JwWiseduParser {
+  protected readonly moduleNames = ['cxxszhxqkb', 'cxxskcb', 'xskcb']
+
+  protected override mapSection(dm: number): number {
+    return mapWhutSectionDm(dm)
+  }
+
+  /** cxxszhxqkb=96; cxxskcb.do=95; cxxskcb=90; xskcb.do=90; datas.xskcb=80; wdkb=100 */
+  override confidence(): number {
+    const s = this.source
+    if (s.includes('cxxszhxqkb')) return 96
+    if (s.includes('cxxskcb.do')) return 95
+    if (s.includes('cxxskcb')) return 90
+    if (s.includes('xskcb.do')) return 90
+    if (s.includes('datas.xskcb')) return 80
+    if (s.includes('/jwapp/sys/wdkb/')) return 100
+    return 0
+  }
+
+  override matchedFeatures(): string[] {
+    const f = super.matchedFeatures()
+    if (this.source.includes('cxxszhxqkb')) f.push('wdkbby/cxxszhxqkb.do')
+    if (this.source.includes('cxxskcb.do')) f.push('kcbcxby/cxxskcb.do')
+    if (this.source.includes('cxxskcb')) f.push('datas.cxxskcb.rows')
+    return f
+  }
+}

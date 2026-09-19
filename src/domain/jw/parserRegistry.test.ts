@@ -23,8 +23,12 @@ describe('parserFor — 显式分发', () => {
     expect((p1 as JwOldZfParser).zfType).toBe(1)
   })
 
+  it('eams5 → JwEams5Parser', () => {
+    expect(parserFor('eams5', '<html/>').constructor.name).toBe('JwEams5Parser')
+  })
+
   it('未注册协议 → 抛 "协议 X 暂不支持"', () => {
-    expect(() => parserFor('eams5', '<html/>')).toThrow('协议 eams5 暂不支持')
+    expect(() => parserFor('not_registered', '<html/>')).toThrow('协议 not_registered 暂不支持')
   })
 })
 

@@ -15,6 +15,22 @@ import { JwQzCrazyParser, JwQzBrParser, JwQzWithNodeParser, JwOldQzParser } from
 import { JwChengFangParser, JwPekingParser, JwBnuzParser, JwUrpParser, JwNewUrpParser, JwHnustParser } from './miscParsers'
 import { JwWiseduParser } from './wiseduParser'
 import { JwQzAppParser } from './qzAppParser'
+import { JwEams5Parser } from './eams5Parser'
+import { JwClassicEamsParser } from './classicEamsParser'
+import { JwBoyaPpParser } from './boyaPpParser'
+import { JwBjtuParser } from './bjtuParser'
+import { JwChaoxingParser } from './chaoxingParser'
+import { JwCquParser } from './cquParser'
+import { JwSeuParser } from './seuParser'
+import { JwZjuParser } from './zjuParser'
+import { JwUstcParser } from './ustcParser'
+import { JwScuParser } from './scuParser'
+import { JwNeuParser } from './neuParser'
+import { JwWhutParser } from './wiseduParser'
+import { JwUcasParser } from './ucasParser'
+import { JwYethanParser } from './yethanParser'
+import { JwXjuPostParser } from './xjuPostParser'
+import { JwQzIeasParser } from './qzIeasParser'
 
 export const TYPE_PRIORITY: Array<[string, number]> = [
   ['wisedu', 10],
@@ -34,6 +50,7 @@ export const TYPE_PRIORITY: Array<[string, number]> = [
   ['cf', 40],
   ['hnust', 50],
   ['hniu', 60],
+  ['whut', 65],
   ['zf', 70],
   ['zf_1', 75],
   ['urp', 80],
@@ -46,6 +63,8 @@ export const TYPE_PRIORITY: Array<[string, number]> = [
   ['qz_ieas', 140],
   ['qz_app', 141],
   ['ucas', 142],
+  ['yethan', 143],
+  ['xju_post', 144],
   ['qz_old', 145],
 ]
 
@@ -69,6 +88,22 @@ const REGISTRY = new Map<string, Factory>([
   ['qz_with_node', (h) => new JwQzWithNodeParser(h)],
   ['qz_old', (h) => new JwOldQzParser(h)],
   ['qz_app', (h) => new JwQzAppParser(h)],
+  ['eams5', (h) => new JwEams5Parser(h)],
+  ['classic_eams', (h) => new JwClassicEamsParser(h)],
+  ['boya_pp', (h) => new JwBoyaPpParser(h)],
+  ['bjtu', (h) => new JwBjtuParser(h)],
+  ['chaoxing', (h) => new JwChaoxingParser(h)],
+  ['cqu', (h) => new JwCquParser(h)],
+  ['seu', (h) => new JwSeuParser(h)],
+  ['zju', (h) => new JwZjuParser(h)],
+  ['ustc', (h) => new JwUstcParser(h)],
+  ['scu', (h) => new JwScuParser(h)],
+  ['neu', (h) => new JwNeuParser(h)],
+  ['whut', (h) => new JwWhutParser(h)],
+  ['ucas', (h) => new JwUcasParser(h)],
+  ['yethan', (h) => new JwYethanParser(h)],
+  ['xju_post', (h) => new JwXjuPostParser(h)],
+  ['qz_ieas', (h) => new JwQzIeasParser(h)],
 ])
 
 /** 兜底候选: 按 TYPE_PRIORITY 升序, 只含已注册协议 */

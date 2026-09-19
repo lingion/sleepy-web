@@ -1,0 +1,1 @@
+{ "courses": [ { "name": "体育（二）", "room": "体育馆", "teacher": "钱教练", "day": 2, "startNode": 3, "endNode": 4, "startWeek": 1, "endWeek": 15, "type": 1 } ] }

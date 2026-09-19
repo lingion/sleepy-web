@@ -41,6 +41,8 @@ export const TYPE_CHAOXING = 'chaoxing'
 export const TYPE_BOYA_PP = 'boya_pp'
 export const TYPE_WHUT = 'whut'
 export const TYPE_CLASSIC_EAMS = 'classic_eams'
+export const TYPE_YETHAN = 'yethan'
+export const TYPE_XJU_POST = 'xju_post'
 
 /** displayName(type) — JwProtocol.displayName 逐条对齐; 未知回落原始 type 串 */
 export function protocolDisplayName(type: string | null): string {
@@ -88,6 +90,10 @@ export function protocolDisplayName(type: string | null): string {
       return '合工大教务 (EAMS5)'
     case TYPE_CLASSIC_EAMS:
       return '金智教务（经典 EAMS）'
+    case TYPE_YETHAN:
+      return '西南交通大学 (逐专平台)'
+    case TYPE_XJU_POST:
+      return '西交/新疆大学教务'
     case TYPE_SEU:
       return '东南大学'
     case TYPE_ZJU:
@@ -164,6 +170,8 @@ export function detectProtocolFromUrl(url: string): string | null {
   // ①b CQU — 重庆大学统一门户
   if (RX_CQU.test(u)) return TYPE_CQU
   if (u.includes('xkgo.ucas.ac.cn') && u.includes('/course/personschedule')) return TYPE_UCAS
+  if (/^https?:\/\/yhxt\.swjtu\.edu\.cn(?:\/.*)?$/.test(u)) return TYPE_YETHAN
+  if (/^https?:\/\/yjspy\.xju\.edu\.cn(?:\/.*)?$/.test(u)) return TYPE_XJU_POST
 
   // ②b QZ_IEAS — 必须先于通用 /kbcx/
   if (

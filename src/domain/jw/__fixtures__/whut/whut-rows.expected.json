@@ -1,0 +1,7 @@
+{
+  "courses": [
+    { "name": "高等数学", "room": "南湖教1-101", "teacher": "张教授", "day": 1, "startNode": 1, "endNode": 2, "startWeek": 1, "endWeek": 16, "type": 0 },
+    { "name": "大学英语", "room": "鉴湖教2-203", "teacher": "李老师/王老师", "day": 3, "startNode": 6, "endNode": 7, "startWeek": 2, "endWeek": 16, "type": 2 },
+    { "name": "数据结构", "room": "马房山教4-302", "teacher": "赵老师", "day": 5, "startNode": 11, "endNode": 12, "startWeek": 3, "endWeek": 14, "type": 0 }
+  ]
+}
