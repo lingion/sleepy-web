@@ -141,6 +141,33 @@ export async function updatePeriodTableContent(pt: PeriodTable): Promise<number>
   return boundIds.length
 }
 
+/**
+ * 保存已绑定独立作息表的课表编辑页。
+ * 课表元数据和共享作息内容来自同一次用户保存，必须在一个事务中落库；
+ * 否则 EditTableView 的绑定分支只更新 period_tables，名称/开学日/周数会被静默丢弃。
+ */
+export async function updateBoundTableSettings(table: Table, pt: PeriodTable): Promise<void> {
+  const existing = await db.periodTables.get(pt.id)
+  if (!existing) return
+  await undoManager.capture('updateBoundTableSettings')
+  const stamped = { ...pt, updatedAt: Date.now() }
+  const boundIds = await db.timetables.where('periodTableId').equals(pt.id).primaryKeys()
+  await db.transaction('rw', db.periodTables, db.timetables, async () => {
+    await db.periodTables.put(stamped)
+    for (const id of boundIds) {
+      const bound = await db.timetables.get(id as number)
+      if (!bound) continue
+      const metadata = id === table.id ? table : bound
+      await db.timetables.put({
+        ...metadata,
+        timeJson: stamped.timeJson,
+        nodeCount: stamped.nodesPerDay,
+        smartConfigJson: stamped.smartConfigJson,
+      })
+    }
+  })
+}
+
 /** 21. copyPeriodTableAs — 复制作息表 (v1.0.56 T8: 复制先命名, 确认才落库)。
  *  返回新 id; -2 = 名被占用 (Android 同语义返回码)。 */
 export async function copyPeriodTableAs(sourceId: number, newName: string): Promise<number> {

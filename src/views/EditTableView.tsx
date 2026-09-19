@@ -16,7 +16,7 @@ import {
   countCourses,
   loadPeriodTables,
   bindPeriodTable,
-  updatePeriodTableContent,
+  updateBoundTableSettings,
 } from '../data/repository'
 import {
   parseTimeSlotRows,
@@ -161,14 +161,22 @@ export function EditTableView({
         // issue#40 §5.3: 解绑 — 只写 periodTableId=null, 课程行零改动
         await bindPeriodTable(tbl.id, null)
       } else if (effectivePeriodTable != null) {
-        // issue#40: 节次编辑区改的是共享作息表 — 写回 period_tables +
-        // 同步全部绑定课表兼容列(§5.2); 课程行零改动(§9.1)
-        await updatePeriodTableContent({
-          ...effectivePeriodTable,
-          timeJson: newTimeJson,
-          smartConfigJson: smartJson,
-          nodesPerDay: Math.max(1, newRows.length),
-        })
+        // issue#40: 节次编辑区改的是共享作息表 — 同时保存当前课表元数据，
+        // 再同步全部绑定课表兼容列(§5.2); 课程行零改动(§9.1)
+        await updateBoundTableSettings(
+          {
+            ...tbl,
+            name: trimmedName === '' ? tbl.name : trimmedName,
+            startDate: normalizeStartDate(tableStart),
+            maxWeek,
+          },
+          {
+            ...effectivePeriodTable,
+            timeJson: newTimeJson,
+            smartConfigJson: smartJson,
+            nodesPerDay: Math.max(1, newRows.length),
+          },
+        )
       } else {
         await updateTableRemappingCourses({
           ...tbl,

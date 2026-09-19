@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../data/db'
 import {
   insertTable, insertCourse, bindPeriodTable, updatePeriodTableContent,
-  getCourses, loadPeriodTables, insertPeriodTable, getTable,
+  updateBoundTableSettings, getCourses, loadPeriodTables, insertPeriodTable, getTable,
 } from '../data/repository'
 import { useUndoStore } from '../data/undoStore'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
@@ -135,5 +135,34 @@ describe('EditTableView 换绑链 — bindPeriodTable 单向写, 课程行零改
     expect(affected).toBe(0)
     const after = await getTable(tid)
     expect(after?.timeJson).toBe(before?.timeJson)
+  })
+
+  it('绑定课表编辑保存后同时持久化课表元数据和共享节次', async () => {
+    const pt = await insertPeriodTable({
+      name: '导入作息', nodesPerDay: 12, timeJson: DEFAULT_TIME_JSON,
+      smartConfigJson: '', createdAt: 0, updatedAt: 0,
+    })
+    const tid = await mkTable('导入课表', { periodTableId: pt, maxWeek: 20 })
+    const table = (await getTable(tid))!
+    const periodTable = (await loadPeriodTables())[0]
+    const editedTime = JSON.stringify([
+      { node: 1, start: '09:00', end: '09:45' },
+      { node: 2, start: '09:55', end: '10:40' },
+    ])
+
+    await updateBoundTableSettings(
+      { ...table, name: '改名后的课表', startDate: '2026-09-14', maxWeek: 24 },
+      { ...periodTable, nodesPerDay: 2, timeJson: editedTime },
+    )
+
+    const reopened = await getTable(tid)
+    const reopenedPeriod = (await loadPeriodTables())[0]
+    expect(reopened?.name).toBe('改名后的课表')
+    expect(reopened?.startDate).toBe('2026-09-14')
+    expect(reopened?.maxWeek).toBe(24)
+    expect(reopened?.timeJson).toBe(editedTime)
+    expect(reopened?.nodeCount).toBe(2)
+    expect(reopenedPeriod.timeJson).toBe(editedTime)
+    expect(reopenedPeriod.nodesPerDay).toBe(2)
   })
 })
