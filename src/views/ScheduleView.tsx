@@ -626,6 +626,8 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
                   <FullWeekView
                     courses={coursesByWeek.get(w) ?? []}
                     timeJson={defaultTable.timeJson}
+                    startDate={defaultTable.startDate}
+                    currentWeek={w}
                     greyDays={greyDaysByWeek.get(w) ?? greyDays}
                     onCourseClick={(c) => open('courseDetail', () => setDetailCourse(c))}
                   />

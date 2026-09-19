@@ -58,10 +58,7 @@ export function CardsGridView(props: CardsGridViewProps) {
     () => buildGridGeometry(courses, timeJson, dayCount, Math.max(containerWidth, 320), prefs.gridScale),
     [courses, timeJson, dayCount, containerWidth, prefs.gridScale]
   )
-  const today = useMemo(() => {
-    const jsDay = new Date().getDay() // 0=周日
-    return jsDay === 0 ? 7 : jsDay
-  }, [])
+  const today = useMemo(() => new Date(), [])
 
   const maxNode = geo.slots.length
 
@@ -95,7 +92,7 @@ export function CardsGridView(props: CardsGridViewProps) {
             <DayHeadCell
               key={day}
               day={day}
-              isToday={day === today}
+              isToday={isDateToday(dateOfWeek(startDate, currentWeek, day), today)}
               isGrey={greyDays.has(day)}
               courseCount={courses.filter((c) => c.day === day).length}
               dateStr={dayDateStr(day)}
@@ -473,6 +470,13 @@ export function dateOfWeek(startDate: string, week: number, day: number): Date |
 
 export function shortDate(d: Date): string {
   return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+/** Compare calendar dates, ignoring time-of-day. */
+export function isDateToday(date: Date | null, today = new Date()): boolean {
+  return date != null && date.getFullYear() === today.getFullYear()
+    && date.getMonth() === today.getMonth()
+    && date.getDate() === today.getDate()
 }
 
 export { parseHex }

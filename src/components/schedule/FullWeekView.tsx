@@ -12,16 +12,19 @@ import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
 import { weekLaneRows } from '../../domain/conflictLayout'
 import { courseTimeParts } from '../../domain/timeTable'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
-import { localizedDay } from './CardsGridView'
+import { dateOfWeek, isDateToday, localizedDay } from './CardsGridView'
 
 export interface FullWeekViewProps {
   courses: Course[]
   timeJson: string
+  /** 学期开始周一和当前周，用于只高亮真实今天 */
+  startDate: string
+  currentWeek: number
   greyDays?: Set<number>
   onCourseClick?: (c: Course) => void
 }
 
-export function FullWeekView({ courses, timeJson, greyDays = new Set(), onCourseClick }: FullWeekViewProps) {
+export function FullWeekView({ courses, timeJson, startDate, currentWeek, greyDays = new Set(), onCourseClick }: FullWeekViewProps) {
   const prefs = usePrefsStore((s) => s.prefs)
   const scale = prefs.weekScale
   const cornerRatio = prefs.gridCornerRatio
@@ -38,10 +41,8 @@ export function FullWeekView({ courses, timeJson, greyDays = new Set(), onCourse
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-  const today = useMemo(() => {
-    const jsDay = new Date().getDay()
-    return jsDay === 0 ? 7 : jsDay
-  }, [])
+  const today = useMemo(() => new Date(), [])
+  const todayDay = today.getDay() === 0 ? 7 : today.getDay()
 
   const byDay = useMemo(() => {
     const m = new Map<number, Course[]>()
@@ -70,7 +71,7 @@ export function FullWeekView({ courses, timeJson, greyDays = new Set(), onCourse
               key={day}
               day={day}
               courses={byDay.get(day) ?? []}
-              isToday={day === today}
+              isToday={isDateToday(dateOfWeek(startDate, currentWeek, day), today)}
               isGrey={greyDays.has(day)}
               useAlias={prefs.weekUseAlias}
               scale={scale}
@@ -83,7 +84,7 @@ export function FullWeekView({ courses, timeJson, greyDays = new Set(), onCourse
       <DetailPanel
         byDay={byDay}
         sortedDays={sortedDays}
-        today={today}
+        todayDay={todayDay}
         timeJson={timeJson}
         greyDays={greyDays}
         onCourseClick={onCourseClick}
@@ -199,7 +200,7 @@ function DaySummaryCell({
 function DetailPanel({
   byDay,
   sortedDays,
-  today,
+  todayDay,
   timeJson,
   greyDays,
   onCourseClick,
@@ -209,7 +210,7 @@ function DetailPanel({
 }: {
   byDay: Map<number, Course[]>
   sortedDays: number[]
-  today: number
+  todayDay: number
   timeJson: string
   greyDays: Set<number>
   onCourseClick?: (c: Course) => void
@@ -250,7 +251,7 @@ function DetailPanel({
         <DayColumn
           days={split[0]}
           byDay={byDay}
-          today={today}
+          todayDay={todayDay}
           timeJson={timeJson}
           greyDays={greyDays}
           onCourseClick={onCourseClick}
@@ -263,7 +264,7 @@ function DetailPanel({
           <DayColumn
             days={split[1]}
             byDay={byDay}
-            today={today}
+            todayDay={todayDay}
             timeJson={timeJson}
             greyDays={greyDays}
             onCourseClick={onCourseClick}
@@ -294,7 +295,7 @@ function DetailPanel({
           key={day}
           day={day}
           courses={(byDay.get(day) ?? []).slice().sort((a, b) => a.startNode - b.startNode)}
-          isToday={day === today}
+          isToday={day === todayDay}
           timeJson={timeJson}
           isGrey={greyDays.has(day)}
           onCourseClick={onCourseClick}
@@ -311,7 +312,7 @@ function DetailPanel({
 function DayColumn({
   days,
   byDay,
-  today,
+  todayDay,
   timeJson,
   greyDays,
   onCourseClick,
@@ -321,7 +322,7 @@ function DayColumn({
 }: {
   days: number[]
   byDay: Map<number, Course[]>
-  today: number
+  todayDay: number
   timeJson: string
   greyDays: Set<number>
   onCourseClick?: (c: Course) => void
@@ -347,7 +348,7 @@ function DayColumn({
           key={day}
           day={day}
           courses={(byDay.get(day) ?? []).slice().sort((a, b) => a.startNode - b.startNode)}
-          isToday={day === today}
+          isToday={day === todayDay}
           timeJson={timeJson}
           isGrey={greyDays.has(day)}
           onCourseClick={onCourseClick}
