@@ -3,7 +3,7 @@
  * 双层架构: 时间栏 (renderSlots 逐行) + 课程卡绝对定位 (非簇单卡 + 冲突簇整簇)。
  */
 
-import { useMemo } from 'react'
+import { useMemo, useRef, type TouchEvent, type WheelEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Course } from '../../data/types'
 import { usePrefsStore } from '../../state/prefsStore'
@@ -12,6 +12,7 @@ import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domai
 import { timeToFractionalRows } from '../../domain/timeTable'
 import { buildGridGeometry, singleCardGeom, slotIndexOf, yOfRows, rowHeightAt } from './gridGeometry'
 import { GridClusterCard } from './GridClusterCard'
+import { periodHeaderLines, type PeriodHeaderLayout, type PeriodHeaderStyle } from './periodHeader'
 
 export interface CardsGridViewProps {
   courses: Course[]
@@ -55,10 +56,43 @@ export function CardsGridView(props: CardsGridViewProps) {
   )
   const dayCount = Math.max(1, sortedDays.length)
   const geo = useMemo(
-    () => buildGridGeometry(courses, timeJson, dayCount, Math.max(containerWidth, 320), prefs.gridScale),
-    [courses, timeJson, dayCount, containerWidth, prefs.gridScale]
+    () => buildGridGeometry(
+      courses,
+      timeJson,
+      dayCount,
+      Math.max(containerWidth, 320),
+      prefs.gridScale,
+      {
+        adaptiveHeight: prefs.gridAdaptiveHeight,
+        availableHeight: typeof window === 'undefined' ? undefined : Math.max(0, window.innerHeight - 180),
+        autoHideEmptyEvening: prefs.gridAutoHideEmptyEvening,
+        eveningStart: prefs.gridEveningStart,
+        rowScale: prefs.gridPinchZoom ? prefs.gridRowScale : 1,
+      },
+    ),
+    [courses, timeJson, dayCount, containerWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale]
   )
   const today = useMemo(() => new Date(), [])
+  const updatePrefs = usePrefsStore((s) => s.update)
+  const pinch = useRef<{ distance: number } | null>(null)
+  const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (!prefs.gridPinchZoom || event.touches.length !== 2) return
+    pinch.current = { distance: Math.abs(event.touches[0].clientY - event.touches[1].clientY) }
+  }
+  const onTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (!prefs.gridPinchZoom || !pinch.current || event.touches.length !== 2) return
+    const distance = Math.abs(event.touches[0].clientY - event.touches[1].clientY)
+    const delta = (distance - pinch.current.distance) / 180
+    if (Math.abs(delta) < 0.03) return
+    pinch.current.distance = distance
+    void updatePrefs({ gridRowScale: prefs.gridRowScale + delta })
+  }
+  const onTouchEnd = () => { pinch.current = null }
+  const onWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (!prefs.gridPinchZoom || !event.ctrlKey) return
+    event.preventDefault()
+    void updatePrefs({ gridRowScale: prefs.gridRowScale - event.deltaY / 800 })
+  }
 
   const maxNode = geo.slots.length
 
@@ -74,7 +108,12 @@ export function CardsGridView(props: CardsGridViewProps) {
 
   return (
     <div
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onWheel={onWheel}
       style={{
+        touchAction: prefs.gridPinchZoom ? 'pan-x pan-y' : undefined,
         background: 'var(--md-surface-container-high)',
         // Android: SleepyTheme.shapes.large = 固定 16dp (Theme.kt:286), 不乘 scale;
         // 旧值 28 * gridScale 是错的 (审计 medium #17)
@@ -120,7 +159,15 @@ export function CardsGridView(props: CardsGridViewProps) {
                 alignItems: 'stretch',
               }}
             >
-              <SingleTimeHeadCell slot={slot} scale={prefs.gridScale} cornerRatio={prefs.gridCornerRatio} />
+              <SingleTimeHeadCell
+                slot={slot}
+                scale={prefs.gridScale}
+                cornerRatio={prefs.gridCornerRatio}
+                layout={prefs.periodHeaderLayout}
+                style={prefs.periodHeaderStyle}
+                hanging={prefs.periodHeaderHanging}
+                showX={prefs.periodHeaderShowX}
+              />
             </div>
           ))}
 
@@ -214,14 +261,23 @@ function SingleTimeHeadCell({
   slot,
   scale,
   cornerRatio,
+  layout,
+  style,
+  hanging,
+  showX,
 }: {
-  slot: { label: string; displayStart: string; displayEnd: string; isPlaceholder?: boolean }
+  slot: { label: string; displayStart: string; displayEnd: string; nodeStart?: number; nodeEnd?: number; isPlaceholder?: boolean }
   scale: number
   cornerRatio: number
+  layout: PeriodHeaderLayout
+  style: PeriodHeaderStyle
+  hanging: number
+  showX: boolean
 }) {
   const isPh = !!slot.isPlaceholder
+  const hangingOffset = hanging * 10 * scale
   return (
-    <div style={{ width: 68 * scale, padding: 2 * scale, display: 'flex' }}>
+    <div style={{ width: 68 * scale, padding: 2 * scale, display: 'flex' }} data-period-header-hanging={hanging}>
       <div
         style={{
           flex: 1,
@@ -234,22 +290,23 @@ function SingleTimeHeadCell({
           justifyContent: 'center',
           gap: 1 * scale,
           overflow: 'hidden',
+          transform: layout === 'three_line' ? `translateX(${hangingOffset}px)` : undefined,
         }}
       >
-        {!isPh && (
+        {!isPh && periodHeaderLines(slot, layout, style, showX).map((line, index) => (
           <span
+            key={line}
             className="m3-label-small"
-            style={{ fontWeight: 600, fontSize: 10 * scale, lineHeight: `${14 * scale}px`, color: 'var(--md-on-surface)' }}
+            style={{
+              fontWeight: index === 1 || layout === 'legacy' && index === 0 ? 600 : undefined,
+              fontSize: (index === 1 || layout === 'legacy' && index === 0 ? 10 : 9) * scale,
+              lineHeight: `${(index === 1 || layout === 'legacy' && index === 0 ? 14 : 11) * scale}px`,
+              color: index === 1 || layout === 'legacy' && index === 0 ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)',
+            }}
           >
-            第 {slot.label} 节
+            {line}
           </span>
-        )}
-        <span
-          className="m3-label-small"
-          style={{ fontSize: 9 * scale, lineHeight: `${11 * scale}px`, color: 'var(--md-on-surface-variant)' }}
-        >
-          {slot.displayStart}-{slot.displayEnd}
-        </span>
+        ))}
       </div>
     </div>
   )
@@ -282,9 +339,9 @@ export function CourseOverlayCard({
   border?: string
 }) {
   const prefs = usePrefsStore((s) => s.prefs)
-  const neutral = prefs.themeMode === 'dark' ? '#49454F' : '#E7E0EC'
+  const neutral = 'var(--md-surface-container-lowest)'
   // CourseColorUtil.pickCourseColorComposeWithGroupRows 同源取色
-  const bg = pickCourseColorWithGroupRows(course, groupRows, prefs.themeMode === 'dark', neutral, false)
+  const bg = pickCourseColorWithGroupRows(course, groupRows, prefs.themeMode === 'dark', neutral, prefs.courseColorless)
   const onSurface = prefs.themeMode === 'dark' ? '#E6E0E9' : '#1D1B20'
   const fg = textColorOnHex(bg, prefs.themeMode === 'dark', onSurface)
   const subInfo = prefs.gridSubInfo

@@ -5,7 +5,7 @@
 
 import type { Course } from '../../data/types'
 import type { RenderSlotPlan, TimeSlot } from '../../domain/timeTable'
-import { buildRenderSlotPlan, timeToFractionalRows } from '../../domain/timeTable'
+import { buildRenderSlotPlan, parseHM, timeToFractionalRows } from '../../domain/timeTable'
 
 /** 布局常量 (scale=1) — CourseTableView.kt L160-165 */
 export const GRID = {
@@ -36,11 +36,29 @@ export function buildGridGeometry(
   timeJson: string,
   dayCount: number,
   containerWidth: number,
-  scale: number
+  scale: number,
+  options: { adaptiveHeight?: boolean; availableHeight?: number; autoHideEmptyEvening?: boolean; eveningStart?: string; rowScale?: number } = {},
 ): GridGeometry {
   const d = (v: number) => v * scale
-  const plan = buildRenderSlotPlan(courses, timeJson)
-  const rowH = d(GRID.slotH) + d(GRID.gapH)
+  const fullPlan = buildRenderSlotPlan(courses, timeJson)
+  const firstEvening = options.autoHideEmptyEvening
+    ? fullPlan.slots.findIndex((slot) => parseHM(slot.start) >= parseHM(options.eveningStart || '18:00'))
+    : -1
+  const evening = parseHM(options.eveningStart || '18:00')
+  const hasEveningCourse = options.autoHideEmptyEvening && courses.some((course) => {
+    const end = course.ownTime && course.endTime
+      ? parseHM(course.endTime)
+      : parseHM(fullPlan.slots.find((item) => item.nodeStart === course.startNode + Math.max(1, course.step) - 1)?.end || '')
+    return Number.isFinite(end) && end > evening
+  })
+  const plan = firstEvening >= 0 && !hasEveningCourse
+    ? { slots: fullPlan.slots.slice(0, firstEvening), slotWeights: fullPlan.slotWeights?.slice(0, firstEvening) ?? null }
+    : fullPlan
+  const fit = options.adaptiveHeight && options.availableHeight
+    ? Math.min(96, Math.max(36, options.availableHeight / Math.max(1, plan.slots.reduce((sum, _, i) => sum + (plan.slotWeights?.[i] ?? 1), 0))))
+    : GRID.slotH
+  const rowScale = Math.min(1.8, Math.max(0.7, options.rowScale ?? 1))
+  const rowH = d(fit * rowScale) + d(GRID.gapH)
   const timeW = d(GRID.timeW)
   const gapW = d(GRID.gapW)
   const colW = (containerWidth - timeW - gapW * (dayCount + 1)) / dayCount

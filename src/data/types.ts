@@ -193,12 +193,24 @@ export interface Prefs {
   holidayIgnoreWorkday: boolean
   /** 实验室: 网格视图自适应行高 — 默认 false (AppPrefs KEY_GRID_ADAPTIVE_HEIGHT) */
   gridAdaptiveHeight: boolean
-  /** 实验室: 网格视图双指捏放行高 — 默认 false, 关=手势不挂 (AppPrefs KEY_GRID_PINCH_ZOOM) */
+  /** 实验室: 网格视图双指/滚轮捏放行高 — 默认 false */
   gridPinchZoom: boolean
+  /** 网格行高缩放持久化值 — Android gridRowScale 同源 */
+  gridRowScale: number
+  /** 今日无课时跳到最近有课日 — Android nearestBusyDay 同源 */
+  nearestBusyDay: boolean
   /** 实验室: 全学期无晚课自动收起晚间节次 — 默认 false (AppPrefs KEY_GRID_AUTO_HIDE_EMPTY_EVENING) */
   gridAutoHideEmptyEvening: boolean
   /** 实验室: 晚间起始时间 "HH:mm" — 默认 18:00 (AppPrefs KEY_GRID_EVENING_START) */
   gridEveningStart: string
+  /** 时间栏节次表头布局 */
+  periodHeaderLayout: 'legacy' | 'three_line'
+  /** 节次表头编号样式: arabic/chinese/financial/circled/roman */
+  periodHeaderStyle: 'arabic' | 'chinese' | 'financial' | 'circled' | 'roman'
+  /** 三行表头中间编号相对时间列的悬挂量 [-1, 1] */
+  periodHeaderHanging: number
+  /** 单节时显示完整“第 X 节” */
+  periodHeaderShowX: boolean
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -236,8 +248,14 @@ export const DEFAULT_PREFS: Prefs = {
   holidayIgnoreWorkday: true,
   gridAdaptiveHeight: false,
   gridPinchZoom: false,
+  gridRowScale: 1,
+  nearestBusyDay: false,
   gridAutoHideEmptyEvening: false,
   gridEveningStart: '18:00',
+  periodHeaderLayout: 'legacy',
+  periodHeaderStyle: 'arabic',
+  periodHeaderHanging: 0,
+  periodHeaderShowX: false,
 }
 
 /** inWeek(week) — CourseEntity.kt L125-134 1:1 */

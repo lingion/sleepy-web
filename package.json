@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "check:public": "node -e \"const fs=require('node:fs'); if (!fs.existsSync('public/schedule.sleepy')) { console.error('Missing public/schedule.sleepy: copy your Android-exported .sleepy file there before building.'); process.exit(1) }\"",
+    "public:key-hash": "node -e \"const crypto=require('node:crypto'); const key=process.argv[1]; if (!key) { console.error('Usage: npm run public:key-hash -- <access-key>'); process.exit(1) } console.log(crypto.createHash('sha256').update(key).digest('hex'))\"",
+    "build:public": "npm run check:public && tsc -b && VITE_PUBLIC_SCHEDULE_PATH=/schedule.sleepy BASE_PATH=/ vite build --mode public",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

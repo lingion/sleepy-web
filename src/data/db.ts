@@ -11,6 +11,7 @@
 import Dexie, { type Table as DexieTable } from 'dexie'
 import type { Course, PeriodTable, Table as TimetableEntity, Prefs } from './types'
 import { DEFAULT_PREFS } from './types'
+import { normalizePeriodHeaderLayout, normalizePeriodHeaderStyle, clampPeriodHeaderHanging } from '../components/schedule/periodHeader'
 
 /** 偏好存取行 — 单行 key/value, key='prefs' */
 interface PrefsRow {
@@ -69,7 +70,17 @@ export async function loadPrefs(): Promise<Prefs> {
   const row = await db.prefs.get('prefs')
   if (!row) return { ...DEFAULT_PREFS }
   try {
-    return { ...DEFAULT_PREFS, ...JSON.parse(row.value) }
+    const parsed = JSON.parse(row.value)
+    return {
+      ...DEFAULT_PREFS,
+      ...parsed,
+      periodHeaderLayout: normalizePeriodHeaderLayout(parsed.periodHeaderLayout),
+      periodHeaderStyle: normalizePeriodHeaderStyle(parsed.periodHeaderStyle),
+      periodHeaderHanging: clampPeriodHeaderHanging(Number(parsed.periodHeaderHanging)),
+      periodHeaderShowX: parsed.periodHeaderShowX === true,
+      gridRowScale: Math.min(1.8, Math.max(0.7, Number(parsed.gridRowScale) || DEFAULT_PREFS.gridRowScale)),
+      nearestBusyDay: parsed.nearestBusyDay === true,
+    }
   } catch {
     return { ...DEFAULT_PREFS }
   }

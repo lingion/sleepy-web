@@ -43,6 +43,38 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
         onSelect={(i) => void update({ displayMode: i === 0 ? 'node' : 'time' })}
       />
 
+      <FlatCard
+        title={t('settings_period_header_layout', '节次表头布局')}
+        options={[t('settings_period_header_legacy', '旧式'), t('settings_period_header_three_line', '三行')]}
+        selectedKey={prefs.periodHeaderLayout === 'three_line' ? 1 : 0}
+        onSelect={(i) => void update({ periodHeaderLayout: i === 1 ? 'three_line' : 'legacy' })}
+      />
+
+      <FlatCard
+        title={t('settings_period_header_style', '节次编号样式')}
+        options={['1 2 3', '一 二 三', '壹 贰 叁', '① ② ③', 'Ⅰ Ⅱ Ⅲ']}
+        selectedKey={['arabic', 'chinese', 'financial', 'circled', 'roman'].indexOf(prefs.periodHeaderStyle)}
+        onSelect={(i) => void update({ periodHeaderStyle: (['arabic', 'chinese', 'financial', 'circled', 'roman'] as const)[i] })}
+      />
+
+      <ToggleRow
+        label={t('settings_period_header_show_x', '单节显示“第 X 节”')}
+        checked={prefs.periodHeaderShowX}
+        onChange={(v) => void update({ periodHeaderShowX: v })}
+      />
+
+      {prefs.periodHeaderLayout === 'three_line' && (
+        <SliderRow
+          label={t('settings_period_header_hanging', '三行表头悬挂对齐')}
+          value={prefs.periodHeaderHanging}
+          min={-1}
+          max={1}
+          step={0.1}
+          format={(v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`}
+          onChange={(v) => void update({ periodHeaderHanging: v })}
+        />
+      )}
+
       {/* 网格卡片副信息: 教室/教师/无 */}
       <FlatCard
         title={t('settings_grid_sub_info')}

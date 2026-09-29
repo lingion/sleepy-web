@@ -12,6 +12,7 @@ import { CUSTOM_KEY_PREFIX, getAllThemes, type CustomTheme } from '../../data/cu
 import { SleepyLogo } from '../../components/icons'
 import type { Prefs } from '../../data/types'
 import { SettingsScaffold, SectionHeader, CheckIcon } from './shared'
+import { periodHeaderLines, type PeriodHeaderStyle } from '../../components/schedule/periodHeader'
 
 
 export function AppearancePage({ onBack, onOpenThemeEditor }: { onBack: () => void; onOpenThemeEditor?: (id: string | null) => void }) {
@@ -113,6 +114,39 @@ export function AppearancePage({ onBack, onOpenThemeEditor }: { onBack: () => vo
         {(Object.keys(THEME_PRESETS).length + customThemes.length + 1) % 2 === 1 && (
           <div style={{ flex: '1 1 calc(50% - 6px)' }} aria-hidden />
         )}
+      </div>
+
+      <SectionHeader title={t('settings_period_header_style', '节次表头')} />
+      <div className="m3-card" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}>
+        <div className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>Android 同源预览</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {(['arabic', 'chinese', 'financial', 'circled', 'roman'] as PeriodHeaderStyle[]).map((style) => (
+            <button
+              key={style}
+              type="button"
+              onClick={() => void update({ periodHeaderStyle: style })}
+              style={{
+                minWidth: 82,
+                minHeight: 58,
+                padding: '8px 10px',
+                borderRadius: 12,
+                border: '1px solid var(--md-outline-variant)',
+                background: prefs.periodHeaderStyle === style ? 'var(--md-primary-container)' : 'var(--md-surface-container-low)',
+                color: 'var(--md-on-surface)',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>08:00</div>
+              <div style={{ fontWeight: 600 }}>{periodHeaderLines({ label: '1', displayStart: '08:00', displayEnd: '08:45' }, prefs.periodHeaderLayout, style, prefs.periodHeaderShowX)[1]}</div>
+              <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>08:45</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" onClick={() => void update({ periodHeaderLayout: 'legacy' })} className="m3-label-large">旧式</button>
+          <button type="button" onClick={() => void update({ periodHeaderLayout: 'three_line' })} className="m3-label-large">三行</button>
+          <button type="button" onClick={() => void update({ periodHeaderShowX: !prefs.periodHeaderShowX })} className="m3-label-large">{prefs.periodHeaderShowX ? '隐藏第 X 节' : '显示第 X 节'}</button>
+        </div>
       </div>
 
       {/* 外观模式三态分段 — clip(shapes.medium)=12dp 外层 */}

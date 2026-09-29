@@ -16,6 +16,7 @@ import { ScheduleView } from './views/ScheduleView'
 import { TodayView } from './views/TodayView'
 import { ManageView } from './views/ManageView'
 import { MineView } from './views/MineView'
+import { publicScheduleEnabled } from './publicSchedule'
 
 type Tab = TabKey
 
@@ -30,6 +31,7 @@ const TAB_ICONS: Record<Tab, (p: { size?: number }) => JSX.Element> = {
 export function App() {
   const { t } = useTranslation()
   const navDock = usePrefsStore((s) => s.prefs.navDock)
+  const publicSchedule = publicScheduleEnabled()
   const [tab, setTab] = useState<Tab>(() => tabFromHash(window.location.hash))
   const [dockExtra, setDockExtra] = useState(76)
   const pushTab = useBackStack((s) => s.pushTab)
@@ -82,12 +84,14 @@ export function App() {
   }, [navDock, hasOverlay])
 
   // Tab 枚举顺序 = MainActivity.kt:173 Schedule/Today/Manage/Mine
-  const items: [Tab, string][] = [
-    ['schedule', t('tab_schedule', '课表')],
-    ['today', t('tab_today', '今日')],
-    ['manage', t('tab_manage', '课表管理')],
-    ['mine', t('tab_mine', '我的')],
-  ]
+  const items: [Tab, string][] = publicSchedule
+    ? [['schedule', t('tab_schedule', '课表')]]
+    : [
+        ['schedule', t('tab_schedule', '课表')],
+        ['today', t('tab_today', '今日')],
+        ['manage', t('tab_manage', '课表管理')],
+        ['mine', t('tab_mine', '我的')],
+      ]
 
   return (
     <div
@@ -100,14 +104,19 @@ export function App() {
       }}
     >
       <main style={{ flex: 1, overflow: 'auto' }}>
-        {tab === 'schedule' && <ScheduleView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
+        {tab === 'schedule' && <ScheduleView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} readOnly={publicSchedule} />}
         {tab === 'today' && <TodayView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
         {tab === 'manage' && <ManageView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
         {tab === 'mine' && <MineView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
+      {publicSchedule && (
+        <div style={{ position: 'fixed', top: 12, right: 12, zIndex: 950, padding: '6px 10px', borderRadius: 999, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)' }}>
+          <span className="m3-label-small">只读分享</span>
+        </div>
+      )}
       </main>
       {/* 底栏闸门 = 返回栈是否为空 (Android 每个 overlay 分支都在底栏之前 return)。
           栈非空 → 贴底通栏与悬浮 Dock 两种形态都不渲染, 底部滚动余量同时归零。 */}
-      {!hasOverlay && (navDock ? (
+      {!publicSchedule && !hasOverlay && (navDock ? (
         // 悬浮胶囊 Dock (PillNavigationBar dock=true / DockNavigationBar):
         // iOS 悬浮 tab bar 语义 — 居中玻璃胶囊, 4 座位等宽恒显 icon+label 双行,
         // thumb (secondaryContainer) 包住整个座位, 选中文字 onSecondaryContainer

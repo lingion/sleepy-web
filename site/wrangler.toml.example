@@ -1,0 +1,11 @@
+# Copy to site/wrangler.toml for your own deployment.
+# This file intentionally has no Sleepy production domain.
+name = "my-sleepy-schedule"
+compatibility_date = "2026-09-01"
+
+[assets]
+directory = "../dist"
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true

@@ -3,3 +3,8 @@ dist/
 *.local
 .DS_Store
 *.tsbuildinfo
+
+# Private schedule used by public deployments; keep only the example tracked.
+public/schedule.sleepy
+.env.public.local
+.env.production.local

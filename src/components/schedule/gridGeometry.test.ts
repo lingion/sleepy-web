@@ -51,6 +51,22 @@ describe('buildGridGeometry — 布局常量', () => {
   })
 })
 
+describe('实验室网格策略', () => {
+  it('自动收起无晚课的晚间节次', () => {
+    const hidden = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, { autoHideEmptyEvening: true, eveningStart: '18:00' })
+    expect(hidden.slots).toHaveLength(8)
+    const kept = buildGridGeometry([mkCourse({ startNode: 9, step: 1 })], DEFAULT_TIME_JSON, 7, 1000, 1, { autoHideEmptyEvening: true, eveningStart: '18:00' })
+    expect(kept.slots).toHaveLength(12)
+  })
+
+  it('自适应高度按可用空间收敛到 36-96dp', () => {
+    const adaptive = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, { adaptiveHeight: true, availableHeight: 480 })
+    expect(adaptive.rowH).toBeCloseTo(44, 5)
+    const bounded = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, { adaptiveHeight: true, availableHeight: 2000 })
+    expect(bounded.rowH).toBe(100)
+  })
+})
+
 describe('yOfRows — 加权行坐标', () => {
   it('无权重 = rowH * r 线性', () => {
     expect(yOfRows(geo.plan, 3, 56)).toBe(168)

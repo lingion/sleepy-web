@@ -82,11 +82,20 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const isOut = status !== 'IN_RANGE'
   const todayCourses = useMemo(() => {
     if (isOut) return []
-    let list = (allCourses ?? []).filter((c) => c.day === dayOfWeek && inWeek(c, actualWeek))
+    const eligible = (allCourses ?? []).filter((c) => inWeek(c, actualWeek))
+    const direct = eligible.filter((c) => c.day === dayOfWeek)
+    const nearestDay = prefs.nearestBusyDay && direct.length === 0
+      ? Array.from(new Set(eligible.map((c) => c.day))).sort((a, b) => {
+          const da = Math.min(Math.abs(a - dayOfWeek), 7 - Math.abs(a - dayOfWeek))
+          const db = Math.min(Math.abs(b - dayOfWeek), 7 - Math.abs(b - dayOfWeek))
+          return da - db || a - b
+        })[0]
+      : dayOfWeek
+    let list = eligible.filter((c) => c.day === nearestDay)
     const tj = defaultTable?.timeJson
     if (tj) list = list.map((c) => normalizeNode(c, tj))
     return list.sort((a, b) => a.startNode - b.startNode)
-  }, [allCourses, dayOfWeek, actualWeek, isOut, defaultTable?.timeJson])
+  }, [allCourses, dayOfWeek, actualWeek, isOut, defaultTable?.timeJson, prefs.nearestBusyDay])
 
   const laneRows = useMemo(
     () => weekLaneRows(todayCourses, defaultTable?.timeJson ?? null),

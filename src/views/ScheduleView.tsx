@@ -136,7 +136,7 @@ function useHolidayYearData(years: number[]): Map<number, HolidayYearData> {
   }, [key, entries, overrides])
 }
 
-export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
+export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtraBottom?: number; readOnly?: boolean }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const updatePrefs = usePrefsStore((s) => s.update)
@@ -385,13 +385,13 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
           >
             {/* 左缘: 切换课表 + 撤回 (仅有可撤回快照时显示, ScheduleScreen.kt:417-428) */}
             <div style={{ position: 'absolute', left: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <NavCircleBtn
+              {readOnly ? <SleepyLogo size={26} /> : <NavCircleBtn
                 title={t('schedule_switch_table', { defaultValue: '切换课表' })}
                 onClick={() => open('weekSwitcher', () => setShowSwitcher(true))}
               >
                 <SleepyLogo size={18} />
-              </NavCircleBtn>
-              {undoDepth > 0 && (
+              </NavCircleBtn>}
+              {!readOnly && undoDepth > 0 && (
                 <NavCircleBtn
                   title={t('schedule_undo', { defaultValue: '撤回' })}
                   onClick={() => void undoManager.undo()}
@@ -505,12 +505,12 @@ export function ScheduleView({ navExtraBottom = 0 }: { navExtraBottom?: number }
 
             {/* 右缘: 加课 + 分享 (ScheduleScreen.kt:530-540 WeekNavButton 对称位) */}
             <div style={{ position: 'absolute', right: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <NavCircleBtn
+              {!readOnly && <NavCircleBtn
                 title={t('schedule_add_course', { defaultValue: '添加课程' })}
                 onClick={() => open('addCourse', () => setAdding(true))}
               >
                 <IconAdd size={18} />
-              </NavCircleBtn>
+              </NavCircleBtn>}
               <NavCircleBtn
                 title={t('schedule_share_table', { defaultValue: '分享课表' })}
                 onClick={() => open('shareSheet', () => setShowShare(true))}

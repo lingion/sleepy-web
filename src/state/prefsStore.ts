@@ -41,8 +41,10 @@ function clampPrefs(p: Prefs): Prefs {
   return {
     ...p,
     gridScale: cl(p.gridScale, 0.7, 1.3),
+    gridRowScale: cl(p.gridRowScale, 0.7, 1.8),
     weekScale: cl(p.weekScale, 0.7, 1.3),
     gridCornerRatio: cl(p.gridCornerRatio, 0, 2),
+    periodHeaderHanging: cl(p.periodHeaderHanging, -1, 1),
     conflictStackInset: cl(p.conflictStackInset, 4, 20),
     conflictRailInset: cl(p.conflictRailInset, 4, 20),
     conflictFoldSize: cl(p.conflictFoldSize, 8, 28),
