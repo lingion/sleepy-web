@@ -206,12 +206,19 @@ npx wrangler deploy --config site/wrangler.toml
 
 #### CI 自动部署
 
-可以在 GitHub Actions 中配置：
+仓库自带 `.github/workflows/deploy-worker.yml`，push 到 `main` 自动构建部署。**上游仓库没有私人课表文件时会显示 notice 并干净跳过**，只有你自己的仓库才会真正部署。
+
+Secrets 配置：
 
 - `CLOUDFLARE_API_TOKEN`：只放在仓库 Secret，不写入 `wrangler.toml`
-- 私人课表：通过私有仓库、构建前下载或 Secret 注入，不提交到公共仓库
-- 构建命令：`npm run build:public`
-- 部署命令：`npx wrangler deploy --config site/wrangler.toml`
+- `VITE_PUBLIC_ACCESS_KEY_HASH`：可选，访问密钥的 SHA-256（`npm run public:key-hash -- <密钥>`）
+- `PUBLIC_SCHEDULE_B64`：可选，私人课表文件的 base64，免提交私有文件：
+
+  ```bash
+  base64 -i your-schedule.sleepy | gh secret set PUBLIC_SCHEDULE_B64
+  ```
+
+课表也可以直接复制到 `public/schedule.sleepy`（已在 `.gitignore`，私有仓库适用）。两条路径二选一，构建时会优先使用仓库里的文件。
 
 ### 真正保护课表资源
 

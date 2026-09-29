@@ -24,21 +24,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 可选: 用 CI Secret 注入课表 (base64), 免提交私有文件到仓库
+      - name: Inject schedule from secret (optional)
+        env:
+          SCHEDULE_B64: ${{ secrets.PUBLIC_SCHEDULE_B64 }}
+        run: |
+          if [ -n "$SCHEDULE_B64" ]; then
+            echo "$SCHEDULE_B64" | base64 -d > public/schedule.sleepy
+            echo "Injected public/schedule.sleepy from PUBLIC_SCHEDULE_B64 secret."
+          fi
+
+      # 上游仓库无私人课表 → 本 workflow 仅服务 fork/私有部署, 干净跳过不报错
+      - name: Gate on public schedule present
+        id: gate
+        run: |
+          if [ ! -f public/schedule.sleepy ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::public/schedule.sleepy absent — public Worker deploy skipped. Fork + add your schedule (file or PUBLIC_SCHEDULE_B64 secret) to enable, see README."
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.gate.outputs.skip != 'true'
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
         run: npm ci
 
       - name: Build public schedule
+        if: steps.gate.outputs.skip != 'true'
         run: npm run build:public
         env:
           BASE_PATH: /
           VITE_PUBLIC_ACCESS_KEY_HASH: ${{ secrets.VITE_PUBLIC_ACCESS_KEY_HASH }}
 
       - name: Deploy to Cloudflare Worker
+        if: steps.gate.outputs.skip != 'true'
         run: npx wrangler deploy
         working-directory: site
         env:
