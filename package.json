@@ -1,14 +1,15 @@
 {
   "name": "sleepy-web",
   "private": true,
-  "version": "1.0.53",
+  "version": "1.0.57",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "check:public": "node -e \"const fs=require('node:fs'); if (!fs.existsSync('public/schedule.sleepy')) { console.error('Missing public/schedule.sleepy: copy your Android-exported .sleepy file there before building.'); process.exit(1) }\"",
+    "check:public": "node -e \"const fs=require('node:fs'); const crypto=require('node:crypto'); if (!fs.existsSync('public/schedule.sleepy')) { console.error('Missing public/schedule.sleepy: copy your Android-exported .sleepy file there before building.'); process.exit(1) } const hash=process.env.VITE_PUBLIC_ACCESS_KEY_HASH || ''; if (hash && !/^[0-9a-f]{64}$/i.test(hash)) { console.error('VITE_PUBLIC_ACCESS_KEY_HASH must be a 64-character SHA-256 hex digest. Generate it with npm run public:key-hash -- <access-key>.'); process.exit(1) }\"",
     "public:key-hash": "node -e \"const crypto=require('node:crypto'); const key=process.argv[1]; if (!key) { console.error('Usage: npm run public:key-hash -- <access-key>'); process.exit(1) } console.log(crypto.createHash('sha256').update(key).digest('hex'))\"",
     "build:public": "npm run check:public && tsc -b && VITE_PUBLIC_SCHEDULE_PATH=/schedule.sleepy BASE_PATH=/ vite build --mode public",
+    "deploy:cloudflare": "npm run build:public && wrangler deploy --config site/wrangler.toml",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

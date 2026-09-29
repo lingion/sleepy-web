@@ -8,14 +8,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from '../../state/prefsStore'
-import { localizedDay } from '../../components/schedule/CardsGridView'
 import { IconChevronRight, IconExpandLess, IconExpandMore } from '../../components/icons'
 import type { Prefs } from '../../data/types'
 import { SettingsScaffold, SectionHeader, FlatCard, ToggleRow, HDiv, CheckIcon, Switch } from './shared'
 
 
-export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => void; onOpenHoliday: () => void }) {
-  const { t, i18n } = useTranslation()
+export function GeneralSettingsPage({ onBack, onOpenHoliday, onOpenPeriodHeader, onOpenScheduleDisplay }: { onBack: () => void; onOpenHoliday: () => void; onOpenPeriodHeader?: () => void; onOpenScheduleDisplay?: () => void }) {
+  const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
   // 折叠卡展开态跨页保真 — 局部 useState 离页即丢, 提升到页级 (audit 偏好默认值 low)
@@ -35,223 +34,10 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
       {/* ── 分组① 课程显示 ── */}
       <SectionHeader title={t('appearance_section_display')} />
 
-      {/* 课程时间显示: 节次/时间 — 标题行右侧 tab 切换 */}
-      <FlatCard
-        title={t('settings_display_mode')}
-        options={[t('settings_display_node'), t('settings_display_time')]}
-        selectedKey={prefs.displayMode === 'node' ? 0 : 1}
-        onSelect={(i) => void update({ displayMode: i === 0 ? 'node' : 'time' })}
-      />
+      <div className="m3-card" onClick={onOpenPeriodHeader} style={{ padding: '14px 16px', cursor: 'pointer' }}>{t('settings_period_header', '节次表头')} <span style={{ float: 'right' }}>›</span></div>
+      <div className="m3-card" onClick={onOpenScheduleDisplay} style={{ padding: '14px 16px', cursor: 'pointer' }}>{t('settings_schedule_display', '课表显示')} <span style={{ float: 'right' }}>›</span></div>
 
-      <FlatCard
-        title={t('settings_period_header_layout', '节次表头布局')}
-        options={[t('settings_period_header_legacy', '旧式'), t('settings_period_header_three_line', '三行')]}
-        selectedKey={prefs.periodHeaderLayout === 'three_line' ? 1 : 0}
-        onSelect={(i) => void update({ periodHeaderLayout: i === 1 ? 'three_line' : 'legacy' })}
-      />
-
-      <FlatCard
-        title={t('settings_period_header_style', '节次编号样式')}
-        options={['1 2 3', '一 二 三', '壹 贰 叁', '① ② ③', 'Ⅰ Ⅱ Ⅲ']}
-        selectedKey={['arabic', 'chinese', 'financial', 'circled', 'roman'].indexOf(prefs.periodHeaderStyle)}
-        onSelect={(i) => void update({ periodHeaderStyle: (['arabic', 'chinese', 'financial', 'circled', 'roman'] as const)[i] })}
-      />
-
-      <ToggleRow
-        label={t('settings_period_header_show_x', '单节显示“第 X 节”')}
-        checked={prefs.periodHeaderShowX}
-        onChange={(v) => void update({ periodHeaderShowX: v })}
-      />
-
-      {prefs.periodHeaderLayout === 'three_line' && (
-        <SliderRow
-          label={t('settings_period_header_hanging', '三行表头悬挂对齐')}
-          value={prefs.periodHeaderHanging}
-          min={-1}
-          max={1}
-          step={0.1}
-          format={(v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`}
-          onChange={(v) => void update({ periodHeaderHanging: v })}
-        />
-      )}
-
-      {/* 网格卡片副信息: 教室/教师/无 */}
-      <FlatCard
-        title={t('settings_grid_sub_info')}
-        options={[t('settings_grid_sub_room'), t('settings_grid_sub_teacher'), t('settings_grid_sub_none')]}
-        selectedKey={prefs.gridSubInfo === 'room' ? 0 : prefs.gridSubInfo === 'teacher' ? 1 : 2}
-        onSelect={(i) => void update({ gridSubInfo: (['room', 'teacher', 'none'] as const)[i] })}
-      />
-
-      {/* 主页显示(issue#8): 缩放/圆角/两栏/别名/表头日期 */}
-      <FoldCard title={t('settings_pill')} expanded={expanded.has('settings_pill')} onToggle={() => toggleExpanded('settings_pill')}>
-        <SliderRow
-          label={t('settings_pill_scale')}
-          value={prefs.gridScale}
-          min={0.7} max={1.3}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => void update({ gridScale: v })}
-        />
-        <HDiv />
-        <SliderRow
-          label={t('settings_pill_week_scale')}
-          value={prefs.weekScale}
-          min={0.7} max={1.3}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => void update({ weekScale: v })}
-        />
-        <HDiv />
-        <SliderRow
-          label={t('settings_pill_corner')}
-          value={prefs.gridCornerRatio}
-          min={0} max={2}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => void update({ gridCornerRatio: v })}
-        />
-        <HDiv />
-        <ToggleRow
-          label={t('settings_week_two_column')}
-          checked={prefs.weekTwoColumn}
-          onChange={(v) => void update({ weekTwoColumn: v })}
-        />
-        {prefs.weekTwoColumn && (
-          <>
-            <HDiv />
-            <OptionRow
-              label={t('settings_week_two_column_days')}
-              subtitle=""
-              selected={prefs.weekTwoColumnMode === 'days'}
-              onClick={() => void update({ weekTwoColumnMode: 'days' })}
-            />
-            <HDiv />
-            <OptionRow
-              label={t('settings_week_two_column_balance')}
-              subtitle=""
-              selected={prefs.weekTwoColumnMode === 'balance'}
-              onClick={() => void update({ weekTwoColumnMode: 'balance' })}
-            />
-          </>
-        )}
-        <HDiv />
-        <ToggleRow
-          label={t('settings_week_hide_empty')}
-          checked={prefs.weekHideEmptyDays}
-          onChange={(v) => void update({ weekHideEmptyDays: v })}
-        />
-        <HDiv />
-        <ToggleRow
-          label={t('settings_week_alias')}
-          checked={prefs.weekUseAlias}
-          onChange={(v) => void update({ weekUseAlias: v })}
-        />
-        <HDiv />
-        <ToggleRow
-          label={t('settings_grid_alias')}
-          checked={prefs.gridUseAlias}
-          onChange={(v) => void update({ gridUseAlias: v })}
-        />
-        <HDiv />
-        <ToggleRow
-          label={t('settings_show_date')}
-          checked={prefs.showDate}
-          onChange={(v) => void update({ showDate: v })}
-        />
-      </FoldCard>
-
-      {/* 冲突课程样式: 叠层/折角/竖轨 + 各自专属滑杆 */}
-      <FoldCard title={t('settings_conflict_style')} expanded={expanded.has('settings_conflict_style')} onToggle={() => toggleExpanded('settings_conflict_style')}>
-        <OptionRow
-          label={t('settings_conflict_stack')}
-          subtitle={t('settings_conflict_stack_sub')}
-          selected={prefs.conflictStyle === 'stack'}
-          onClick={() => void update({ conflictStyle: 'stack' })}
-        />
-        <HDiv />
-        <OptionRow
-          label={t('settings_conflict_fold')}
-          subtitle={t('settings_conflict_fold_sub')}
-          selected={prefs.conflictStyle === 'fold'}
-          onClick={() => void update({ conflictStyle: 'fold' })}
-        />
-        <HDiv />
-        <OptionRow
-          label={t('settings_conflict_rail')}
-          subtitle={t('settings_conflict_rail_sub')}
-          selected={prefs.conflictStyle === 'rail'}
-          onClick={() => void update({ conflictStyle: 'rail' })}
-        />
-        {prefs.conflictStyle === 'fold' && (
-          <>
-            <HDiv />
-            <SliderRow
-              label={t('settings_conflict_fold_size')}
-              value={prefs.conflictFoldSize}
-              min={8} max={28} step={1}
-              format={(v) => `${Math.round(v)}dp`}
-              onChange={(v) => void update({ conflictFoldSize: v })}
-            />
-          </>
-        )}
-        {prefs.conflictStyle === 'stack' && (
-          <>
-            <HDiv />
-            <SliderRow
-              label={t('settings_conflict_stack_inset')}
-              value={prefs.conflictStackInset}
-              min={4} max={20} step={1}
-              format={(v) => `${Math.round(v)}dp`}
-              onChange={(v) => void update({ conflictStackInset: v })}
-            />
-          </>
-        )}
-        {prefs.conflictStyle === 'rail' && (
-          <>
-            <HDiv />
-            <SliderRow
-              label={t('settings_conflict_rail_inset')}
-              value={prefs.conflictRailInset}
-              min={4} max={20} step={1}
-              format={(v) => `${Math.round(v)}dp`}
-              onChange={(v) => void update({ conflictRailInset: v })}
-            />
-          </>
-        )}
-      </FoldCard>
-
-      {/* 显示星期: 周一~周日多选, 禁止全取消(GeneralSettingsScreen L437) */}
-      <FoldCard title={t('settings_visible_days')} expanded={expanded.has('settings_visible_days')} onToggle={() => toggleExpanded('settings_visible_days')}>
-        <p className="m3-body-small" style={{ margin: '0 0 8px', color: 'var(--md-on-surface-variant)' }}>
-          {t('settings_visible_days_sub')}
-        </p>
-        {DAYS.map((day) => {
-          const checked = prefs.visibleDays.includes(day)
-          const toggle = (on: boolean) => {
-            const n = on ? [...prefs.visibleDays, day] : prefs.visibleDays.filter((d) => d !== day)
-            if (n.length > 0) void update({ visibleDays: n.sort((a, b) => a - b) })
-          }
-          return (
-            <div key={day}>
-              <ToggleRow label={localizedDay(day, i18n.language)} checked={checked} onChange={toggle} />
-              {day !== 7 && <HDiv />}
-            </div>
-          )
-        })}
-      </FoldCard>
-
-      {/* 启动默认页: 周视图/网格 */}
-      <FlatCard
-        title={t('settings_start_view')}
-        options={[t('settings_start_view_full'), t('settings_start_view_cards')]}
-        selectedKey={prefs.startView === 'full' ? 0 : 1}
-        onSelect={(i) => void update({ startView: i === 0 ? 'full' : 'cards' })}
-      />
-
-      {/* 课程胶囊统一底色: 单开关卡 */}
-      <SingleToggleCard
-        title={t('settings_course_colorless')}
-        checked={prefs.courseColorless}
-        onChange={(v) => void update({ courseColorless: v })}
-      />
+      <HDiv />
 
       {/* 节假日课程灰显: 入口行 → 二级页 (GSS L496-522; HolidayPage 本体按 HolidaySettingsScreen.kt) */}
       <div
@@ -443,7 +229,6 @@ function LanguageCard({ prefs, onChange, currentLabel }: {
   )
 }
 
-const DAYS = [1, 2, 3, 4, 5, 6, 7]
 
 function FoldCard({ title, expanded, onToggle, children }: { title: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
@@ -486,63 +271,3 @@ function SingleToggleCard({
     </div>
   )
 }
-
-function OptionRow({
-  label, subtitle, selected, onClick,
-}: {
-  label: string
-  subtitle: string
-  selected: boolean
-  onClick: () => void
-}) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '10px 4px', cursor: 'pointer',
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div className="m3-body-large" style={{ color: selected ? 'var(--md-primary)' : 'var(--md-on-surface)' }}>{label}</div>
-        {subtitle && <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{subtitle}</div>}
-      </div>
-      {selected && <CheckIcon />}
-    </div>
-  )
-}
-
-
-function SliderRow({
-  label, value, min, max, step, format, onChange,
-}: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step?: number
-  format: (v: number) => string
-  onChange: (v: number) => void
-}) {
-  const [local, setLocal] = useState<number | null>(null)
-  const shown = local ?? value
-  return (
-    <div style={{ padding: '4px 0' }}>
-      <div className="m3-body-large" style={{ marginBottom: 8 }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span className="m3-label-large" style={{ minWidth: 52, color: 'var(--md-primary)' }}>{format(shown)}</span>
-        <input
-          type="range"
-          min={min} max={max} step={step ?? (max - min) / 20}
-          value={shown}
-          style={{ flex: 1, accentColor: 'var(--md-primary)' }}
-          onChange={(e) => setLocal(Number(e.target.value))}
-          onMouseUp={() => { if (local !== null) { onChange(local); setLocal(null) } }}
-          onTouchEnd={() => { if (local !== null) { onChange(local); setLocal(null) } }}
-          onKeyUp={() => { if (local !== null) { onChange(local); setLocal(null) } }}
-        />
-      </div>
-    </div>
-  )
-}
-

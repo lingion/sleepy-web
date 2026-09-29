@@ -1,7 +1,5 @@
-# sleepy-web-site — Sleepy Web SPA 静态资产 Worker
-# 已部署: https://sleepy.qdp.qzz.io (custom_domain)
-# 当前版本: 5a8315c8-d513-4acb-b097-b7029f54a678 (deploy-worker.yml 接入, 2026-09-14)
-# 自动部署: push 到 main → .github/workflows/deploy-worker.yml (token=repo secrets)
+# Portable static-asset Worker configuration.
+# Copy this file, set your own Worker name and optional custom domain.
 # 手动重部署: BASE_PATH=/ npx tsc -b && BASE_PATH=/ npx vite build
 #         cd site && CLOUDFLARE_API_TOKEN=$(cat ~/.cloudflare-token) npx --prefix ~/proxy wrangler deploy
 #   (token 位置: ~/.cloudflare-token; wrangler 复用 ~/proxy/node_modules)
@@ -13,10 +11,10 @@
 name = "sleepy-web-site"
 compatibility_date = "2026-09-01"
 
-# 自定义域名 — qdp.qzz.io zone (account: Lingion04@gmail.com's Account)
-routes = [
-  { pattern = "sleepy.qdp.qzz.io", custom_domain = true },
-]
+# Add your own custom domain route here after creating the Worker.
+# routes = [
+#   { pattern = "schedule.example.com", custom_domain = true },
+# ]
 
 [assets]
 # 相对 wrangler.toml 所在目录 → 仓库根 dist (本地构建与 CI 构建同一产物;

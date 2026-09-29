@@ -520,8 +520,11 @@ export function localizedDay(day: number, lang: string): string {
 export function dateOfWeek(startDate: string, week: number, day: number): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate)
   if (!m) return null
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  d.setDate(d.getDate() + (week - 1) * 7 + (day - 1))
+  const raw = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const mondayShift = (raw.getDay() + 6) % 7
+  raw.setDate(raw.getDate() - mondayShift)
+  raw.setDate(raw.getDate() + (week - 1) * 7 + (day - 1))
+  const d = raw
   return d
 }
 

@@ -32,7 +32,7 @@ export function App() {
   const { t } = useTranslation()
   const navDock = usePrefsStore((s) => s.prefs.navDock)
   const publicSchedule = publicScheduleEnabled()
-  const [tab, setTab] = useState<Tab>(() => tabFromHash(window.location.hash))
+  const [tab, setTab] = useState<Tab>(() => publicSchedule ? 'schedule' : tabFromHash(window.location.hash))
   const [dockExtra, setDockExtra] = useState(76)
   const pushTab = useBackStack((s) => s.pushTab)
   const replaceTab = useBackStack((s) => s.replaceTab)
@@ -43,6 +43,11 @@ export function App() {
   // tab hash 首次进入不新增历史;之后点击 tab 写入独立地址。
   // 直达/刷新落在二三级页 hash → 重建返回栈链 (replaceTab 会把子页 hash 抹平甩回 tab 根)。
   useEffect(() => {
+    if (publicSchedule) {
+      if (window.location.hash !== '#/课表') window.history.replaceState(null, '', '#/课表')
+      setTab('schedule')
+      return
+    }
     const chain = chainFromHash(window.location.hash)
     if (chain.length > 0) restoreChain(chain, window.location.hash)
     else if (window.location.hash) replaceTab(tab)
@@ -58,7 +63,7 @@ export function App() {
   }, [])
 
   const selectTab = (next: Tab) => {
-    if (next === tab) return
+    if (publicSchedule || next === tab) return
     pushTab(next)
     setTab(next)
   }

@@ -44,6 +44,7 @@ import {
   type JwStage,
 } from './importFlow'
 import { defaultProxyFetcher, type FetchOutcome, type ProxyFetcher } from './proxyClient'
+import { buildDiagDump, downloadDiagDump, type DiagResult } from './diagnostics'
 import { isSelectable, type SchoolInfo } from './schools'
 import { SchoolSelectPage, urlPickToSchool } from './SchoolSelectPage'
 import { JwCapturePage } from './JwCapturePage'
@@ -65,6 +66,8 @@ export function JwImportView({
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const [savedCount, setSavedCount] = useState<number | null>(null)
+  const [lastDiag, setLastDiag] = useState<DiagResult | null>(null)
+  const [lastHtml, setLastHtml] = useState('')
   const [tables, setTables] = useState<Table[]>([])
   const [defaultStartDate, setDefaultStartDate] = useState(() =>
     normalizeStartDateToMonday(new Date().toISOString().slice(0, 10))
@@ -131,6 +134,8 @@ export function JwImportView({
         return
       }
       if (outcome.kind === 'empty') {
+        setLastHtml(html)
+        setLastDiag(outcome.diag)
         setErrorMsg(buildDiagMessage(outcome.diag, school, t))
         return
       }
@@ -241,7 +246,7 @@ export function JwImportView({
         />
       )}
 
-      {errorMsg !== null && <ErrorOverlay message={errorMsg} onDismiss={dismissError} />}
+      {errorMsg !== null && <ErrorOverlay message={errorMsg} onDismiss={dismissError} onDownload={lastDiag ? () => downloadDiagDump(buildDiagDump(lastHtml, school, lastDiag)) : undefined} />}
       {statusMsg !== null && <Snackbar message={statusMsg} />}
     </SettingsScaffold>
   )
@@ -249,7 +254,7 @@ export function JwImportView({
 
 // ── 错误浮层 (Android ErrorOverlay: errorContainer 卡 + 知道了) ──────────
 
-function ErrorOverlay({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+function ErrorOverlay({ message, onDismiss, onDownload }: { message: string; onDismiss: () => void; onDownload?: () => void }) {
   const { t } = useTranslation()
   return (
     <div
@@ -276,7 +281,8 @@ function ErrorOverlay({ message, onDismiss }: { message: string; onDismiss: () =
           <IconInfo size={20} />
           <div className="m3-body-medium" style={{ whiteSpace: 'pre-wrap', flex: 1 }}>{message}</div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          {onDownload && <button type="button" className="m3-btn-regular" onClick={onDownload}>导出诊断包</button>}
           <button
             type="button"
             className="m3-btn-regular"

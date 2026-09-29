@@ -14,8 +14,10 @@ import {
   type HolidayEntry,
   type HolidayRange,
 } from '../domain/holiday/ranges'
+import { decodeTransfers, encodeTransfers, type HolidayTransferEntry } from '../domain/holiday/transfers'
 
 const OVERRIDES_KEY = 'sleepy_holiday_overrides'
+const TRANSFERS_KEY = 'sleepy_holiday_transfers'
 const DISK_PREFIX = 'sleepy_holiday_cn_'
 const BASE_URL = 'https://unpkg.com/holiday-calendar/data/CN/'
 
@@ -29,6 +31,10 @@ interface HolidayState {
   status: Record<number, HolidayYearStatus>
   /** 用户范围化覆盖段 (KEY_HOLIDAY_OVERRIDES) */
   overrides: HolidayRange[]
+  /** 放假日 → 补班日课程映射 (HolidayTransferOps 同构) */
+  transfers: HolidayTransferEntry[]
+  saveTransfer: (entry: HolidayTransferEntry) => void
+  clearTransfer: (sourceDate: string) => void
   /** 拉取某年 (force=绕过缓存, 已缓存默认跳过) */
   load: (year: number, force?: boolean) => Promise<void>
   /** 保存(新增或替换同 id)一段覆盖 */
@@ -44,6 +50,22 @@ function loadOverrides(): HolidayRange[] {
     return decodeOverrides(localStorage.getItem(OVERRIDES_KEY) ?? '[]')
   } catch {
     return []
+  }
+}
+
+function loadTransfers(): HolidayTransferEntry[] {
+  try {
+    return decodeTransfers(localStorage.getItem(TRANSFERS_KEY) ?? '[]')
+  } catch {
+    return []
+  }
+}
+
+function persistTransfers(transfers: HolidayTransferEntry[]): void {
+  try {
+    localStorage.setItem(TRANSFERS_KEY, encodeTransfers(transfers))
+  } catch {
+    /* 配额/隐私模式失败忽略 */
   }
 }
 
@@ -99,6 +121,21 @@ export const useHolidayStore = create<HolidayState>((set, get) => ({
   entries: {},
   status: {},
   overrides: loadOverrides(),
+  transfers: loadTransfers(),
+
+  saveTransfer: (entry) => {
+    const next = get().transfers.filter((item) => item.targetDate !== entry.targetDate && item.sourceDate !== entry.sourceDate)
+    next.push(entry)
+    next.sort((a, b) => a.sourceDate.localeCompare(b.sourceDate))
+    persistTransfers(next)
+    set({ transfers: next })
+  },
+
+  clearTransfer: (sourceDate) => {
+    const next = get().transfers.filter((item) => item.sourceDate !== sourceDate)
+    persistTransfers(next)
+    set({ transfers: next })
+  },
 
   load: async (year, force = false) => {
     if (!force) {

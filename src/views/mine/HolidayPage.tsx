@@ -20,6 +20,7 @@ import {
   type HolidayRange,
 } from '../../domain/holiday/ranges'
 import { IconChevronLeft, IconChevronRight, IconRefresh } from '../../components/icons'
+import type { HolidayTransferEntry } from '../../domain/holiday/transfers'
 import { SettingsScaffold, ToggleRow, HDiv, FlatCard, SectionHeader, SegmentedSwitcher } from './shared'
 
 const MIN_YEAR = 2005
@@ -55,6 +56,9 @@ export function HolidayPage({ onBack }: { onBack: () => void }) {
   const saveRange = useHolidayStore((s) => s.saveRange)
   const deleteRange = useHolidayStore((s) => s.deleteRange)
   const restoreRange = useHolidayStore((s) => s.restoreRange)
+  const transfers = useHolidayStore((s) => s.transfers)
+  const saveTransfer = useHolidayStore((s) => s.saveTransfer)
+  const clearTransfer = useHolidayStore((s) => s.clearTransfer)
 
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [editing, setEditing] = useState<EditingTarget | null>(null)
@@ -70,6 +74,8 @@ export function HolidayPage({ onBack }: { onBack: () => void }) {
   const userRangeIds = useMemo(() => new Set(overrides.map((o) => o.id)), [overrides])
   const holidaySegments = merged.active.filter((s) => s.type === TYPE_PUBLIC_HOLIDAY)
   const workdaySegments = merged.active.filter((s) => s.type === TYPE_TRANSFER_WORKDAY)
+  const holidayDates = holidaySegments.flatMap((segment) => datesInRange(segment.startDate, segment.endDate))
+  const orphanTransfers = transfers.filter((entry) => !holidayDates.includes(entry.sourceDate))
 
   return (
     <SettingsScaffold title={t('holiday_page_title')} onBack={onBack}>
@@ -162,6 +168,24 @@ export function HolidayPage({ onBack }: { onBack: () => void }) {
               />
             </>
           )}
+          {holidayDates.length > 0 && (
+            <>
+              <SectionHeader title={t('holiday_transfers_title')} />
+              <TransferCard
+                sourceDates={holidayDates}
+                transfers={transfers}
+                workdayDates={workdaySegments.flatMap((segment) => datesInRange(segment.startDate, segment.endDate))}
+                onSave={saveTransfer}
+                onClear={clearTransfer}
+              />
+            </>
+          )}
+          {orphanTransfers.length > 0 && (
+            <>
+              <SectionHeader title={t('holiday_transfers_orphan_title')} />
+              <TransferCard sourceDates={orphanTransfers.map((entry) => entry.sourceDate)} transfers={transfers} workdayDates={[]} onSave={saveTransfer} onClear={clearTransfer} orphan />
+            </>
+          )}
           {merged.removed.length > 0 && (
             <>
               <SectionHeader title={t('holiday_removed_section')} />
@@ -211,6 +235,65 @@ export function HolidayPage({ onBack }: { onBack: () => void }) {
         />
       )}
     </SettingsScaffold>
+  )
+}
+
+function datesInRange(start: string, end: string): string[] {
+  const out: string[] = []
+  const cursor = new Date(`${start}T00:00:00Z`)
+  const last = new Date(`${end}T00:00:00Z`)
+  while (cursor <= last) {
+    out.push(cursor.toISOString().slice(0, 10))
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  }
+  return out
+}
+
+function TransferCard({
+  sourceDates,
+  transfers,
+  workdayDates,
+  onSave,
+  onClear,
+  orphan = false,
+}: {
+  sourceDates: string[]
+  transfers: HolidayTransferEntry[]
+  workdayDates: string[]
+  onSave: (entry: HolidayTransferEntry) => void
+  onClear: (sourceDate: string) => void
+  orphan?: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="m3-card" style={{ padding: '8px 16px' }}>
+      {sourceDates.map((sourceDate, index) => {
+        const current = transfers.find((entry) => entry.sourceDate === sourceDate)
+        return (
+          <div key={sourceDate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center', padding: '8px 0' }}>
+            <span className="m3-body-medium">{sourceDate}</span>
+            <select
+              aria-label={t('holiday_transfer_target_label')}
+              value={current?.targetDate ?? ''}
+              onChange={(event) => {
+                const targetDate = event.target.value
+                if (!targetDate) onClear(sourceDate)
+                else onSave({ sourceDate, targetDate, segmentId: current?.segmentId ?? `holiday:${sourceDate}` })
+              }}
+              style={{ minHeight: 40, borderRadius: 8, border: '1px solid var(--md-outline)', background: 'var(--md-surface)', color: 'var(--md-on-surface)', padding: '0 8px' }}
+            >
+              <option value="">{t('holiday_transfer_none')}</option>
+              {workdayDates.filter((date) => !transfers.some((entry) => entry.targetDate === date && entry.sourceDate !== sourceDate)).map((date) => <option key={date} value={date}>{date}</option>)}
+              {current && !workdayDates.includes(current.targetDate) && <option value={current.targetDate}>{current.targetDate}</option>}
+            </select>
+            {current && <button type="button" className="m3-btn-regular" onClick={() => onClear(sourceDate)}>{t('holiday_transfer_clear')}</button>}
+            {!current && <span />}
+            {index < sourceDates.length - 1 && <div style={{ gridColumn: '1 / -1' }}><HDiv /></div>}
+          </div>
+        )
+      })}
+      {orphan && <div className="m3-body-small" style={{ color: 'var(--md-error)', padding: '4px 0 8px' }}>{t('holiday_transfers_orphan_hint')}</div>}
+    </div>
   )
 }
 

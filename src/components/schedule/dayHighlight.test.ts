@@ -17,4 +17,10 @@ describe('周视图当天高亮', () => {
 
     expect(friday && isDateToday(friday, today)).toBe(false)
   })
+
+  it('非周一起始日也按该周周一计算', () => {
+    const saturdayStart = dateOfWeek('2026-09-19', 1, 1)
+
+    expect(saturdayStart && [saturdayStart.getFullYear(), saturdayStart.getMonth() + 1, saturdayStart.getDate()]).toEqual([2026, 9, 14])
+  })
 })

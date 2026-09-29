@@ -51,6 +51,36 @@ export function FlatCard({
   )
 }
 
+export function SliderRow({
+  label, value, min, max, step, formatValue, onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  formatValue?: (value: number) => string
+  onChange: (value: number) => void
+}) {
+  return (
+    <label style={{ display: 'block', padding: '8px 4px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+        <span className="m3-body-large">{label}</span>
+        <span className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>{formatValue ? formatValue(value) : value}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
+        style={{ width: '100%', accentColor: 'var(--md-primary)' }}
+      />
+    </label>
+  )
+}
+
 export function ToggleRow({
   label, subtitle, checked, onChange,
 }: {

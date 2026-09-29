@@ -29,18 +29,35 @@ function Bootstrap() {
   const loaded = usePrefsStore((s) => s.loaded)
   const [authorized, setAuthorized] = useState(!publicAccessRequired() || publicAccessGranted())
   const [publicLoaded, setPublicLoaded] = useState(!publicScheduleEnabled())
+  const [publicError, setPublicError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authorized) return
     initI18n('system')
     const prepare = publicScheduleEnabled() ? loadPublicSchedule() : seedSampleTable()
     // 公开课表或示例课表落库后再载入偏好，首屏只读取完整状态。
-    void prepare.finally(() => {
-      void load().finally(() => setPublicLoaded(true))
-    })
+    void prepare
+      .catch((error) => {
+        setPublicError(error instanceof Error ? error.message : String(error))
+        throw error
+      })
+      .then(() => load())
+      .then(() => setPublicLoaded(true), () => setPublicLoaded(true))
   }, [authorized, load])
 
   if (!authorized) return <PublicAccessGate onGranted={() => setAuthorized(true)} />
+  if (publicError) {
+    return (
+      <main style={{ minHeight: '100%', display: 'grid', placeItems: 'center', padding: 24, background: 'var(--md-background)' }}>
+        <div role="alert" className="m3-card" style={{ maxWidth: 520, padding: 24 }}>
+          <h1 className="m3-headline-small">课表加载失败</h1>
+          <p className="m3-body-medium">请检查部署中的 schedule.sleepy 文件和访问路径。</p>
+          <p className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', wordBreak: 'break-word' }}>{publicError}</p>
+          <button type="button" className="m3-button-filled" onClick={() => window.location.reload()}>重新加载</button>
+        </div>
+      </main>
+    )
+  }
   if (!loaded || !publicLoaded) return null
   return <App />
 }

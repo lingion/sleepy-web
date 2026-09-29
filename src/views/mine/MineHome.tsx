@@ -12,7 +12,7 @@ import { db } from '../../data/db'
 import { computeCurrentWeek } from '../ScheduleView'
 import {
   IconEdit, IconShare, IconPalette, IconTune, IconInfo,
-  IconNotifications, IconRefresh, IconSchedule,
+  IconNotifications, IconSchedule,
 } from '../../components/icons'
 import type { Course } from '../../data/types'
 import { HDiv } from './shared'
@@ -26,6 +26,7 @@ export function MineHome({
   onOpenPeriodTables,
   onOpenAbout,
   onOpenReminder,
+  onOpenCourseList,
 }: {
   navExtraBottom?: number
   onOpenGeneral: () => void
@@ -35,6 +36,7 @@ export function MineHome({
   onOpenPeriodTables: () => void
   onOpenAbout: () => void
   onOpenReminder: () => void
+  onOpenCourseList: () => void
 }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
@@ -62,7 +64,7 @@ export function MineHome({
       <div className="m3-card" style={{ display: 'flex', padding: '18px 8px', justifyContent: 'space-evenly', alignItems: 'center' }}>
         <StatItem value={String(tables.length)} label={t('mine_stat_tables')} />
         <VDivider />
-        <StatItem value={String(courseCount)} label={t('mine_stat_courses')} />
+        <button type="button" onClick={onOpenCourseList} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit' }}><StatItem value={String(courseCount)} label={t('mine_stat_courses')} /></button>
         <VDivider />
         <StatItem value={String(currentWeek)} label={t('mine_stat_week')} />
       </div>
@@ -88,29 +90,12 @@ export function MineHome({
         <SettingsItem icon={<IconInfo size={20} />} label={t('about_title')} onClick={onOpenAbout} />
       </div>
 
-      {/* 刷新小组件按钮 — MineScreen.kt:131-149 FilledTonalButton 同构。
-          web 无 OS 桌面小组件 → 占位 to-do: 显示状态即可, 后续发布浏览器扩展时实化。 */}
-      <button
-        onClick={() => void refreshWidgets()}
-        className="m3-card"
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          padding: '10px 16px', cursor: 'pointer', border: 'none', width: '100%',
-          background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
-        }}
-      >
-        <IconRefresh size={20} />
-        <span className="m3-label-large">{t('mine_refresh_widgets', { defaultValue: '刷新小组件' })}</span>
-      </button>
+      <div className="m3-card" style={{ padding: 16, color: 'var(--md-on-surface-variant)' }}>
+        <div className="m3-title-small">{t('settings_widget', '小组件')}</div>
+        <div className="m3-body-small" style={{ marginTop: 6 }}>{t('web_widget_unavailable', 'Web 不提供 Android 桌面小组件；课表数据会在本页面实时更新。')}</div>
+      </div>
     </div>
   )
-}
-
-/** 刷新小组件 — 占位 (web 无 OS 桌面小组件)。
- *  实际数据流是 db 写入即同步, 此处空操作足够;
- *  后续接浏览器扩展 (Chrome/Safari widget) 时实化为对应 provider 的 refresh 等价。 */
-async function refreshWidgets(): Promise<void> {
-  await db.timetables.count()
 }
 
 function StatItem({ value, label }: { value: string; label: string }) {

@@ -19,6 +19,7 @@ import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
 import { holidaySetsForYear, useHolidayStore } from '../state/holidayStore'
 import { decideGrey } from '../domain/holiday/ranges'
+import { effectiveDayOfWeek } from '../domain/holiday/transfers'
 import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
 import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
 import { useScheduleSessionStore } from '../state/scheduleSessionStore'
@@ -34,13 +35,16 @@ import { semesterStatus } from './TodayView'
 import { inWeek, normalizeNode } from '../data/types'
 import type { Course, Table } from '../data/types'
 import { pagerTrackWeeks, PAGER_SETTLE_MS, useWeekPager } from '../components/schedule/useWeekSwipe'
+import { normalizeStartDateToMonday } from './importExportUtils'
 
-/** 周次计算 — startDate (周一) 起 currentWeek = floor(diff/7)+1, clamp 1..maxWeek */
+/** 周次计算 — 与 Android DateUtils 一致，先将任意起始日归一到周一。 */
 export function computeCurrentWeek(startDate: string, maxWeek: number): number {
   if (!startDate) return 1
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate)
   if (!m) return 1
-  const start = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const normalized = normalizeStartDateToMonday(startDate)
+  const n = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized)!
+  const start = new Date(Number(n[1]), Number(n[2]) - 1, Number(n[3]))
   const now = new Date()
   const diffDays = Math.floor((now.getTime() - start.getTime()) / 86400000)
   const week = Math.floor(diffDays / 7) + 1
@@ -52,7 +56,9 @@ export function actualWeekOf(startDate: string): number {
   if (!startDate) return 1
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate)
   if (!m) return 1
-  const start = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const normalized = normalizeStartDateToMonday(startDate)
+  const n = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized)!
+  const start = new Date(Number(n[1]), Number(n[2]) - 1, Number(n[3]))
   const diffDays = Math.floor((Date.now() - start.getTime()) / 86400000)
   return Math.max(1, Math.floor(diffDays / 7) + 1)
 }
@@ -229,6 +235,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     return [...years]
   }, [defaultTable?.startDate, trackWeeks])
   const holidayData = useHolidayYearData(greyYears)
+  const holidayTransfers = useHolidayStore((s) => s.transfers)
   // 三开关 (HolidayManager.shouldGrey 读 AppPrefs 三键同构)
   const greyToggles = useMemo(
     () => ({
@@ -254,13 +261,16 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     if (!defaultTable) return map
     const tj = defaultTable.timeJson
     for (const w of trackWeeks) {
-      map.set(
-        w,
-        (allCourses ?? []).filter((c) => inWeek(c, w)).map((c) => (tj ? normalizeNode(c, tj) : c))
-      )
+      const courses = (allCourses ?? []).filter((c) => inWeek(c, w)).map((c) => (tj ? normalizeNode(c, tj) : c))
+      map.set(w, courses.map((course) => {
+        const date = dateOfWeek(defaultTable.startDate, w, course.day)
+        if (!date) return course
+        const mappedDay = effectiveDayOfWeek(isoDate(date), holidayTransfers)
+        return mappedDay === course.day ? course : { ...course, day: mappedDay }
+      }))
     }
     return map
-  }, [allCourses, defaultTable, trackWeeks])
+  }, [allCourses, defaultTable, trackWeeks, holidayTransfers])
 
   // 单页宽 = 滚动容器宽 (翻页阈值按半页比例算, 落定位移按整页算, 都依赖它)
   const measureRo = useRef<ResizeObserver | null>(null)
@@ -703,7 +713,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           allCourses={weekCourses}
           timeJson={defaultTable.timeJson}
           onDismiss={() => { leave(); setDetailCourse(null) }}
-          onEdit={(c) => {
+          onEdit={readOnly ? undefined : (c) => {
             leave()
             setDetailCourse(null)
             open('addCourse', () => setEditingCourse(c))

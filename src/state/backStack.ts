@@ -28,6 +28,9 @@ export type BackKey =
   | 'license'
   | 'periodTables'
   | 'periodTableEdit'
+  | 'courseList'
+  | 'periodHeader'
+  | 'scheduleDisplay'
   // 预注册覆盖层 (路由已接, 触发入口待对应分区补齐): 自定义主题编辑器 / 教务导入
   | 'customTheme'
   | 'jwImport'
@@ -55,6 +58,9 @@ export const HASH_BY_KEY: Record<BackKey, string> = {
   license: '#/我的/许可证',
   periodTables: '#/我的/作息表',
   periodTableEdit: '#/我的/作息表/编辑',
+  courseList: '#/我的/课程清单',
+  periodHeader: '#/我的/外观/节次表头',
+  scheduleDisplay: '#/我的/外观/课表显示',
   customTheme: '#/我的/外观/自定义主题',
   // 入口 = 管理 → 导入课表 → 教务直连 (Android ImportSheet 行 1 → JwImportActivity 同构),
   // 故挂 #/管理 系;旧 #/我的/教务导入 深链由 tabFromHash/chainFromHash 兼容。

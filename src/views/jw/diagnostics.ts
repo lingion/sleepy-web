@@ -40,6 +40,37 @@ export type DiagCategory =
   | typeof DIAG_WRONG_PROTOCOL
   | typeof DIAG_UNKNOWN_EMPTY
 
+export interface DiagDump {
+  version: 1
+  generatedAt: string
+  school: { id: string; name: string; type?: string } | null
+  page: { url: string; title: string; htmlLength: number; textLength: number }
+  diagnosis: DiagResult
+  browser: { userAgent: string; language: string; online: boolean }
+}
+
+export function buildDiagDump(html: string, school: SchoolInfo | null, diagnosis: DiagResult): DiagDump {
+  const doc = parseHtmlDoc(html)
+  return {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    school: school ? { id: school.url || school.name, name: school.name, ...(school.type ? { type: school.type } : {}) } : null,
+    page: { url: location.href, title: doc.title, htmlLength: html.length, textLength: text(doc.body).length },
+    diagnosis,
+    browser: { userAgent: navigator.userAgent, language: navigator.language, online: navigator.onLine },
+  }
+}
+
+export function downloadDiagDump(dump: DiagDump): void {
+  const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `sleepy-jw-diagnostic-${new Date().toISOString().slice(0, 10)}.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 export interface DiagResult {
   category: DiagCategory
   matchedFeatures: string[]

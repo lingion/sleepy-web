@@ -13,6 +13,12 @@ export interface BreakOption {
   label?: string | null
 }
 
+export interface DurationOption {
+  minutes: number
+  isLong: boolean
+  label?: string | null
+}
+
 export interface SmartPeriodConfig {
   startTime: string
   periodMinutes: number
@@ -20,6 +26,9 @@ export interface SmartPeriodConfig {
   breaks: BreakOption[]
   /** 每个 transition 选哪个 break 索引; null = 连续. 长度 = N-1 */
   transitionAssignments: (number | null)[]
+  durations: DurationOption[]
+  /** 每个 period 选哪个 duration 索引; null = 使用 periodMinutes. 长度 = N */
+  periodAssignments: (number | null)[]
 }
 
 export const DEFAULT_SMART_CONFIG: SmartPeriodConfig = {
@@ -28,6 +37,8 @@ export const DEFAULT_SMART_CONFIG: SmartPeriodConfig = {
   totalPeriods: 12,
   breaks: [],
   transitionAssignments: [],
+  durations: [],
+  periodAssignments: [],
 }
 
 /** 取每个 transition 的 break 索引(带范围保护 + 默认填充), 长度 = max(0, N-1) */
@@ -37,6 +48,29 @@ export function effectiveAssignments(cfg: SmartPeriodConfig): (number | null)[] 
   const mapped = base.map((v) => (v != null && v >= 0 && v < cfg.breaks.length ? v : null))
   while (mapped.length < n) mapped.push(null)
   return mapped
+}
+
+/** 取每个 period 的 duration 索引; null/越界表示使用主时长。 */
+export function effectivePeriodAssignments(cfg: SmartPeriodConfig): (number | null)[] {
+  const n = Math.max(0, cfg.totalPeriods)
+  const base = cfg.periodAssignments.slice(0, n)
+  const mapped = base.map((v) => (v != null && v >= 0 && v < cfg.durations.length ? v : null))
+  while (mapped.length < n) mapped.push(null)
+  return mapped
+}
+
+/** 推导每个 period 的实际分钟数。 */
+export function effectivePeriodMinutes(cfg: SmartPeriodConfig): number[] {
+  return effectivePeriodAssignments(cfg).map((idx) =>
+    idx != null && idx >= 0 && idx < cfg.durations.length ? cfg.durations[idx].minutes : cfg.periodMinutes,
+  )
+}
+
+/** 删除 duration 分组后重映射 assignments，与 Android 保持一致。 */
+export function remapDurationAssignmentsAfterDeletion(assignments: (number | null)[], deletedIndex: number): (number | null)[] {
+  return assignments.map((value) =>
+    value === deletedIndex ? null : value != null && value > deletedIndex ? value - 1 : value,
+  )
 }
 
 /** 推导所有 transition 的实际分钟数; 默认(null/越界) = 0 */
@@ -58,10 +92,11 @@ function parseStart(startTime: string): [number, number] {
 export function deriveRows(cfg: SmartPeriodConfig): TimeSlotRow[] {
   const rows: TimeSlotRow[] = []
   const transMins = effectiveTransitionMinutes(cfg)
+  const periodMins = effectivePeriodMinutes(cfg)
   let [curH, curM] = parseStart(cfg.startTime)
   for (let i = 0; i < cfg.totalPeriods; i++) {
     const start = `${String(curH).padStart(2, '0')}:${String(curM).padStart(2, '0')}`
-    curM += cfg.periodMinutes
+    curM += periodMins[i]
     curH += Math.floor(curM / 60)
     curM %= 60
     const end = `${String(curH).padStart(2, '0')}:${String(curM).padStart(2, '0')}`
@@ -111,7 +146,18 @@ export function decodeSmartConfig(json: string): SmartPeriodConfig | null {
     const transitionAssignments: (number | null)[] = Array.isArray(raw.transitionAssignments)
       ? (raw.transitionAssignments as unknown[]).map((v) => (typeof v === 'number' ? Math.trunc(v) : null))
       : []
-    return { startTime, periodMinutes, totalPeriods, breaks, transitionAssignments }
+    const durations: DurationOption[] = Array.isArray(raw.durations)
+      ? (raw.durations as unknown[]).flatMap((d) => {
+          if (typeof d !== 'object' || d === null) return []
+          const o = d as Record<string, unknown>
+          if (typeof o.minutes !== 'number') return []
+          return [{ minutes: Math.trunc(o.minutes), isLong: o.isLong === true, label: typeof o.label === 'string' ? o.label : null }]
+        })
+      : []
+    const periodAssignments: (number | null)[] = Array.isArray(raw.periodAssignments)
+      ? (raw.periodAssignments as unknown[]).map((v) => (typeof v === 'number' ? Math.trunc(v) : null))
+      : []
+    return { startTime, periodMinutes, totalPeriods, breaks, transitionAssignments, durations, periodAssignments }
   } catch {
     return null
   }

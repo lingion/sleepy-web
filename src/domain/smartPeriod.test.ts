@@ -5,7 +5,10 @@ import {
   DEFAULT_SMART_CONFIG,
   deriveRows,
   effectiveAssignments,
+  effectivePeriodAssignments,
+  effectivePeriodMinutes,
   effectiveTransitionMinutes,
+  remapDurationAssignmentsAfterDeletion,
   encodeSmartConfig,
   inferSmartConfig,
 } from './smartPeriod'
@@ -17,6 +20,27 @@ describe('effectiveAssignments', () => {
   })
   it('N=1 返回空', () => {
     expect(effectiveAssignments({ ...DEFAULT_SMART_CONFIG, totalPeriods: 1 })).toEqual([])
+  })
+})
+
+describe('mixed duration periods', () => {
+  it('uses assigned duration minutes for each period and defaults missing entries', () => {
+    const cfg = {
+      ...DEFAULT_SMART_CONFIG,
+      totalPeriods: 4,
+      periodMinutes: 45,
+      durations: [{ minutes: 40, isLong: false }, { minutes: 60, isLong: true }],
+      periodAssignments: [0, 1, null, 8],
+    }
+    expect(effectivePeriodAssignments(cfg)).toEqual([0, 1, null, null])
+    expect(effectivePeriodMinutes(cfg)).toEqual([40, 60, 45, 45])
+    expect(deriveRows(cfg).map((r) => `${r.start}-${r.end}`)).toEqual([
+      '08:00-08:40', '08:40-09:40', '09:40-10:25', '10:25-11:10',
+    ])
+  })
+
+  it('deleting a duration group clears and shifts assignments', () => {
+    expect(remapDurationAssignmentsAfterDeletion([0, 2, null, 3], 2)).toEqual([0, null, null, 2])
   })
 })
 
@@ -94,6 +118,8 @@ describe('encode/decode', () => {
       totalPeriods: 8,
       breaks: [{ minutes: 10, isLong: false, label: null }],
       transitionAssignments: [0, null, null, 0],
+      durations: [{ minutes: 40, isLong: false, label: null }],
+      periodAssignments: [0, null, null, 0],
     }
     expect(decodeSmartConfig(encodeSmartConfig(cfg))).toEqual(cfg)
   })

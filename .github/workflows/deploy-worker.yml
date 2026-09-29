@@ -1,5 +1,5 @@
-# Sleepy Web — Cloudflare Worker 部署 (sleepy.qdp.qzz.io)
-# push 到 main 时构建并部署 → 与 GitHub Pages (deploy.yml) 同一触发条件, 双端同步
+# Sleepy Web — portable Cloudflare Worker deployment
+# Copy public/schedule.sleepy into this repository before deploying.
 # token: gh secret set CLOUDFLARE_API_TOKEN (加密 secrets, 不回显不入库)
 # 重部署(手动): BASE_PATH=/ npx tsc -b && BASE_PATH=/ npx vite build
 #               cd site && CLOUDFLARE_API_TOKEN=<token> npx --prefix ~/proxy wrangler deploy
@@ -32,13 +32,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npx tsc -b
-
-      - name: Build (root base for custom domain)
-        run: npx vite build
+      - name: Build public schedule
+        run: npm run build:public
         env:
           BASE_PATH: /
+          VITE_PUBLIC_ACCESS_KEY_HASH: ${{ secrets.VITE_PUBLIC_ACCESS_KEY_HASH }}
 
       - name: Deploy to Cloudflare Worker
         run: npx wrangler deploy

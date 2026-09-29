@@ -21,13 +21,16 @@ import { LicensePage } from './mine/LicensePage'
 import { AllTablesPage } from './mine/AllTablesPage'
 import { PeriodTablesPage } from './mine/PeriodTablesPage'
 import { CustomThemeEditorView } from './mine/CustomThemeEditorView'
+import { CourseListPage } from './mine/CourseListPage'
+import { PeriodHeaderSettingsPage } from './mine/PeriodHeaderSettingsPage'
+import { ScheduleDisplayPage } from './mine/ScheduleDisplayPage'
 
 type Page =
   | 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder' | 'license'
-  | 'customTheme' | 'periodTables'
+  | 'customTheme' | 'periodTables' | 'courseList' | 'periodHeader' | 'scheduleDisplay'
 
 /** MineView 自己拥有的返回层 — popstate 只在这些 key 弹出时收回页面状态 */
-const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'periodTables', 'about', 'reminder', 'license'])
+const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'periodTables', 'about', 'reminder', 'license', 'courseList', 'periodHeader', 'scheduleDisplay'])
 
 /** 刷新/直达恢复: 栈链栈顶 → 初始 page (App 挂载 effect 同步 restoreChain 重建历史) */
 export function minePageFromHash(hash: string): Page {
@@ -41,6 +44,9 @@ export function minePageFromHash(hash: string): Page {
     case 'license': return 'license'
     case 'reminder': return 'reminder'
     case 'periodTables': return 'periodTables'
+    case 'courseList': return 'courseList'
+    case 'periodHeader': return 'periodHeader'
+    case 'scheduleDisplay': return 'scheduleDisplay'
     default: return 'main'
   }
 }
@@ -79,6 +85,8 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
         <GeneralSettingsPage
           onBack={() => backTo('main')}
           onOpenHoliday={() => go('holiday', 'holiday')}
+          onOpenPeriodHeader={() => go('periodHeader', 'periodHeader')}
+          onOpenScheduleDisplay={() => go('scheduleDisplay', 'scheduleDisplay')}
         />
       )
     case 'holiday':
@@ -92,6 +100,8 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
             setEditingThemeId(id)
             go('customTheme', 'customTheme')
           }}
+          onOpenPeriodHeader={() => go('periodHeader', 'periodHeader')}
+          onOpenScheduleDisplay={() => go('scheduleDisplay', 'scheduleDisplay')}
         />
       )
     case 'customTheme':
@@ -108,6 +118,12 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
       return <LicensePage onBack={() => backTo('about')} />
     case 'reminder':
       return <ReminderPage onBack={() => backTo('main')} />
+    case 'courseList':
+      return <CourseListPage onBack={() => backTo('main')} />
+    case 'periodHeader':
+      return <PeriodHeaderSettingsPage onBack={() => backTo('appearance')} />
+    case 'scheduleDisplay':
+      return <ScheduleDisplayPage onBack={() => backTo('appearance')} />
     default:
       return (
         <MineHome
@@ -119,6 +135,7 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
           onOpenPeriodTables={() => go('periodTables', 'periodTables')}
           onOpenAbout={() => go('about', 'about')}
           onOpenReminder={() => go('reminder', 'reminder')}
+          onOpenCourseList={() => go('courseList', 'courseList')}
         />
       )
   }

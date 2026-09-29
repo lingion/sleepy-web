@@ -17,6 +17,8 @@ import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../domain/c
 import { inWeek, normalizeNode } from '../data/types'
 import type { Course } from '../data/types'
 import { localizedDay } from '../components/schedule/CardsGridView'
+import { useHolidayStore } from '../state/holidayStore'
+import { effectiveDayOfWeek } from '../domain/holiday/transfers'
 import { CourseDetailSheet } from '../components/CourseDetailSheet'
 import { AddCourseView } from './AddCourseView'
 
@@ -56,6 +58,7 @@ function dayName(day: number, lang: string): string {
 export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const { t, i18n } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
+  const holidayTransfers = useHolidayStore((s) => s.transfers)
   const today = useMemo(() => new Date(), [])
   const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay()
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
@@ -83,19 +86,21 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const todayCourses = useMemo(() => {
     if (isOut) return []
     const eligible = (allCourses ?? []).filter((c) => inWeek(c, actualWeek))
-    const direct = eligible.filter((c) => c.day === dayOfWeek)
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const effectiveToday = effectiveDayOfWeek(todayIso, holidayTransfers)
+    const direct = eligible.filter((c) => c.day === effectiveToday)
     const nearestDay = prefs.nearestBusyDay && direct.length === 0
       ? Array.from(new Set(eligible.map((c) => c.day))).sort((a, b) => {
           const da = Math.min(Math.abs(a - dayOfWeek), 7 - Math.abs(a - dayOfWeek))
           const db = Math.min(Math.abs(b - dayOfWeek), 7 - Math.abs(b - dayOfWeek))
           return da - db || a - b
         })[0]
-      : dayOfWeek
+      : effectiveToday
     let list = eligible.filter((c) => c.day === nearestDay)
     const tj = defaultTable?.timeJson
     if (tj) list = list.map((c) => normalizeNode(c, tj))
     return list.sort((a, b) => a.startNode - b.startNode)
-  }, [allCourses, dayOfWeek, actualWeek, isOut, defaultTable?.timeJson, prefs.nearestBusyDay])
+  }, [allCourses, dayOfWeek, actualWeek, isOut, defaultTable?.timeJson, prefs.nearestBusyDay, holidayTransfers, today])
 
   const laneRows = useMemo(
     () => weekLaneRows(todayCourses, defaultTable?.timeJson ?? null),

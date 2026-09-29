@@ -14,8 +14,10 @@ import {
   breakDisplayLabel,
   deriveRows,
   effectiveAssignments,
+  effectivePeriodAssignments,
   effectiveTransitionMinutes,
   type BreakOption,
+  type DurationOption,
   type SmartPeriodConfig,
 } from '../../domain/smartPeriod'
 import { appendEmptyRow, removeAndRenumber, type TimeSlotRow } from '../../domain/timeTable'
@@ -262,6 +264,7 @@ function SmartPeriodEditor({
 }) {
   const { t } = useTranslation()
   const assigns = effectiveAssignments(config)
+  const durationAssigns = effectivePeriodAssignments(config)
   const set = (patch: Partial<SmartPeriodConfig>) => onConfigChange({ ...config, ...patch })
 
   return (
@@ -293,6 +296,13 @@ function SmartPeriodEditor({
           style={fieldStyle}
         />
       </label>
+
+      <DurationGroupSection
+        durations={config.durations}
+        totalPeriods={config.totalPeriods}
+        assignments={durationAssigns}
+        onChange={(durations, periodAssignments) => set({ durations, periodAssignments })}
+      />
 
       {/* 添加 break */}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -342,6 +352,45 @@ function SmartPeriodEditor({
       {/* ===== 预览 ===== */}
       <div className="m3-title-small" style={{ fontWeight: 500, paddingInline: 4, marginTop: 8 }}>{t('preview')}</div>
       <PreviewList config={config} />
+    </div>
+  )
+}
+
+function DurationGroupSection({
+  durations, totalPeriods, assignments, onChange,
+}: {
+  durations: DurationOption[]
+  totalPeriods: number
+  assignments: (number | null)[]
+  onChange: (durations: DurationOption[], assignments: (number | null)[]) => void
+}) {
+  const { t } = useTranslation()
+  const addDuration = (isLong: boolean) => onChange(
+    [...durations, { minutes: isLong ? 60 : 40, isLong }],
+    assignments,
+  )
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="m3-title-small" style={{ fontWeight: 500, paddingInline: 4 }}>每节时长分组</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <AddBreakChip label="+ 短课时" color="var(--md-on-tertiary-container)" bg="var(--md-tertiary-container)" onAdd={() => addDuration(false)} />
+        <AddBreakChip label="+ 长课时" color="var(--md-on-primary-container)" bg="var(--md-primary-container)" onAdd={() => addDuration(true)} />
+      </div>
+      {durations.map((duration, groupIdx) => (
+        <div key={groupIdx} style={{ background: 'var(--md-surface-container)', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flex: 1 }} className="m3-label-large">{duration.isLong ? '长课时' : '短课时'} {duration.minutes} 分钟</span>
+            <NumberField label="" unit={t('unit_minutes')} value={duration.minutes} onChange={(minutes) => onChange(durations.map((d, i) => i === groupIdx ? { ...d, minutes } : d), assignments)} style={{ width: 110 }} />
+            <button type="button" aria-label={t('delete')} onClick={() => onChange(durations.filter((_, i) => i !== groupIdx), assignments.map((value) => value === groupIdx ? null : value != null && value > groupIdx ? value - 1 : value))} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--md-on-surface-variant)' }}><IconClose size={18} /></button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 6 }}>
+            {Array.from({ length: Math.max(0, totalPeriods) }, (_, periodIdx) => {
+              const selected = assignments[periodIdx] === groupIdx
+              return <button key={periodIdx} type="button" onClick={() => { const next = [...assignments]; next[periodIdx] = selected ? null : groupIdx; onChange(durations, next) }} className="m3-label-medium" style={{ minHeight: 36, borderRadius: 8, border: 'none', cursor: 'pointer', background: selected ? 'var(--md-primary)' : 'var(--md-surface-container-high)', color: selected ? 'var(--md-on-primary)' : 'var(--md-on-surface-variant)', fontWeight: selected ? 700 : 400 }}>{periodIdx + 1}</button>
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
