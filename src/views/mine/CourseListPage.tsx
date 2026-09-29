@@ -41,7 +41,7 @@ export function CourseListPage({ onBack }: { onBack: () => void }) {
             {room && <div className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>{room}</div>}
             <div className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>{t('course_list_arrangements', { count: roomItems.length, defaultValue: `${roomItems.length} 个上课安排` })}</div>
             {roomItems.map((course) => <div key={course.id} className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>
-              {t('course_weekday_period', { day: course.day, start: course.startNode, end: course.startNode + course.step - 1, defaultValue: `周${course.day} · 第 ${course.startNode}-${course.startNode + course.step - 1} 节` })}
+              {t('course_weekday_period', { day: course.day, start: course.startNode, startWeek: course.startWeek, end: course.endWeek, defaultValue: `周${course.day} · 第 ${course.startNode} 节 (${course.startWeek}-${course.endWeek}周)` })}
             </div>)}
           </div>)}
         </div>

@@ -155,6 +155,7 @@ export interface Prefs {
   conflictFoldSize: number
   startView: 'full' | 'cards'
   showDate: boolean
+  showViewSwitcher: boolean
   /** 可见天集合 1-7 */
   visibleDays: number[]
   /** 0.7-1.3, 默认 1.0 */
@@ -225,6 +226,7 @@ export const DEFAULT_PREFS: Prefs = {
   conflictFoldSize: 16,
   startView: 'cards', // 安卓出厂默认 cards (AppPrefs.kt:388)
   showDate: true, // 安卓出厂默认 true (AppPrefs.kt:399)
+  showViewSwitcher: true, // 安卓 GSS L255, 默认 true
   visibleDays: [1, 2, 3, 4, 5, 6, 7],
   gridScale: 1.0,
   weekScale: 1.0,

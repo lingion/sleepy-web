@@ -11,10 +11,10 @@ import { deriveCustomScheme } from '../../theme/customSchemeDeriver'
 import { CUSTOM_KEY_PREFIX, getAllThemes, type CustomTheme } from '../../data/customThemeStore'
 import { SleepyLogo } from '../../components/icons'
 import type { Prefs } from '../../data/types'
-import { SettingsScaffold, SectionHeader, CheckIcon } from './shared'
+import { SettingsScaffold, SectionHeader, CheckIcon, FlatCard, SliderRow } from './shared'
 
 
-export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader, onOpenScheduleDisplay }: { onBack: () => void; onOpenThemeEditor?: (id: string | null) => void; onOpenPeriodHeader?: () => void; onOpenScheduleDisplay?: () => void }) {
+export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader }: { onBack: () => void; onOpenThemeEditor?: (id: string | null) => void; onOpenPeriodHeader?: () => void }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
@@ -115,9 +115,19 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader, 
         )}
       </div>
 
-      <SectionHeader title={t('appearance_section_display', '课表显示')} />
-      <div className="m3-card" onClick={onOpenScheduleDisplay} style={{ padding: 16, cursor: 'pointer' }}>{t('settings_schedule_display', '课表显示')} <span style={{ float: 'right' }}>›</span></div>
+      <SectionHeader title={t('appearance_section_schedule_display', '课表显示')} />
+      <div className="m3-card" style={{ padding: 16 }}>
+        <SliderRow label={t('settings_pill_scale', '课表缩放')} value={prefs.gridScale} min={0.7} max={1.3} step={0.05} formatValue={(v) => `${Math.round(v * 100)}%`} onChange={(v) => void update({ gridScale: v })} />
+        <SliderRow label={t('settings_pill_week_scale', '周视图缩放')} value={prefs.weekScale} min={0.7} max={1.3} step={0.05} formatValue={(v) => `${Math.round(v * 100)}%`} onChange={(v) => void update({ weekScale: v })} />
+        <SliderRow label={t('settings_pill_corner', '圆角比例')} value={prefs.gridCornerRatio} min={0} max={2} step={0.05} formatValue={(v) => `${Math.round(v * 100)}%`} onChange={(v) => void update({ gridCornerRatio: v })} />
+        <FlatCard title={t('settings_conflict_style')} options={[t('settings_conflict_stack'), t('settings_conflict_fold'), t('settings_conflict_rail')]} selectedKey={['stack', 'fold', 'rail'].indexOf(prefs.conflictStyle)} onSelect={(i) => void update({ conflictStyle: (['stack', 'fold', 'rail'] as const)[i] })} />
+        {prefs.conflictStyle === 'stack' && <SliderRow label={t('settings_conflict_stack_inset', '堆叠偏移')} value={prefs.conflictStackInset} min={4} max={20} step={1} formatValue={(v) => `${v}dp`} onChange={(v) => void update({ conflictStackInset: v })} />}
+        {prefs.conflictStyle === 'rail' && <SliderRow label={t('settings_conflict_rail_inset', '侧轨偏移')} value={prefs.conflictRailInset} min={4} max={20} step={1} formatValue={(v) => `${v}dp`} onChange={(v) => void update({ conflictRailInset: v })} />}
+        {prefs.conflictStyle === 'fold' && <SliderRow label={t('settings_conflict_fold_size', '折叠尺寸')} value={prefs.conflictFoldSize} min={8} max={28} step={1} formatValue={(v) => `${v}dp`} onChange={(v) => void update({ conflictFoldSize: v })} />}
+      </div>
+      <SectionHeader title={t('appearance_period_header', '节次表头')} />
       <div className="m3-card" onClick={onOpenPeriodHeader} style={{ padding: 16, cursor: 'pointer' }}>{t('settings_period_header', '节次表头')} <span style={{ float: 'right' }}>›</span></div>
+
       {/* 外观模式三态分段 — clip(shapes.medium)=12dp 外层 */}
       <div className="m3-title-small" style={{ fontWeight: 600 }}>{t('theme_appearance')}</div>
       <div style={{ height: 8 }} />

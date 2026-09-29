@@ -29,12 +29,17 @@ interface HolidayState {
   entries: Record<number, HolidayEntry[]>
   /** 各年拉取状态 */
   status: Record<number, HolidayYearStatus>
-  /** 用户范围化覆盖段 (KEY_HOLIDAY_OVERRIDES) */
+  /** 用户范围化覆盖段 (KEY_HOLIDAY_OVERRIDES) — 全局 (Android AppPrefs 同构) */
   overrides: HolidayRange[]
-  /** 放假日 → 补班日课程映射 (HolidayTransferOps 同构) */
-  transfers: HolidayTransferEntry[]
-  saveTransfer: (entry: HolidayTransferEntry) => void
-  clearTransfer: (sourceDate: string) => void
+  /** 放假日 → 补班日课程映射。Android HolidaySettingsScreen 351-376 有 activeTableId 切换器
+   * (tables.size>1 才显示), 映射按课表作用域存储 (AppPrefs.getHolidayTransfers(ctx, tableId))。
+   * web 建模: transfers 索引 tableId → 条目; activeTableId 为空(仅 1 张表时)=global 兼容层。*/
+  transfers: Record<number, HolidayTransferEntry[]>
+  /** 当前正在编辑的课表 id (null=单表全局模式) */
+  activeTableId: number | null
+  saveTransfer: (tableId: number | null, entry: HolidayTransferEntry) => void
+  clearTransfer: (tableId: number | null, sourceDate: string) => void
+  setActiveTable: (tableId: number | null) => void
   /** 拉取某年 (force=绕过缓存, 已缓存默认跳过) */
   load: (year: number, force?: boolean) => Promise<void>
   /** 保存(新增或替换同 id)一段覆盖 */
@@ -45,6 +50,10 @@ interface HolidayState {
   restoreRange: (range: HolidayRange) => void
 }
 
+function transfersKey(tableId: number | null): string {
+  return tableId === null ? TRANSFERS_KEY : `${TRANSFERS_KEY}_${tableId}`
+}
+
 function loadOverrides(): HolidayRange[] {
   try {
     return decodeOverrides(localStorage.getItem(OVERRIDES_KEY) ?? '[]')
@@ -53,25 +62,42 @@ function loadOverrides(): HolidayRange[] {
   }
 }
 
-function loadTransfers(): HolidayTransferEntry[] {
+function persistOverrides(ranges: HolidayRange[]): void {
   try {
-    return decodeTransfers(localStorage.getItem(TRANSFERS_KEY) ?? '[]')
-  } catch {
-    return []
-  }
-}
-
-function persistTransfers(transfers: HolidayTransferEntry[]): void {
-  try {
-    localStorage.setItem(TRANSFERS_KEY, encodeTransfers(transfers))
+    localStorage.setItem(OVERRIDES_KEY, encodeOverrides(ranges))
   } catch {
     /* 配额/隐私模式失败忽略 */
   }
 }
 
-function persistOverrides(ranges: HolidayRange[]): void {
+/** 兼容旧版本: 读取全局键迁移到单表(null)命名空间 (仅首次调用生效) */
+let migrateDone = false
+function migrateLegacyTransfers(): void {
+  if (migrateDone) return
+  migrateDone = true
   try {
-    localStorage.setItem(OVERRIDES_KEY, encodeOverrides(ranges))
+    const raw = localStorage.getItem(TRANSFERS_KEY)
+    if (raw === null) return
+    const entries = decodeTransfers(raw)
+    if (entries.length === 0) { localStorage.removeItem(TRANSFERS_KEY); return }
+    const scopedKey = transfersKey(null)
+    if (localStorage.getItem(scopedKey) === null) localStorage.setItem(scopedKey, encodeTransfers(entries))
+    localStorage.removeItem(TRANSFERS_KEY)
+  } catch { /* 忽略, 后续 load 见空即安全 */ }
+}
+
+function loadTransfersFor(tableId: number | null): HolidayTransferEntry[] {
+  if (tableId === null) migrateLegacyTransfers()
+  try {
+    return decodeTransfers(localStorage.getItem(transfersKey(tableId)) ?? '[]')
+  } catch {
+    return []
+  }
+}
+
+function persistTransfersFor(tableId: number | null, transfers: HolidayTransferEntry[]): void {
+  try {
+    localStorage.setItem(transfersKey(tableId), encodeTransfers(transfers))
   } catch {
     /* 配额/隐私模式失败忽略 */
   }
@@ -121,21 +147,25 @@ export const useHolidayStore = create<HolidayState>((set, get) => ({
   entries: {},
   status: {},
   overrides: loadOverrides(),
-  transfers: loadTransfers(),
-
-  saveTransfer: (entry) => {
-    const next = get().transfers.filter((item) => item.targetDate !== entry.targetDate && item.sourceDate !== entry.sourceDate)
+  transfers: { 0: loadTransfersFor(0) },
+  activeTableId: null,
+  saveTransfer: (tableId, entry) => {
+    const key = tableId ?? 0
+    const next = (get().transfers[key] ?? []).filter((item) => item.targetDate !== entry.targetDate && item.sourceDate !== entry.sourceDate)
     next.push(entry)
     next.sort((a, b) => a.sourceDate.localeCompare(b.sourceDate))
-    persistTransfers(next)
-    set({ transfers: next })
+    persistTransfersFor(tableId, next)
+    set((s) => ({ transfers: { ...s.transfers, [key]: next } }))
   },
 
-  clearTransfer: (sourceDate) => {
-    const next = get().transfers.filter((item) => item.sourceDate !== sourceDate)
-    persistTransfers(next)
-    set({ transfers: next })
+  clearTransfer: (tableId, sourceDate) => {
+    const key = tableId ?? 0
+    const next = (get().transfers[key] ?? []).filter((item) => item.sourceDate !== sourceDate)
+    persistTransfersFor(tableId, next)
+    set((s) => ({ transfers: { ...s.transfers, [key]: next } }))
   },
+
+  setActiveTable: (tableId) => set({ activeTableId: tableId }),
 
   load: async (year, force = false) => {
     if (!force) {
@@ -221,4 +251,9 @@ export function mergeHolidayYear(entries: HolidayEntry[], overrides: HolidayRang
 /** 生效段 → 灰显判定用日期集合 */
 export function holidaySetsForYear(entries: HolidayEntry[], overrides: HolidayRange[]) {
   return toSets(mergeSegments(entries, overrides).active)
+}
+
+/** 作用域 transfers 读取 — 匹配 activeTableId, 单表时回退 null(全局)层 (ScheduleView/TodayView 消费) */
+export function scopedTransfers(activeTableId: number | null): HolidayTransferEntry[] {
+  return loadTransfersFor(activeTableId)
 }

@@ -17,7 +17,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
-import { holidaySetsForYear, useHolidayStore } from '../state/holidayStore'
+import { holidaySetsForYear, useHolidayStore, scopedTransfers } from '../state/holidayStore'
 import { decideGrey } from '../domain/holiday/ranges'
 import { effectiveDayOfWeek } from '../domain/holiday/transfers'
 import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
@@ -235,7 +235,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     return [...years]
   }, [defaultTable?.startDate, trackWeeks])
   const holidayData = useHolidayYearData(greyYears)
-  const holidayTransfers = useHolidayStore((s) => s.transfers)
+  const holidayTransfers = scopedTransfers(defaultTable?.id ?? null)
   // 三开关 (HolidayManager.shouldGrey 读 AppPrefs 三键同构)
   const greyToggles = useMemo(
     () => ({

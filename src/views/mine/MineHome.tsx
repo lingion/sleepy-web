@@ -62,7 +62,7 @@ export function MineHome({
 
       {/* 统计卡 */}
       <div className="m3-card" style={{ display: 'flex', padding: '18px 8px', justifyContent: 'space-evenly', alignItems: 'center' }}>
-        <StatItem value={String(tables.length)} label={t('mine_stat_tables')} />
+        <button type="button" onClick={onOpenAllTables} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit' }}><StatItem value={String(tables.length)} label={t('mine_stat_tables')} /></button>
         <VDivider />
         <button type="button" onClick={onOpenCourseList} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit' }}><StatItem value={String(courseCount)} label={t('mine_stat_courses')} /></button>
         <VDivider />

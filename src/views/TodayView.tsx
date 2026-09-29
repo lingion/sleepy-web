@@ -17,7 +17,7 @@ import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../domain/c
 import { inWeek, normalizeNode } from '../data/types'
 import type { Course } from '../data/types'
 import { localizedDay } from '../components/schedule/CardsGridView'
-import { useHolidayStore } from '../state/holidayStore'
+import { scopedTransfers } from '../state/holidayStore'
 import { effectiveDayOfWeek } from '../domain/holiday/transfers'
 import { CourseDetailSheet } from '../components/CourseDetailSheet'
 import { AddCourseView } from './AddCourseView'
@@ -58,13 +58,13 @@ function dayName(day: number, lang: string): string {
 export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const { t, i18n } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
-  const holidayTransfers = useHolidayStore((s) => s.transfers)
-  const today = useMemo(() => new Date(), [])
-  const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay()
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
 
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
+  const holidayTransfers = scopedTransfers(defaultTable?.id ?? null)
+  const today = useMemo(() => new Date(), [])
+  const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay()
   const allCourses = useLiveQuery(
     async () =>
       defaultTable ? await db.courses.where('tableId').equals(defaultTable.id).toArray() : ([] as Course[]),

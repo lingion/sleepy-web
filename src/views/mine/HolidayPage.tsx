@@ -8,8 +8,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { usePrefsStore } from '../../state/prefsStore'
 import { useHolidayStore } from '../../state/holidayStore'
+import { db } from '../../data/db'
 import {
   TYPE_PUBLIC_HOLIDAY,
   TYPE_TRANSFER_WORKDAY,
@@ -56,9 +58,15 @@ export function HolidayPage({ onBack }: { onBack: () => void }) {
   const saveRange = useHolidayStore((s) => s.saveRange)
   const deleteRange = useHolidayStore((s) => s.deleteRange)
   const restoreRange = useHolidayStore((s) => s.restoreRange)
-  const transfers = useHolidayStore((s) => s.transfers)
+  const transfers = useHolidayStore((s) => s.activeTableId === null ? s.transfers[0] ?? [] : s.transfers[s.activeTableId] ?? [])
+  const activeTableId = useHolidayStore((s) => s.activeTableId)
+  const setActiveTable = useHolidayStore((s) => s.setActiveTable)
   const saveTransfer = useHolidayStore((s) => s.saveTransfer)
   const clearTransfer = useHolidayStore((s) => s.clearTransfer)
+
+  // 课表作用域切换 (Android HolidaySettingsScreen 351-376; 仅多张课表时显示)
+  const tables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
+  const scopeTableId = activeTableId ?? (tables.length > 1 ? tables[0]?.id ?? null : null)
 
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [editing, setEditing] = useState<EditingTarget | null>(null)
@@ -170,20 +178,30 @@ export function HolidayPage({ onBack }: { onBack: () => void }) {
           )}
           {holidayDates.length > 0 && (
             <>
+              {tables.length > 1 && (
+                <div style={{ padding: '8px 16px' }}>
+                  <SegmentedSwitcher
+                    options={tables.map((t) => t.name)}
+                    selected={tables.findIndex((t) => t.id === (activeTableId ?? tables[0]?.id ?? null))}
+                    onSelect={(i) => setActiveTable(tables[i]?.id ?? null)}
+                    compact
+                  />
+                </div>
+              )}
               <SectionHeader title={t('holiday_transfers_title')} />
               <TransferCard
                 sourceDates={holidayDates}
                 transfers={transfers}
                 workdayDates={workdaySegments.flatMap((segment) => datesInRange(segment.startDate, segment.endDate))}
-                onSave={saveTransfer}
-                onClear={clearTransfer}
+                onSave={(entry) => saveTransfer(scopeTableId, entry)}
+                onClear={(sourceDate) => clearTransfer(scopeTableId, sourceDate)}
               />
             </>
           )}
           {orphanTransfers.length > 0 && (
             <>
               <SectionHeader title={t('holiday_transfers_orphan_title')} />
-              <TransferCard sourceDates={orphanTransfers.map((entry) => entry.sourceDate)} transfers={transfers} workdayDates={[]} onSave={saveTransfer} onClear={clearTransfer} orphan />
+              <TransferCard sourceDates={orphanTransfers.map((entry) => entry.sourceDate)} transfers={transfers} workdayDates={[]} onSave={(entry) => saveTransfer(scopeTableId, entry)} onClear={(sourceDate) => clearTransfer(scopeTableId, sourceDate)} orphan />
             </>
           )}
           {merged.removed.length > 0 && (

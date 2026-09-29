@@ -85,8 +85,6 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
         <GeneralSettingsPage
           onBack={() => backTo('main')}
           onOpenHoliday={() => go('holiday', 'holiday')}
-          onOpenPeriodHeader={() => go('periodHeader', 'periodHeader')}
-          onOpenScheduleDisplay={() => go('scheduleDisplay', 'scheduleDisplay')}
         />
       )
     case 'holiday':
@@ -101,7 +99,6 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
             go('customTheme', 'customTheme')
           }}
           onOpenPeriodHeader={() => go('periodHeader', 'periodHeader')}
-          onOpenScheduleDisplay={() => go('scheduleDisplay', 'scheduleDisplay')}
         />
       )
     case 'customTheme':
