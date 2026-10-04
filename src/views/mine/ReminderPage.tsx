@@ -96,6 +96,11 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
             {t('reminder_web_notify_denied')}
           </p>
         )}
+        {notifyState === 'granted' && (
+          <p className="m3-body-small" style={{ margin: '8px 4px 0', color: 'var(--md-on-surface-variant)' }}>
+            {t('reminder_web_only')}
+          </p>
+        )}
       </ReminderCard>
 
       {/* Sub-settings — only visible when master is on.

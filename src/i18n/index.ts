@@ -19,6 +19,8 @@ import { timeslotExtra } from './extra/timeslot'
 import { jwImportExtra } from './extra/jwimport'
 import { importSheetExtra } from './extra/importsheet'
 import { reminderExtra } from './extra/reminder'
+import { migrationExtra } from './extra/migration'
+import { calendarExportExtra } from './extra/calexport'
 
 export const SUPPORTED_LANGS = ['en', 'zh-CN', 'zh-TW', 'ja', 'es', 'en-GB'] as const
 export type Lang = (typeof SUPPORTED_LANGS)[number]
@@ -69,6 +71,8 @@ const EXTRA_KEY_FILES: Array<Record<Lang, Record<string, string>>> = [
   jwImportExtra,
   importSheetExtra,
   reminderExtra,
+  migrationExtra,
+  calendarExportExtra,
 ]
 
 /** 主 JSON 占位转换 + 逐层合并扩展键 → 该语言最终 translation 表。 */
@@ -122,3 +126,6 @@ export function initI18n(lang: Lang | 'system'): void {
 export function changeLang(lang: Lang | 'system'): void {
   initI18n(lang)
 }
+
+/** 非组件环境 (提醒引擎等) 的翻译入口 — 与 useTranslation().t 同一实例 */
+export { i18next }

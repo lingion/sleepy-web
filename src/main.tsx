@@ -62,6 +62,15 @@ function Bootstrap() {
   return <App />
 }
 
+// 通知点击聚焦等事件由 SW 承接; https/localhost 才注册 (http 局域网调试跳过)。
+if ('serviceWorker' in navigator && (window.isSecureContext || import.meta.env.DEV)) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
+      /* 注册失败不影响课表主功能 */
+    })
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Bootstrap />

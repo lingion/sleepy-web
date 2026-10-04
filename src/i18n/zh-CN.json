@@ -479,6 +479,9 @@
   "notif_before_class_text": "下节课 %1$s 于 %2$s 在 %3$s 上课",
   "notif_before_class_text_with_teacher": "下节课 %1$s 于 %2$s 在 %3$s 上课，老师：%4$s",
   "notif_room_unknown": "未知教室",
+  "notif_tomorrow_title": "明日 %1$d 号，您有 %2$d 节课",
+  "notif_tomorrow_title_no_course": "明日 %1$d 号，没有课程",
+  "notif_tomorrow_text_no_course": "明日无课,好好休息!",
   "about_title": "关于",
   "about_version": "版本信息",
   "about_version_detail": "版本 %1$s（构建 %2$d）",
@@ -707,5 +710,10 @@
   "period_table_preview_more": "…和其他 %1$d 门课",
   "period_table_preview_confirm": "确认保存",
   "period_table_bind_preview_title": "换绑确认",
-  "period_table_bind_preview_body": "切换后本课表按新作息表解释节次；自定义时间的课程不受影响"
+  "period_table_bind_preview_body": "切换后本课表按新作息表解释节次；自定义时间的课程不受影响",
+  "about_update_dismiss": "关闭更新提示",
+  "calendar_range_label": "导入范围",
+  "calendar_range_week": "未来 7 天",
+  "calendar_range_month": "未来 1 个月",
+  "calendar_range_semester": "本学期剩余课程"
 }

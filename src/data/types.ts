@@ -82,11 +82,71 @@ export interface Table {
   nodeCount: number
   maxWeek: number
   createdAt: number
+  /** 课表颜色主题 (#AARRGGBB/#RRGGBB), Android TimeTableEntity.color 同源 (v1.0.58 起) */
+  color?: string
   /**
    * issue#40 绑定的独立时间节次表 (period_tables.id)。null/undefined = 未绑定(用旧 timeJson 兼容列)。
    * 课程表 → 时间节次表的单向引用; 一张时间节次表可被多张课程表引用。
    */
   periodTableId?: number | null
+  /**
+   * C2(2026-09-20): 首次绑定 (null→非null) 时写入的本表兼容列快照 {t,n,s} JSON 包络;
+   * 解绑时恢复快照再清空。绑→绑换目标不刷新。Android preBindSnapshotJson 1:1。
+   */
+  preBindSnapshotJson?: string
+}
+
+/** 课表默认色 — Android TimeTableEntity.color 默认值 */
+export const DEFAULT_TABLE_COLOR = '#FF6750A4'
+
+/**
+ * C2: 首次绑定的新实体 — 兼容列不变, 只写 periodTableId 并把绑定前 {t,n,s} 存进快照列。
+ * TimeTableEntity.snapshotForBind 1:1。
+ */
+export function snapshotForBind(table: Table, targetId: number): Table {
+  return {
+    ...table,
+    periodTableId: targetId,
+    preBindSnapshotJson: JSON.stringify({
+      t: table.timeJson,
+      n: table.nodeCount,
+      s: table.smartConfigJson,
+    }),
+  }
+}
+
+/**
+ * C2: 解绑的新实体 — 快照存在则恢复绑定前兼容列再清空; 快照缺失(旧数据)按原样解绑。
+ * TimeTableEntity.restoredForUnbind 1:1。
+ */
+export function restoredForUnbind(table: Table): Table {
+  let snapshot: { t?: string; n?: number; s?: string } | null = null
+  if (table.preBindSnapshotJson) {
+    try {
+      snapshot = JSON.parse(table.preBindSnapshotJson)
+    } catch {
+      snapshot = null
+    }
+  }
+  if (!snapshot) return { ...table, periodTableId: null, preBindSnapshotJson: '' }
+  return {
+    ...table,
+    periodTableId: null,
+    nodeCount: typeof snapshot.n === 'number' ? snapshot.n : table.nodeCount,
+    timeJson: typeof snapshot.t === 'string' ? snapshot.t : table.timeJson,
+    smartConfigJson: typeof snapshot.s === 'string' ? snapshot.s : table.smartConfigJson,
+    preBindSnapshotJson: '',
+  }
+}
+
+/** 教务导入草稿 — ImportDraftEntity.kt 1:1 (payloadJson 对库层不透明) */
+export interface ImportDraft {
+  id: string
+  sourceType: string
+  sourceUrl: string
+  payloadJson: string
+  createdAt: number
+  updatedAt: number
 }
 
 /**
@@ -212,6 +272,25 @@ export interface Prefs {
   periodHeaderHanging: number
   /** 单节时显示完整“第 X 节” */
   periodHeaderShowX: boolean
+  /** 实验室: 网格视图额外分隔线 — 默认 false (AppPrefs KEY_GRID_SHOW_SEPARATORS) */
+  gridShowSeparators: boolean
+  /** 实验室: 大小课间(>45min 长课间)加宽间距 — 默认 false (AppPrefs KEY_GRID_LONG_BREAK_SPACING) */
+  gridLongBreakSpacing: boolean
+  // ---- 日历导出偏好 (AppPrefs KEY_CALENDAR_* 1:1; web 交付为 ICS 文件) ----
+  /** 导出范围 (AppPrefs getCalendarImportRange, 默认 NEXT_WEEK) */
+  calendarImportRange: 'NEXT_WEEK' | 'NEXT_MONTH' | 'SEMESTER'
+  /** 导出考虑调休映射 (AppPrefs KEY_CALENDAR_APPLY_TRANSFERS, 默认 true) */
+  calendarApplyTransfers: boolean
+  /** 事件提前提醒分钟 0-999; null=不加提醒 (Android -1 哨兵) */
+  calendarReminderMinutes: number | null
+  /** 首日首课单独闹钟 (实验性, 默认 false) */
+  calendarFirstAlarmEnabled: boolean
+  /** 首课闹钟提前分钟 0-999, 默认 60 */
+  calendarFirstAlarmMinutes: number
+  // ---- 更新检查 (AppPrefs KEY_UPDATE_* 1:1) ----
+  updateCheckEnabled: boolean
+  /** 用户已忽略的版本号 ('' = 未忽略; per-version dismiss) */
+  updateNoticeDismissedVersion: string
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -258,6 +337,15 @@ export const DEFAULT_PREFS: Prefs = {
   periodHeaderStyle: 'arabic',
   periodHeaderHanging: 0,
   periodHeaderShowX: false,
+  gridShowSeparators: false,
+  gridLongBreakSpacing: false,
+  calendarImportRange: 'NEXT_WEEK',
+  calendarApplyTransfers: true,
+  calendarReminderMinutes: 15,
+  calendarFirstAlarmEnabled: false,
+  calendarFirstAlarmMinutes: 60,
+  updateCheckEnabled: true,
+  updateNoticeDismissedVersion: '',
 }
 
 /** inWeek(week) — CourseEntity.kt L125-134 1:1 */

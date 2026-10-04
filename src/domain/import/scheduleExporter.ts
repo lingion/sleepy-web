@@ -37,6 +37,7 @@ export interface ExportCourse {
   ownTime: boolean
   startTime: string
   endTime: string
+  isIrregularTime: boolean
 }
 
 function courseJsonArr(courses: ExportCourse[]): string {

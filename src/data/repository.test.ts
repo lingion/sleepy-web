@@ -28,9 +28,13 @@ import {
   updatePeriodTable,
   deletePeriodTable,
   bindPeriodTable,
+  updateTableMetadataAndBind,
   savePeriodTableForTable,
   updatePeriodTableContent,
   copyPeriodTableAs,
+  loadImportDrafts,
+  saveImportDraft,
+  deleteImportDraft,
 } from './repository'
 import { useUndoStore } from './undoStore'
 import type { Course } from './types'
@@ -67,7 +71,7 @@ function mkCourse(partial: Partial<Course>): Omit<Course, 'id'> {
 beforeEach(async () => {
   // 每测重建数据库 + undo 单槽
   useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
-  await Promise.all([db.timetables.clear(), db.courses.clear(), db.prefs.clear(), db.periodTables.clear()])
+  await Promise.all([db.timetables.clear(), db.courses.clear(), db.prefs.clear(), db.periodTables.clear(), db.importDrafts.clear()])
 })
 
 describe('课表 CRUD (capture 1-5)', () => {
@@ -420,5 +424,133 @@ describe('作息表 PeriodTable (issue#40 v8) — 6 方法 + undo 覆盖', () =>
     expect(copy?.timeJson).toBe(src?.timeJson)
     expect(copy?.id).not.toBe(src?.id)
     expect(tId).toBeGreaterThan(0)
+  })
+})
+
+describe('C2 换绑快照 (preBindSnapshotJson 1:1) — 解绑不丢用户手工作息', () => {
+  const mkPT = (over: Partial<Parameters<typeof insertPeriodTable>[0]> = {}) => ({
+    name: '共享', nodesPerDay: 12, timeJson: '[1,"08:00",2,"08:45"]',
+    smartConfigJson: '', createdAt: 1, updatedAt: 1, ...over,
+  })
+  const ownTable = async () =>
+    insertTable({
+      name: '手工表', timeJson: '[1,"07:30",2,"09:00"]', smartConfigJson: 'own-cfg', isDefault: 1,
+      startDate: '2026-09-01', nodeCount: 10, maxWeek: 20, createdAt: 1,
+    })
+
+  it('首次绑定写快照 {t,n,s}; 解绑恢复兼容列并清空快照', async () => {
+    const ptId = await insertPeriodTable(mkPT())
+    const tId = await ownTable()
+    await bindPeriodTable(tId, ptId)
+    const bound = await db.timetables.get(tId)
+    expect(bound?.periodTableId).toBe(ptId)
+    expect(JSON.parse(bound!.preBindSnapshotJson!)).toEqual({
+      t: '[1,"07:30",2,"09:00"]', n: 10, s: 'own-cfg',
+    })
+    // 绑定期间共享表被改 → 镜像写兼容列 (web 读路径依赖)
+    await updatePeriodTableContent({ ...(await getPeriodTable(ptId))!, timeJson: '[1,"09:00",2,"09:45"]' })
+    // 解绑 → 恢复绑定前手工作息, 而不是镜像副本
+    await bindPeriodTable(tId, null)
+    const unbound = await db.timetables.get(tId)
+    expect(unbound?.periodTableId).toBeNull()
+    expect(unbound?.timeJson).toBe('[1,"07:30",2,"09:00"]')
+    expect(unbound?.nodeCount).toBe(10)
+    expect(unbound?.smartConfigJson).toBe('own-cfg')
+    expect(unbound?.preBindSnapshotJson).toBe('')
+  })
+
+  it('换绑 (非null→非null) 不刷新快照', async () => {
+    const ptA = await insertPeriodTable(mkPT({ name: 'A' }))
+    const ptB = await insertPeriodTable(mkPT({ name: 'B' }))
+    const tId = await ownTable()
+    await bindPeriodTable(tId, ptA)
+    const snap1 = (await db.timetables.get(tId))!.preBindSnapshotJson
+    await bindPeriodTable(tId, ptB)
+    const after = await db.timetables.get(tId)
+    expect(after?.periodTableId).toBe(ptB)
+    expect(after?.preBindSnapshotJson).toBe(snap1)
+  })
+
+  it('悬空目标拒绝 + 目标未变不动库不拍快照', async () => {
+    const ptId = await insertPeriodTable(mkPT())
+    const tId = await ownTable()
+    const undoBefore = useUndoStore.getState().slot
+    await bindPeriodTable(tId, 9999) // 悬空 → 拒绝
+    expect((await db.timetables.get(tId))?.periodTableId == null).toBe(true)
+    expect(useUndoStore.getState().slot).toBe(undoBefore)
+    await bindPeriodTable(tId, ptId) // 有效绑定拍了快照
+    const snap = useUndoStore.getState().slot
+    await bindPeriodTable(tId, ptId) // 目标未变 → 不再拍
+    expect(useUndoStore.getState().slot).toBe(snap)
+  })
+
+  it('updateTableMetadataAndBind: 绑定态纯元数据写不动时间域; 解绑态叠编辑时间域', async () => {
+    const ptId = await insertPeriodTable(mkPT())
+    const tId = await ownTable()
+    // 绑定态 (pendingBind==当前): 元数据写, 时间域保持镜像
+    await bindPeriodTable(tId, ptId)
+    await updatePeriodTableContent({ ...(await getPeriodTable(ptId))!, timeJson: '[1,"09:00",2,"09:45"]' })
+    await updateTableMetadataAndBind({
+      ...(await db.timetables.get(tId))!, name: '改名', startDate: '2026-09-07', maxWeek: 22,
+      timeJson: 'IGNORED', smartConfigJson: 'IGNORED', nodeCount: 3,
+    }, ptId)
+    let row = await db.timetables.get(tId)
+    expect(row?.name).toBe('改名')
+    expect(row?.startDate).toBe('2026-09-07')
+    expect(row?.maxWeek).toBe(22)
+    expect(row?.timeJson).toBe('[1,"09:00",2,"09:45"]') // 时间域未被覆盖
+    expect(row?.nodeCount).toBe(12)
+    // 解绑 + 用户编辑: 恢复快照后叠编辑值
+    await updateTableMetadataAndBind({
+      ...(await db.timetables.get(tId))!, name: '再改',
+      timeJson: '[1,"06:00",2,"07:00"]', smartConfigJson: 'edited', nodeCount: 8,
+    }, null)
+    row = await db.timetables.get(tId)
+    expect(row?.periodTableId).toBeNull()
+    expect(row?.timeJson).toBe('[1,"06:00",2,"07:00"]') // 用户编辑是解绑后真值
+    expect(row?.smartConfigJson).toBe('edited')
+    expect(row?.nodeCount).toBe(8)
+    expect(row?.preBindSnapshotJson).toBe('')
+  })
+
+  it('updateTableMetadataAndBind: 首次绑定写快照且 periodContent 落回目标表', async () => {
+    const ptId = await insertPeriodTable(mkPT())
+    const tId = await ownTable()
+    await updateTableMetadataAndBind(
+      { ...(await db.timetables.get(tId))!, timeJson: '[1,"10:00",2,"11:00"]', smartConfigJson: 'x', nodeCount: 5 },
+      ptId,
+      { ...(await getPeriodTable(ptId))!, timeJson: '[1,"10:00",2,"11:00"]', nodesPerDay: 5 },
+    )
+    const row = await db.timetables.get(tId)
+    expect(row?.periodTableId).toBe(ptId)
+    expect(JSON.parse(row!.preBindSnapshotJson!)).toEqual({ t: '[1,"07:30",2,"09:00"]', n: 10, s: 'own-cfg' })
+    expect((await getPeriodTable(ptId))?.timeJson).toBe('[1,"10:00",2,"11:00"]')
+  })
+
+  it('updateTableMetadataAndBind: 悬空 periodTableId / 悬空 periodContent 拒绝', async () => {
+    const tId = await ownTable()
+    await updateTableMetadataAndBind({ ...(await db.timetables.get(tId))!, name: 'X' }, 9999)
+    expect((await db.timetables.get(tId))?.name).toBe('手工表')
+  })
+})
+
+describe('导入草稿 import_drafts (Room v10 1:1)', () => {
+  const mkDraft = (id: string, over: Partial<Parameters<typeof saveImportDraft>[0]> = {}) => ({
+    id, sourceType: 'jw', sourceUrl: 'https://jw.example.edu.cn',
+    payloadJson: '{"rows":[]}', createdAt: 100, updatedAt: 100, ...over,
+  })
+
+  it('save/load/delete + updatedAt 降序', async () => {
+    await saveImportDraft(mkDraft('d1', { updatedAt: 100 }))
+    await saveImportDraft(mkDraft('d2', { updatedAt: 300 }))
+    await saveImportDraft(mkDraft('d3', { updatedAt: 200 }))
+    expect((await loadImportDrafts()).map((d) => d.id)).toEqual(['d2', 'd3', 'd1'])
+    // 同 id 幂等重试覆盖
+    await saveImportDraft(mkDraft('d1', { updatedAt: 400, payloadJson: '{"rows":[1]}' }))
+    const all = await loadImportDrafts()
+    expect(all).toHaveLength(3)
+    expect(all[0].payloadJson).toBe('{"rows":[1]}')
+    await deleteImportDraft('d1')
+    expect((await loadImportDrafts()).map((d) => d.id)).toEqual(['d2', 'd3'])
   })
 })

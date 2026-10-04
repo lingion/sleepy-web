@@ -17,6 +17,8 @@ import { TodayView } from './views/TodayView'
 import { ManageView } from './views/ManageView'
 import { MineView } from './views/MineView'
 import { publicScheduleEnabled } from './publicSchedule'
+import { startReminderEngine, stopReminderEngine } from './domain/reminders/scheduler'
+import { useReminderStore } from './state/reminderStore'
 
 type Tab = TabKey
 
@@ -67,6 +69,16 @@ export function App() {
     pushTab(next)
     setTab(next)
   }
+
+  // 提醒引擎 (页内定时器, CourseNotificationScheduler 对位): 常驻挂载, 提醒配置一变即重排。
+  useEffect(() => {
+    startReminderEngine()
+    const unsub = useReminderStore.subscribe(() => startReminderEngine())
+    return () => {
+      unsub()
+      stopReminderEngine()
+    }
+  }, [])
 
   // Dock 滚动余量 (MainActivity dockOverlayPx→dockExtraDp 同构): 理论估算兜底
   // (首帧前, 64 高 + bottom 12 = 76), dock nav 实测高到位后覆盖 —

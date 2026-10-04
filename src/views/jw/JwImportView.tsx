@@ -43,6 +43,15 @@ import {
   toCourseEntities,
   type JwStage,
 } from './importFlow'
+import { deleteImportDraft, loadImportDrafts, saveImportDraft } from '../../data/repository'
+import type { ImportDraft } from '../../data/types'
+
+/** 草稿 id — Android 由导入流提供, 同 id 幂等 */
+function makeDraftId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `d-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
 import { defaultProxyFetcher, type FetchOutcome, type ProxyFetcher } from './proxyClient'
 import { buildDiagDump, downloadDiagDump, type DiagResult } from './diagnostics'
 import { isSelectable, type SchoolInfo } from './schools'
@@ -72,6 +81,17 @@ export function JwImportView({
   const [defaultStartDate, setDefaultStartDate] = useState(() =>
     normalizeStartDateToMonday(new Date().toISOString().slice(0, 10))
   )
+  // 草稿持久化 (Android 696f13bd: 课程解析出来之前也要能保存/续导):
+  // capture 完成即落库; 下次进入导入显示「继续上次导入」卡, 可从确认页续, 也可删除
+  const [draft, setDraft] = useState<ImportDraft | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    void loadImportDrafts().then((ds) => {
+      if (alive && ds.length > 0) setDraft(ds[0])
+    })
+    return () => { alive = false }
+  }, [])
 
   // 换阶段必清错误 (Android: LaunchedEffect(stage) { errorMsg = null })
   useEffect(() => {
@@ -125,10 +145,10 @@ export function JwImportView({
   }, [])
 
   /** 一段 HTML → 课程 / 诊断 / 异常 (Android onParseHtml 分支) */
-  const handleHtml = useCallback(
-    (html: string) => {
+  const applyHtml = useCallback(
+    (html: string, atSchool: SchoolInfo | null) => {
       setStatusMsg(t('import_parsing'))
-      const outcome = resolveCapture(html, school)
+      const outcome = resolveCapture(html, atSchool)
       if (outcome.kind === 'failed') {
         setErrorMsg(buildParseFailedMessage(outcome.message, t))
         return
@@ -136,14 +156,55 @@ export function JwImportView({
       if (outcome.kind === 'empty') {
         setLastHtml(html)
         setLastDiag(outcome.diag)
-        setErrorMsg(buildDiagMessage(outcome.diag, school, t))
+        setErrorMsg(buildDiagMessage(outcome.diag, atSchool, t))
         return
       }
       setCourses(outcome.courses)
       setStage('configureConfirm')
     },
-    [school, t]
+    [t]
   )
+
+  const handleHtml = useCallback(
+    (html: string) => {
+      applyHtml(html, school)
+      // Android 696f13bd: 采集成功即持久化草稿, 课程解析前也不丢
+      const id = draft?.id ?? makeDraftId()
+      const now = Date.now()
+      const next: ImportDraft = {
+        id,
+        sourceType: 'jw-html',
+        sourceUrl: school?.url ?? '',
+        payloadJson: JSON.stringify({ html, school }),
+        createdAt: draft?.createdAt ?? now,
+        updatedAt: now,
+      }
+      setDraft(next)
+      void saveImportDraft(next)
+    },
+    [school, applyHtml, draft]
+  )
+
+  /** 续导草稿 — 恢复学校上下文重放 HTML (采集配置不变) */
+  const resumeDraft = useCallback(() => {
+    if (!draft) return
+    let school: SchoolInfo | null = null
+    let html = ''
+    try {
+      const p = JSON.parse(draft.payloadJson) as { school?: SchoolInfo | null; html?: string }
+      school = p.school ?? null
+      html = p.html ?? ''
+    } catch {
+      html = draft.payloadJson
+    }
+    if (!html) {
+      void deleteImportDraft(draft.id)
+      setDraft(null)
+      return
+    }
+    setSchool(school)
+    applyHtml(html, school)
+  }, [draft, applyHtml])
 
   const handleFetchError = useCallback(
     (outcome: Extract<FetchOutcome, { ok: false }>) => {
@@ -191,6 +252,11 @@ export function JwImportView({
       }
       setSavedCount(result.courses.length)
       setStatusMsg(t('jw_import_success', { v1: result.courses.length }))
+      // 应用成功 → 草稿使命完成 (Android ImportDraftDao.delete)
+      if (draft) {
+        void deleteImportDraft(draft.id)
+        setDraft(null)
+      }
     } catch (e) {
       setErrorMsg(t('import_failed', { v1: e instanceof Error ? e.message : String(e) }))
       setStage('configureConfirm')
@@ -224,7 +290,41 @@ export function JwImportView({
       {savedCount !== null ? (
         <SuccessPanel count={savedCount} onDone={onBack} />
       ) : stage === 'selectSchool' ? (
-        <SchoolSelectPage onPickSchool={pickSchool} onPickUrl={pickUrl} />
+        <>
+          {draft !== null && (
+            <div className="m3-card" style={{ padding: 16, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <IconInfo size={18} color="var(--md-primary)" />
+                <div className="m3-title-small" style={{ flex: 1 }}>未完成的导入</div>
+              </div>
+              <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+                {draft.sourceUrl} · {new Date(draft.updatedAt).toLocaleString()}
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="m3-btn-regular"
+                  onClick={() => {
+                    void deleteImportDraft(draft.id)
+                    setDraft(null)
+                  }}
+                  style={{ border: '1px solid var(--md-outline)', background: 'transparent', color: 'var(--md-on-surface-variant)', cursor: 'pointer', font: 'inherit', borderRadius: 20, padding: '8px 16px' }}
+                >
+                  {t('delete')}
+                </button>
+                <button
+                  type="button"
+                  className="m3-btn-regular"
+                  onClick={resumeDraft}
+                  style={{ border: 'none', background: 'var(--md-primary)', color: 'var(--md-on-primary)', cursor: 'pointer', font: 'inherit', borderRadius: 20, padding: '8px 16px', fontWeight: 600 }}
+                >
+                  继续导入
+                </button>
+              </div>
+            </div>
+          )}
+          <SchoolSelectPage onPickSchool={pickSchool} onPickUrl={pickUrl} />
+        </>
       ) : stage === 'capture' ? (
         school && (
           <JwCapturePage

@@ -469,6 +469,9 @@
   "notif_daily_title": "今日は %1$d 日、授業は %2$d コマです",
   "notif_daily_title_no_course": "今日は %1$d 日、授業はありません",
   "notif_room_unknown": "教室不明",
+  "notif_tomorrow_title": "明日は %1$d 日、授業は %2$d コマです",
+  "notif_tomorrow_title_no_course": "明日は %1$d 日、授業はありません",
+  "notif_tomorrow_text_no_course": "明日は授業がありません。ゆっくり休んでください!",
   "reminder_banner_sub": "通知バーに授業前のバナーを表示",
   "reminder_banner_title": "バナーリマインダー",
   "reminder_before_class_preview": "例：次の授業 高等数学 08:00 @ 教学棟A101",
@@ -704,5 +707,10 @@
   "period_table_preview_more": "…ほか %1$d 件のコマ",
   "period_table_preview_confirm": "保存",
   "period_table_bind_preview_title": "切り替え確認",
-  "period_table_bind_preview_body": "切り替え後、この時間割は新しい時程表で時限を解釈します。カスタム時刻の授業は影響しません"
+  "period_table_bind_preview_body": "切り替え後、この時間割は新しい時程表で時限を解釈します。カスタム時刻の授業は影響しません",
+  "about_update_dismiss": "更新のお知らせを閉じる",
+  "calendar_range_label": "追加する期間",
+  "calendar_range_week": "今後7日間",
+  "calendar_range_month": "今後1か月",
+  "calendar_range_semester": "今学期の残り"
 }

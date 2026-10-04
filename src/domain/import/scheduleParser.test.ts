@@ -759,7 +759,7 @@ describe('IcsWakeUpImportTest: WakeUp ICS', () => {
     const course: ExportCourse = {
       id: 0, groupId: '', tableId: 1, courseName: '高数', alias: '', teacher: '张三', room: 'A101',
       note: '', day: 2, startNode: 1, step: 2, startWeek: 1, endWeek: 16, type: 0, color: '#FF6750A4',
-      ownTime: false, startTime: '', endTime: '',
+      ownTime: false, startTime: '', endTime: '', isIrregularTime: false,
     }
     const exported = exportIcs(table, [course])
     const r = ok(exported, 999)

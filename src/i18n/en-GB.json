@@ -474,6 +474,9 @@
   "notif_daily_title": "Today is day %1$d of the month, you have %2$d classes",
   "notif_daily_title_no_course": "Today is day %1$d of the month, no classes today",
   "notif_room_unknown": "Unknown room",
+  "notif_tomorrow_title": "Tomorrow is day %1$d of the month, you have %2$d classes",
+  "notif_tomorrow_title_no_course": "Tomorrow is day %1$d of the month, no classes tomorrow",
+  "notif_tomorrow_text_no_course": "No classes tomorrow. Take a break!",
   "reminder_banner_sub": "Show a before-class banner in the notification bar",
   "reminder_banner_title": "Banner Reminder",
   "reminder_before_class_preview": "Example: Next class Advanced Math at 08:00 in Building A101",
@@ -715,5 +718,10 @@
   "period_table_preview_more": "…and %1$d more courses",
   "period_table_preview_confirm": "Save",
   "period_table_bind_preview_title": "Confirm rebind",
-  "period_table_bind_preview_body": "After switching, this timetable interprets periods via the new bell schedule; custom-time courses are unaffected"
+  "period_table_bind_preview_body": "After switching, this timetable interprets periods via the new bell schedule; custom-time courses are unaffected",
+  "about_update_dismiss": "Dismiss update banner",
+  "calendar_range_label": "Import range",
+  "calendar_range_week": "Next 7 days",
+  "calendar_range_month": "Next month",
+  "calendar_range_semester": "Rest of this semester"
 }

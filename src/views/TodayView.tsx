@@ -22,30 +22,11 @@ import { effectiveDayOfWeek } from '../domain/holiday/transfers'
 import { CourseDetailSheet } from '../components/CourseDetailSheet'
 import { AddCourseView } from './AddCourseView'
 
-type SemesterStatus = 'BEFORE_START' | 'IN_RANGE' | 'AFTER_END'
+// 学期三态/周次纯函数提取至 domain/semester (提醒引擎共用单一实现); re-export 保持
+// 既有消费方 (semesterStatus.test.ts 等) 的 import 路径不变。
+import { semesterStatus, currentWeek, type SemesterStatus } from '../domain/semester'
 
-/**
- * 周一归一 (DateUtils.kt:20-44 mondayOf 读侧防御 1:1):
- * 非周一 startDate 必须落到所在周周一, 否则状态/周数与 Android 劈叉 (issue #5)。
- */
-function mondayOfStart(startDate: string): Date | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate)
-  if (!m) return null
-  const start = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  const dow = start.getDay() === 0 ? 7 : start.getDay()
-  start.setDate(start.getDate() - (dow - 1))
-  return start
-}
-
-export function semesterStatus(startDate: string, maxWeek: number, today: Date): SemesterStatus {
-  if (!startDate) return 'IN_RANGE'
-  const start = mondayOfStart(startDate)
-  if (!start) return 'IN_RANGE'
-  const diffDays = Math.floor((today.getTime() - start.getTime()) / 86400000)
-  if (diffDays < 0) return 'BEFORE_START'
-  if (diffDays >= maxWeek * 7) return 'AFTER_END'
-  return 'IN_RANGE'
-}
+export { semesterStatus }
 
 /** zh-TW 繁体星期名 (values-zh-rTW/strings.xml day_names) — localizedDay 共享函数 zh 一律简体, 此处细分 */
 const DAY_NAMES_ZH_TW = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
@@ -75,12 +56,10 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
     () => semesterStatus(defaultTable?.startDate ?? '', defaultTable?.maxWeek ?? 20, today),
     [defaultTable?.startDate, defaultTable?.maxWeek, today]
   )
-  const actualWeek = useMemo(() => {
-    const start = defaultTable?.startDate ? mondayOfStart(defaultTable.startDate) : null
-    if (!start) return 1
-    const diffDays = Math.floor((today.getTime() - start.getTime()) / 86400000)
-    return Math.max(1, Math.floor(diffDays / 7) + 1)
-  }, [defaultTable?.startDate, today])
+  const actualWeek = useMemo(
+    () => (defaultTable?.startDate ? currentWeek(defaultTable.startDate, today) : 1),
+    [defaultTable?.startDate, today]
+  )
 
   const isOut = status !== 'IN_RANGE'
   const todayCourses = useMemo(() => {

@@ -469,6 +469,9 @@
   "notif_daily_title": "Hoy es %1$d, tienes %2$d clases",
   "notif_daily_title_no_course": "Hoy es %1$d, no tienes clases hoy",
   "notif_room_unknown": "Aula desconocida",
+  "notif_tomorrow_title": "Mañana es %1$d, tienes %2$d clases",
+  "notif_tomorrow_title_no_course": "Mañana es %1$d, no tienes clases mañana",
+  "notif_tomorrow_text_no_course": "Mañana no hay clases. ¡Descansa!",
   "reminder_banner_sub": "Mostrar un banner antes de clase en la barra de notificaciones",
   "reminder_banner_title": "Recordatorio en banner",
   "reminder_before_class_preview": "Ejemplo: Próxima clase Cálculo Avanzado a las 08:00 en Edificio A101",
@@ -704,5 +707,10 @@
   "period_table_preview_more": "…y %1$d cursos más",
   "period_table_preview_confirm": "Guardar",
   "period_table_bind_preview_title": "Confirmar cambio",
-  "period_table_bind_preview_body": "Tras cambiar, este horario interpreta los períodos según el nuevo horario de períodos; los cursos con hora propia no se afectan"
+  "period_table_bind_preview_body": "Tras cambiar, este horario interpreta los períodos según el nuevo horario de períodos; los cursos con hora propia no se afectan",
+  "about_update_dismiss": "Descartar el aviso de actualización",
+  "calendar_range_label": "Periodo",
+  "calendar_range_week": "Próximos 7 días",
+  "calendar_range_month": "Próximo mes",
+  "calendar_range_semester": "Resto del semestre"
 }

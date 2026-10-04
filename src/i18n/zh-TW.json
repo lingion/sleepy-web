@@ -469,6 +469,9 @@
   "notif_daily_title": "今日 %1$d 號，您有 %2$d 節課",
   "notif_daily_title_no_course": "今日 %1$d 號，今天沒有課程",
   "notif_room_unknown": "未知教室",
+  "notif_tomorrow_title": "明日 %1$d 號，您有 %2$d 節課",
+  "notif_tomorrow_title_no_course": "明日 %1$d 號，沒有課程",
+  "notif_tomorrow_text_no_course": "明日無課,好好休息!",
   "reminder_banner_sub": "在系統通知欄顯示課前橫幅",
   "reminder_banner_title": "橫幅提醒",
   "reminder_before_class_preview": "範例：下節課 高等數學 於 08:00 在 教學樓A101 上課",
@@ -704,5 +707,10 @@
   "period_table_preview_more": "…和其他 %1$d 門課",
   "period_table_preview_confirm": "確認儲存",
   "period_table_bind_preview_title": "換綁確認",
-  "period_table_bind_preview_body": "切換後本課表按新作息表解釋節次；自訂時間的課程不受影響"
+  "period_table_bind_preview_body": "切換後本課表按新作息表解釋節次；自訂時間的課程不受影響",
+  "about_update_dismiss": "關閉更新提示",
+  "calendar_range_label": "匯入範圍",
+  "calendar_range_week": "未來 7 天",
+  "calendar_range_month": "未來 1 個月",
+  "calendar_range_semester": "本學期剩餘課程"
 }

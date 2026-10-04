@@ -12,7 +12,14 @@ import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domai
 import { timeToFractionalRows } from '../../domain/timeTable'
 import { buildGridGeometry, singleCardGeom, slotIndexOf, yOfRows, rowHeightAt } from './gridGeometry'
 import { GridClusterCard } from './GridClusterCard'
-import { periodHeaderLines, type PeriodHeaderLayout, type PeriodHeaderStyle } from './periodHeader'
+import {
+  columnAdaptiveFont,
+  estimateHeaderInk,
+  periodHeaderLines,
+  type AdaptiveFont,
+  type PeriodHeaderLayout,
+  type PeriodHeaderStyle,
+} from './periodHeader'
 
 export interface CardsGridViewProps {
   courses: Course[]
@@ -96,6 +103,20 @@ export function CardsGridView(props: CardsGridViewProps) {
 
   const maxNode = geo.slots.length
 
+  // 表头字号自适应 (Android 3e4a4dfe 1:1 语义): 整列统一字号, 由最紧行决定, 防截断。
+  // CSS 无文本测量 → 估算墨迹宽; 卡宽 = 时间栏宽, 卡高 = 最矮行高。
+  const headerFont = useMemo(() => {
+    if (prefs.periodHeaderLayout !== 'three_line') return null
+    const inks = geo.slots
+      .filter((s) => !s.isPlaceholder)
+      .map((s) => estimateHeaderInk(periodHeaderLines(s, 'three_line', prefs.periodHeaderStyle, prefs.periodHeaderShowX)))
+    const cardW = 68 * prefs.gridScale
+    const minRowH = geo.slots.length
+      ? Math.min(...geo.slots.map((_, i) => rowHeightAt(geo.plan, i, geo.rowH) - geo.gapH))
+      : 52 * prefs.gridScale
+    return columnAdaptiveFont(cardW, minRowH, inks)
+  }, [geo.slots, geo.plan, geo.rowH, geo.gapH, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderShowX])
+
   // 簇: 时间域聚簇 (2026-09-09 假冲突修复同源)
   const clusters = useMemo(() => findClusters(courses, timeJson), [courses, timeJson])
   const clusteredIds = useMemo(() => new Set(clusters.flatMap((c) => c.courses.map((x) => x.id))), [clusters])
@@ -167,6 +188,7 @@ export function CardsGridView(props: CardsGridViewProps) {
                 style={prefs.periodHeaderStyle}
                 hanging={prefs.periodHeaderHanging}
                 showX={prefs.periodHeaderShowX}
+                font={headerFont}
               />
             </div>
           ))}
@@ -265,6 +287,7 @@ function SingleTimeHeadCell({
   style,
   hanging,
   showX,
+  font,
 }: {
   slot: { label: string; displayStart: string; displayEnd: string; nodeStart?: number; nodeEnd?: number; isPlaceholder?: boolean }
   scale: number
@@ -273,6 +296,8 @@ function SingleTimeHeadCell({
   style: PeriodHeaderStyle
   hanging: number
   showX: boolean
+  /** 整列统一自适应字号 (Android AdaptiveFont 同源); null = 旧固定字号 */
+  font?: AdaptiveFont | null
 }) {
   const isPh = !!slot.isPlaceholder
   const hangingOffset = hanging * 10 * scale
@@ -293,20 +318,26 @@ function SingleTimeHeadCell({
           transform: layout === 'three_line' ? `translateX(${hangingOffset}px)` : undefined,
         }}
       >
-        {!isPh && periodHeaderLines(slot, layout, style, showX).map((line, index) => (
-          <span
-            key={line}
-            className="m3-label-small"
-            style={{
-              fontWeight: index === 1 || layout === 'legacy' && index === 0 ? 600 : undefined,
-              fontSize: (index === 1 || layout === 'legacy' && index === 0 ? 10 : 9) * scale,
-              lineHeight: `${(index === 1 || layout === 'legacy' && index === 0 ? 14 : 11) * scale}px`,
-              color: index === 1 || layout === 'legacy' && index === 0 ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)',
-            }}
-          >
-            {line}
-          </span>
-        ))}
+        {!isPh && periodHeaderLines(slot, layout, style, showX).map((line, index) => {
+          const isLabel = index === 1 || layout === 'legacy' && index === 0
+          // 三行布局中间行=标签 (labelSize), 上下=时间 (timeSize); legacy 首行=标签
+          const base = font != null ? (isLabel ? font.labelSize : font.timeSize) : isLabel ? 10 : 9
+          const size = base * scale
+          return (
+            <span
+              key={line}
+              className="m3-label-small"
+              style={{
+                fontWeight: isLabel ? 600 : undefined,
+                fontSize: size,
+                lineHeight: `${(isLabel ? size * 1.4 : size * 1.25)}px`,
+                color: isLabel ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)',
+              }}
+            >
+              {line}
+            </span>
+          )
+        })}
       </div>
     </div>
   )
@@ -399,6 +430,7 @@ export function CourseOverlayCard({
               fontSize: 10 * scale,
               lineHeight: `${13 * scale}px`,
               color: fg,
+              textAlign: 'center',
               display: '-webkit-box',
               WebkitLineClamp: 6,
               WebkitBoxOrient: 'vertical',

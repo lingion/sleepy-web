@@ -5,7 +5,8 @@
  * source 是 WebView 内 fetch 组装 JSON: {rows:[{kcmc,xjc,xingqi,rqxl,zcstr,tmc,croommc}], periods:...}
  * - xingqi 优先, 缺位 rqxl/100; xjc 优先, 缺位 rqxl%100
  * - zcstr 逗号/区间/混合形态
- * - 合并连堂: 同(name,day,room,teacher,weeks串)且 node 连续 → start..end 单条
+ * - 合并: 按 (课名,星期,教师) 分组 → 节号连续段拉通, 周次取并集,
+ *   同节多教室用 "/" 连接 (Android ac6a3367, 闽江师范按周换教室回归)
  */
 
 import { toIntOrNull, type JwCourse, type JwParser } from './jwCourse'
@@ -107,34 +108,48 @@ export class JwChaoxingParser implements JwParser {
       parsed.push({ name, day, node, weeks, room: stripHtml(str('croommc')), teacher: stripHtml(str('tmc')) })
     }
 
-    // 合并连堂
-    const sorted = [...parsed].sort((a, b) => a.day - b.day || a.node - b.node || a.name.localeCompare(b.name))
-    const result: JwCourse[] = []
-    let i = 0
-    while (i < sorted.length) {
-      const cur = sorted[i]
-      let endNode = cur.node
-      let j = i + 1
-      while (
-        j < sorted.length &&
-        sorted[j].name === cur.name && sorted[j].day === cur.day &&
-        sorted[j].room === cur.room && sorted[j].teacher === cur.teacher &&
-        sorted[j].weeks.length === cur.weeks.length &&
-        sorted[j].weeks.every((w, k) => w === cur.weeks[k]) &&
-        sorted[j].node === endNode + 1
-      ) {
-        endNode = sorted[j].node
-        j++
-      }
-      for (const [sw, ew, type] of weekRuns(cur.weeks)) {
-        result.push({
-          name: cur.name, room: cur.room, teacher: cur.teacher,
-          day: cur.day, startNode: cur.node, endNode,
-          startWeek: sw, endWeek: ew, type,
-        })
-      }
-      i = j
+    // 合并: 按 (课名,星期,教师) 分组 → 节号连续段拉通, 周次取并集, 同节多教室 "/" 连接
+    const groups = new Map<string, ChaoxingRow[]>()
+    for (const r of parsed) {
+      const key = [r.name, r.day, r.teacher].join('\u001f')
+      const g = groups.get(key)
+      if (g) g.push(r)
+      else groups.set(key, [r])
     }
+    const result: JwCourse[] = []
+    for (const [, group] of groups) {
+      const weeks = [...new Set(group.flatMap((r) => r.weeks))].sort((a, b) => a - b)
+      const roomsByNode = new Map<number, string>()
+      for (const [node, g] of new Map([...group.reduce((m, r) => m.set(r.node, [...(m.get(r.node) ?? []), r]), new Map<number, ChaoxingRow[]>())])) {
+        roomsByNode.set(node, [...new Set(g.map((r) => r.room).filter((r) => r !== ''))].join('/'))
+      }
+      const nodes = [...new Set(group.map((r) => r.node))].sort((a, b) => a - b)
+      const blocks: Array<[number, number]> = []
+      let start = nodes[0]
+      let prev = nodes[0]
+      for (const n of nodes.slice(1)) {
+        if (n === prev + 1) prev = n
+        else {
+          blocks.push([start, prev])
+          start = n
+          prev = n
+        }
+      }
+      blocks.push([start, prev])
+      for (const [bs, be] of blocks) {
+        const room = [...new Set(
+          Array.from({ length: be - bs + 1 }, (_, k) => roomsByNode.get(bs + k)).filter((r) => r !== undefined && r !== ''),
+        )].join('/')
+        for (const [sw, ew, type] of weekRuns(weeks)) {
+          result.push({
+            name: group[0].name, room, teacher: group[0].teacher,
+            day: group[0].day, startNode: bs, endNode: be,
+            startWeek: sw, endWeek: ew, type,
+          })
+        }
+      }
+    }
+    result.sort((a, b) => a.day - b.day || a.startNode - b.startNode || a.name.localeCompare(b.name))
     return result
   }
 

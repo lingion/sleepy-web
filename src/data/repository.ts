@@ -5,7 +5,8 @@
 
 import { db, nextTableId, nextCourseId, nextPeriodTableId } from './db'
 import { undoManager } from './undoStore'
-import type { Course, PeriodTable, Table } from './types'
+import type { Course, ImportDraft, PeriodTable, Table } from './types'
+import { restoredForUnbind, snapshotForBind } from './types'
 import { DEFAULT_TIME_JSON, reclaimUnusedEdgeNodes, remapCourseNodes, timeToNode } from '../domain/timeTable'
 import i18next from 'i18next'
 import { pruneConflictDefaultTop } from '../domain/conflictLayout'
@@ -83,18 +84,98 @@ export async function deletePeriodTable(id: number): Promise<boolean> {
   return true
 }
 
-/** 18. bindPeriodTable — 课表绑定独立作息表 (单向写: 只改 periodTableId,
- *  不动 Table.nodeCount/timeJson/smartConfigJson — 节点数据由 hydratedWith 在读路径投影,
- *  与 Android bindPeriodTable 单向语义 1:1: 绑定不触碰课程节次) */
+/** 18. bindPeriodTable — 课表绑定独立作息表 (Android bindPeriodTable C2 语义 1:1):
+ *  首次绑定 (null→非null) 写 preBindSnapshotJson={t,n,s} 快照; 换绑 (非null→非null)
+ *  不刷新快照; 解绑恢复快照再清空。悬空目标拒绝, 无效动作 (目标未变) 不拍撤回快照。
+ *  绑定本身不改兼容列 — web 读路径跟随绑定时由 updateBoundTableSettings 镜像写。 */
 export async function bindPeriodTable(tableId: number, periodTableId: number | null): Promise<void> {
-  await undoManager.capture('bindPeriodTable')
   const table = await db.timetables.get(tableId)
   if (!table) return
-  await db.timetables.put({ ...table, periodTableId: periodTableId ?? null })
+  if (periodTableId != null && !(await db.periodTables.get(periodTableId))) return
+  if ((table.periodTableId ?? null) === periodTableId) return
+  await undoManager.capture('bindPeriodTable')
+  const next =
+    table.periodTableId == null && periodTableId != null
+      ? snapshotForBind(table, periodTableId)
+      : table.periodTableId != null && periodTableId == null
+        ? restoredForUnbind(table)
+        : { ...table, periodTableId }
+  await db.timetables.put(next)
 }
 
-/** 19. savePeriodTableForTable — 从课表当前 timeJson 另存为新独立作息表 */
-export async function savePeriodTableForTable(
+/** 18b. updateTableMetadataAndBind — 编辑课表保存: 元数据 + 换绑, 单事务原子 (Android 同名方法 1:1,
+ *  2026-09-23 症状3修复)。null→非null 写 C2 快照; 非null→null 恢复快照后叠用户本次
+ *  编辑的时间域 (解绑态兼容列即真值); 换绑只动指针。periodContent 非空时一并落回目标作息表。 */
+export async function updateTableMetadataAndBind(
+  table: Table,
+  periodTableId: number | null,
+  periodContent?: PeriodTable,
+): Promise<void> {
+  const current = await db.timetables.get(table.id)
+  if (!current) return
+  if (periodTableId != null && !(await db.periodTables.get(periodTableId))) return
+  if (periodContent && !(await db.periodTables.get(periodContent.id))) return
+  if ((current.periodTableId ?? null) === periodTableId && !periodContent) {
+    // 绑定关系与目标内容都没变 — 退化为纯元数据写; 解绑态写时间域(兼容列即真值)
+    await undoManager.capture('updateTableMetadata')
+    const writeTimeDomain = periodTableId == null
+    await db.timetables.put({
+      ...current,
+      name: table.name,
+      startDate: table.startDate,
+      maxWeek: table.maxWeek,
+      ...(writeTimeDomain
+        ? { timeJson: table.timeJson, smartConfigJson: table.smartConfigJson, nodeCount: table.nodeCount }
+        : {}),
+    })
+    return
+  }
+  await undoManager.capture('updateTableMetadataAndBind')
+  await db.transaction('rw', db.timetables, db.periodTables, async () => {
+    const next =
+      current.periodTableId == null && periodTableId != null
+        ? snapshotForBind(current, periodTableId)
+        : current.periodTableId != null && periodTableId == null
+          ? {
+              ...restoredForUnbind(current),
+              timeJson: table.timeJson,
+              smartConfigJson: table.smartConfigJson,
+              nodeCount: table.nodeCount,
+            }
+          : { ...current, periodTableId }
+    await db.timetables.put({
+      ...next,
+      name: table.name,
+      startDate: table.startDate,
+      maxWeek: table.maxWeek,
+    })
+    if (periodContent) await db.periodTables.put({ ...periodContent, updatedAt: Date.now() })
+  })
+}
+
+// ---- 导入草稿 (Room v10 import_drafts 1:1) ------------------------------
+
+/** 读: 全部草稿 (updatedAt 降序 — 最近优先) */
+export async function loadImportDrafts(): Promise<ImportDraft[]> {
+  return db.importDrafts.orderBy('updatedAt').reverse().toArray()
+}
+
+/** 读: 单条草稿 */
+export async function getImportDraft(id: string): Promise<ImportDraft | undefined> {
+  return db.importDrafts.get(id)
+}
+
+/** 保存/更新草稿 — id 由导入流提供, 同 id 幂等重试 (Android ImportDraftDao.upsert 同构) */
+export async function saveImportDraft(draft: ImportDraft): Promise<void> {
+  await db.importDrafts.put(draft)
+}
+
+/** 删除草稿 (应用或放弃后清理) */
+export async function deleteImportDraft(id: string): Promise<void> {
+  await db.importDrafts.delete(id)
+}
+
+/** 19. savePeriodTableForTable — 从课表当前 timeJson 另存为新独立作息表 */export async function savePeriodTableForTable(
   tableId: number,
   name: string
 ): Promise<number> {
@@ -116,8 +197,11 @@ export async function savePeriodTableForTable(
 }
 
 /** 20. updatePeriodTableContent — 修改共享作息表内容 (issue#40: 全部绑定课表立即生效)。
- *  Android ScheduleRepository.savePeriodTable 1:1: 同步把绑定课表的
- *  timeJson/nodesPerDay/smartConfigJson 覆写为本表内容 (课程行零改动)。返回受影响课表数。 */
+ *  Android savePeriodTable 只写 period_tables (读路径经 hydratedWith 投影);
+ *  web 读路径直接渲染兼容列 (defaultTable.timeJson), 因此这里保留镜像写:
+ *  把绑定课表的 timeJson/nodesPerDay/smartConfigJson 同步覆写 (课程行零改动)。
+ *  C2 保证: 绑定/解绑经 bindPeriodTable 快照机制, 镜像不触碰 preBindSnapshotJson。
+ *  返回受影响课表数。 */
 export async function updatePeriodTableContent(pt: PeriodTable): Promise<number> {
   const existing = await db.periodTables.get(pt.id)
   if (!existing) return 0

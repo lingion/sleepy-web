@@ -1,15 +1,17 @@
 /**
- * Dexie 数据库 — Room v8 schema 1:1 对应
- * 四表: period_tables / timetables / courses / prefs
+ * Dexie 数据库 — Room v10 schema 1:1 对应
+ * 五表: period_tables / timetables / courses / import_drafts / prefs
  * (store 名不能用 `tables` — Dexie 基类 tables: Table[] 为 schema 列表)
- * 所有 16 个写方法统一 captureForUndo 包裹 (与 ScheduleRepository.kt 行为 1:1)。
+ * 所有写方法统一 captureForUndo 包裹 (与 ScheduleRepository.kt 行为 1:1)。
  *
  * v2 迁移 (issue#40 v7→v8): 新增 period_tables 表; 原 timetables 表新增 periodTableId 字段
  * (可选, 旧版本 null/undefined 视为未绑定, hydratedWith(null)=原样回退兼容列)。
+ * v3 迁移 (Room v9→v10): 新增 import_drafts 表; timetables 回退 preBindSnapshotJson 默认 ''
+ * (C2 换绑快照列; color 缺省读路径回退 DEFAULT_TABLE_COLOR, 无需回填)。
  */
 
 import Dexie, { type Table as DexieTable } from 'dexie'
-import type { Course, PeriodTable, Table as TimetableEntity, Prefs } from './types'
+import type { Course, ImportDraft, PeriodTable, Table as TimetableEntity, Prefs } from './types'
 import { DEFAULT_PREFS } from './types'
 import { normalizePeriodHeaderLayout, normalizePeriodHeaderStyle, clampPeriodHeaderHanging } from '../components/schedule/periodHeader'
 
@@ -23,6 +25,7 @@ export class SleepyDatabase extends Dexie {
   periodTables!: DexieTable<PeriodTable, number>
   timetables!: DexieTable<TimetableEntity, number>
   courses!: DexieTable<Course, number>
+  importDrafts!: DexieTable<ImportDraft, string>
   prefs!: DexieTable<PrefsRow, string>
 
   constructor() {
@@ -39,6 +42,14 @@ export class SleepyDatabase extends Dexie {
       timetables: 'id, isDefault, periodTableId',
       courses: 'id, tableId, day, [startWeek+endWeek], groupId',
       prefs: 'key',
+    })
+    // Room v9→v10: import_drafts 表 (教务导入草稿); timetables 回退 preBindSnapshotJson=''
+    this.version(3).stores({
+      importDrafts: 'id, sourceType, updatedAt',
+    }).upgrade(async (tx) => {
+      await tx.table('timetables').toCollection().modify((t: TimetableEntity) => {
+        if (t.preBindSnapshotJson === undefined) t.preBindSnapshotJson = ''
+      })
     })
   }
 }

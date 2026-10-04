@@ -9,14 +9,15 @@ import { useTranslation } from 'react-i18next'
 import { IconArrowBack, IconCheck, IconClose } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
+import type { Table } from '../data/types'
 import { usePendingTable } from '../state/pendingTable'
 import {
   updateTableRemappingCourses,
   deleteTable,
   countCourses,
   loadPeriodTables,
-  bindPeriodTable,
   updateBoundTableSettings,
+  updateTableMetadataAndBind,
 } from '../data/repository'
 import {
   parseTimeSlotRows,
@@ -137,7 +138,8 @@ export function EditTableView({
   const effectiveTimeJson = effectivePeriodTable?.timeJson ?? tbl.timeJson
   const effectiveSmartJson = effectivePeriodTable?.smartConfigJson ?? tbl.smartConfigJson
 
-  function handleSave(newRows: TimeSlotRow[]) {
+  /** 返回 true = 已提交(或异步提交中); false = 校验失败; 'confirm' = 弹出换绑确认框 */
+  function handleSave(newRows: TimeSlotRow[], skipBindConfirm = false): Promise<boolean> | 'confirm' | false {
     const maxWeek = /^\d+$/.test(tableMaxWeek) ? parseInt(tableMaxWeek, 10) : 20
     const valid =
       /^\d{4}-\d{2}-\d{2}$/.test(tableStart) &&
@@ -145,50 +147,70 @@ export function EditTableView({
       newRows.every((r) => r.start < r.end)
     if (!valid) {
       setError(t('edit_table_validation_error'))
-      return
+      return false
     }
     setError(null)
     const trimmedName = tableName.trim()
     const newTimeJson = buildTimeJsonFromRows(newRows)
     const bindChanged = pendingBind !== (tbl.periodTableId ?? null)
-    if (bindChanged && pendingBind != null) {
+    if (bindChanged && pendingBind != null && !skipBindConfirm) {
       // issue#40 §5.3: 换绑须先预览确认 — 弹换绑确认框, 确认才写
       setPendingRebind(pendingBind)
-      return
+      return 'confirm'
     }
-    void (async () => {
+    const metaTable: Table = {
+      ...tbl,
+      name: trimmedName === '' ? tbl.name : trimmedName,
+      startDate: normalizeStartDate(tableStart),
+      maxWeek,
+      timeJson: newTimeJson,
+      smartConfigJson: smartJson,
+      nodeCount: Math.max(1, newRows.length),
+    }
+    return (async () => {
       if (bindChanged) {
-        // issue#40 §5.3: 解绑 — 只写 periodTableId=null, 课程行零改动
-        await bindPeriodTable(tbl.id, null)
+        // 换绑/解绑/绑定 — 元数据 + 绑定态原子落库 (Android updateTableMetadataAndBind 1:1,
+        // 症状3修复); 绑到目标时编辑区内容随 periodContent 落回目标作息表,
+        // 解绑时编辑区内容落回恢复快照后的兼容列。课程行零改动。
+        const targetPt = pendingBind != null
+          ? allPeriodTables.find((pt) => pt.id === pendingBind) ?? null
+          : null
+        await updateTableMetadataAndBind(
+          metaTable,
+          pendingBind,
+          targetPt
+            ? {
+                ...targetPt,
+                timeJson: newTimeJson,
+                smartConfigJson: smartJson,
+                nodesPerDay: Math.max(1, newRows.length),
+              }
+            : undefined,
+        )
       } else if (effectivePeriodTable != null) {
         // issue#40: 节次编辑区改的是共享作息表 — 同时保存当前课表元数据，
         // 再同步全部绑定课表兼容列(§5.2); 课程行零改动(§9.1)
-        await updateBoundTableSettings(
-          {
-            ...tbl,
-            name: trimmedName === '' ? tbl.name : trimmedName,
-            startDate: normalizeStartDate(tableStart),
-            maxWeek,
-          },
-          {
-            ...effectivePeriodTable,
-            timeJson: newTimeJson,
-            smartConfigJson: smartJson,
-            nodesPerDay: Math.max(1, newRows.length),
-          },
-        )
-      } else {
-        await updateTableRemappingCourses({
-          ...tbl,
-          name: trimmedName === '' ? tbl.name : trimmedName,
-          startDate: normalizeStartDate(tableStart),
-          maxWeek,
+        await updateBoundTableSettings(metaTable, {
+          ...effectivePeriodTable,
           timeJson: newTimeJson,
           smartConfigJson: smartJson,
+          nodesPerDay: Math.max(1, newRows.length),
         })
+      } else {
+        await updateTableRemappingCourses(metaTable)
       }
-      settle(onSaved)()
+      return true
     })()
+  }
+
+  /** 主保存按钮: 提交成功后再导航 (确认框直通路径同理) */
+  function saveAndSettle(newRows: TimeSlotRow[], skipBindConfirm = false) {
+    const r = handleSave(newRows, skipBindConfirm)
+    if (r === 'confirm') return
+    if (r === false) return
+    void r.then((ok) => {
+      if (ok) settle(onSaved)()
+    })
   }
 
   return (
@@ -226,7 +248,7 @@ export function EditTableView({
         onRowsChange={setRowsDraft}
         smartConfig={decodeSmartConfig(effectiveSmartJson) ?? inferSmartConfig(parseTimeSlotRows(effectiveTimeJson))}
         onSmartConfigChange={setSmartConfig}
-        onSave={handleSave}
+        onSave={saveAndSettle}
         periodTableOptions={allPeriodTables.map((pt) => ({
           id: pt.id, name: pt.name, nodesPerDay: pt.nodesPerDay,
         }))}
@@ -240,7 +262,7 @@ export function EditTableView({
 
       {/* 保存 */}
       <button
-        onClick={() => handleSave(slotRows)}
+        onClick={() => saveAndSettle(slotRows)}
         style={{
           padding: 14, borderRadius: 12, border: 'none', cursor: 'pointer',
           background: 'var(--md-primary)', color: 'var(--md-on-primary)',
@@ -308,9 +330,9 @@ export function EditTableView({
             </button>
             <button
               onClick={() => {
-                const targetId = pendingRebind
                 setPendingRebind(null)
-                void bindPeriodTable(table.id, targetId).then(settle(onSaved))
+                // 确认后整单提交 — 元数据 + 换绑 + 编辑区内容原子落库 (不再裸写指针)
+                saveAndSettle(rowsDraft ?? [], true)
               }}
               style={{
                 padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',

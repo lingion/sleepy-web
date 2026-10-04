@@ -41,6 +41,7 @@ function heuCourses(): ExportCourse[] {
       day: 2, startNode: 3, step: 3,
       startWeek: 2, endWeek: 8, type: 0, color: '#FF6750A4',
       ownTime: false, startTime: '', endTime: '',
+    isIrregularTime: false,
     },
     {
       id: 0, groupId: '', tableId: 1, courseName: '军事理论', alias: '',
@@ -48,6 +49,7 @@ function heuCourses(): ExportCourse[] {
       day: 2, startNode: 6, step: 2,
       startWeek: 2, endWeek: 18, type: 0, color: '#FF6750A4',
       ownTime: false, startTime: '', endTime: '',
+    isIrregularTime: false,
     },
   ]
 }
@@ -102,6 +104,7 @@ function courses13(): ExportCourse[] {
       day: 4, startNode: 11, step: 3,
       startWeek: 6, endWeek: 6, type: 0, color: '#FF6750A4',
       ownTime: false, startTime: '', endTime: '',
+    isIrregularTime: false,
     },
   ]
 }

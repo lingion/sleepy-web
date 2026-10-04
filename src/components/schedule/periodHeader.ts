@@ -56,3 +56,65 @@ export function periodHeaderLines(
 export function clampPeriodHeaderHanging(value: number): number {
   return Math.min(1, Math.max(-1, Number.isFinite(value) ? value : 0))
 }
+
+/**
+ * 表头字号自适应 — PeriodHeaderAdaptiveFont (PeriodHeaderLayoutModel.kt) 1:1。
+ * 高度上限唯一驱动 (三行总高 ≈ label×2.6); 墨迹超宽时按比例回缩兜底;
+ * 整列共用一个字号 — 由最宽 (最难装下) 的行决定 (用户 2026-09-29 令)。
+ */
+export interface AdaptiveFont {
+  timeSize: number
+  labelSize: number
+}
+
+export const ADAPTIVE_FONT_MAX_LABEL = 16
+export const ADAPTIVE_FONT_MAX_TIME = 14
+export const ADAPTIVE_FONT_MIN_LABEL = 11
+export const ADAPTIVE_FONT_MIN_TIME = 10
+const HEIGHT_TO_LABEL_RATIO = 2.6
+const BASE_LABEL = 12
+
+export function computeAdaptiveFont(
+  cardWidth: number,
+  cardHeight: number,
+  inkWidth: number,
+): AdaptiveFont {
+  const heightCap = Math.max(cardHeight, 1) / HEIGHT_TO_LABEL_RATIO
+  const labelSize = heightCap >= ADAPTIVE_FONT_MIN_LABEL
+    ? Math.min(heightCap, ADAPTIVE_FONT_MAX_LABEL)
+    : Math.max(heightCap, 0.1)
+  const rawTime = labelSize - 1
+  const timeSize = rawTime >= ADAPTIVE_FONT_MIN_TIME
+    ? Math.min(rawTime, ADAPTIVE_FONT_MAX_TIME)
+    : Math.max(rawTime, 0.1)
+  // 墨迹闸: inkWidth 按基准字号测量, 投影到自适应字号再判溢出
+  const projectedInk = inkWidth > 0 && labelSize > 0 ? inkWidth * (labelSize / BASE_LABEL) : inkWidth
+  const shrink = projectedInk > cardWidth && cardWidth > 0 && projectedInk > 0
+    ? cardWidth / projectedInk
+    : 1
+  return {
+    timeSize: Math.max(timeSize * shrink, 0.1),
+    labelSize: Math.max(labelSize * shrink, 0.1),
+  }
+}
+
+/**
+ * 列内统一字号 — forColumn 1:1: 行约束取各行最紧 (最大墨迹宽)。
+ * widths = 各行 {ink} (基准字号下 时间块+标签 联合包络宽)。
+ */
+export function columnAdaptiveFont(cardWidth: number, cardHeight: number, inks: number[]): AdaptiveFont {
+  const ink = inks.length === 0 ? 0 : Math.max(...inks)
+  return computeAdaptiveFont(cardWidth, cardHeight, ink)
+}
+
+/** CSS 无文本测量 — 按字符类别估算基准 (12sp) 字号下的墨迹宽。
+ *  三行表头: 时间行与标签行横向错锚, 包络 ≈ 最宽行 + 次宽行一半; 两行布局取最宽行。 */
+export function estimateHeaderInk(lines: string[]): number {
+  const widths = lines.map((line) => {
+    let w = 0
+    for (const ch of line) w += /[0-9:]/.test(ch) ? 0.58 : ch === '-' ? 0.4 : 0.9
+    return w
+  }).sort((a, b) => b - a)
+  const envelope = widths.length >= 3 ? widths[0] + widths[1] / 2 : (widths[0] ?? 0)
+  return envelope * BASE_LABEL
+}

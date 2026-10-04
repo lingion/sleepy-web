@@ -26,9 +26,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { getCourses, getDefaultTable } from '../data/repository'
 import { exportWakeUpJson, exportWakeUpShareText, exportIcs } from '../domain/import/scheduleExporter'
+import { exportDatedIcs, type IcsRange } from '../domain/import/icsRangeExporter'
 import { exportSleepyV1File, exportSleepyV1ShareText, exportPeriodTableShareText, exportPeriodTableJson } from '../domain/import/sleepyNativeExporter'
 import type { Table, Course, PeriodTable } from '../data/types'
 import type { ExportCourse } from '../domain/import/scheduleExporter'
+import { exportBackup, backupFileName, EXPORTABLE_MODULES } from '../domain/migration/backupExecutor'
+import { IconDownload } from '../components/icons'
+import { usePrefsStore } from '../state/prefsStore'
+import { scopedTransfers } from '../state/holidayStore'
 
 export function ExportView({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation()
@@ -79,13 +84,31 @@ export function ExportView({ onBack }: { onBack: () => void }) {
     }
   }
 
+  // ICS 双形态 (用户 2026-10-03 拍板): 循环事件 = Android exportIcs 1:1;
+  // 逐日事件 = SystemCalendarManager.buildEventSpecs 语义, 范围取 calendarImportRange
+  // (CalendarImportDialog 同一 prefs 键)。弹层选形态, 默认循环 (Android 出厂行为)。
+  const [icsOverlay, setIcsOverlay] = useState(false)
+  const calendarPrefs = usePrefsStore((s) => s.prefs)
+  const [icsDated, setIcsDated] = useState(false)
+  const [icsRange, setIcsRange] = useState<IcsRange>(calendarPrefs.calendarImportRange)
+
   async function handleIcs() {
     if (!table) return
     const fileName = `sleepy_${table.name}_${await stamp()}.ics`
-    const ics = exportIcs(toExportTable(table), toExportCourses(courses))
+    const ics = icsDated
+      ? exportDatedIcs(toExportTable(table), toExportCourses(courses), {
+          range: icsRange,
+          today: new Date(),
+          transfers: calendarPrefs.calendarApplyTransfers ? scopedTransfers(table.id) : [],
+          reminderMinutes: calendarPrefs.calendarReminderMinutes,
+          firstAlarmEnabled: calendarPrefs.calendarFirstAlarmEnabled,
+          firstAlarmMinutes: calendarPrefs.calendarFirstAlarmMinutes,
+        })
+      : exportIcs(toExportTable(table), toExportCourses(courses))
     try {
       await downloadFile(fileName, ics, 'text/calendar')
       show(t('export_saved_to', { v1: fileName, defaultValue: `已保存到 Download/Sleepy/${fileName}` }))
+      setIcsOverlay(false)
     } catch {
       show(t('export_failed', '导出失败，请重试'))
     }
@@ -126,6 +149,28 @@ export function ExportView({ onBack }: { onBack: () => void }) {
     const fileName = `sleepy_${selectedPeriodTable.name}_${await stamp()}.json`
     try {
       await downloadFile(fileName, exportPeriodTableJson(selectedPeriodTable), 'application/json')
+      show(t('export_saved_to', { v1: fileName, defaultValue: `已保存到 Download/Sleepy/${fileName}` }))
+    } catch {
+      show(t('export_failed', '导出失败，请重试'))
+    }
+  }
+
+  async function handleBackup() {
+    try {
+      const { bytes } = await exportBackup(EXPORTABLE_MODULES)
+      const fileName = backupFileName()
+      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/zip' })
+      const url = URL.createObjectURL(blob)
+      try {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+      }
       show(t('export_saved_to', { v1: fileName, defaultValue: `已保存到 Download/Sleepy/${fileName}` }))
     } catch {
       show(t('export_failed', '导出失败，请重试'))
@@ -210,7 +255,7 @@ export function ExportView({ onBack }: { onBack: () => void }) {
             <Hairline />
             <ExportItem
               icon={<IconCalendarMonth size={24} />} title={t('export_ics_title')} subtitle={t('export_ics_subtitle')}
-              onClick={() => { void handleIcs() }}
+              onClick={() => setIcsOverlay(true)}
             />
             <Hairline />
             <ExportItem
@@ -220,6 +265,14 @@ export function ExportView({ onBack }: { onBack: () => void }) {
           </>
         )}
       </div>
+
+      {/* v1.0.57 全量备份 — .sleepybackup (EXPORTABLE_MODULES: database + preferences) */}
+      <ExportItem
+        icon={<IconDownload size={24} />}
+        title={t('backup_title', '全量备份')}
+        subtitle={t('backup_subtitle', '跨设备/跨平台迁移 (.sleepybackup)')}
+        onClick={() => { void handleBackup() }}
+      />
 
       {/* M3 snackbar 等价 — inverse token 未导出, on-surface/surface 近似, 4s 自动消失 */}
       {notice && (
@@ -237,6 +290,16 @@ export function ExportView({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
+      {icsOverlay && (
+        <IcsOptionsSheet
+          dated={icsDated}
+          range={icsRange}
+          onDatedChange={setIcsDated}
+          onRangeChange={setIcsRange}
+          onExport={() => { void handleIcs() }}
+          onDismiss={() => setIcsOverlay(false)}
+        />
+      )}
       {pickerOpen && (
         <Picker
           tables={tables}
@@ -356,6 +419,113 @@ export function ShareScheduleSheetView({
   )
 }
 
+/**
+ * ICS 导出方式弹层 — web 扩展 (Android 只有 RRULE 循环事件一条路;
+ * 逐日事件是 SystemCalendarManager 日历导入的语义, web 无系统日历写权限 →
+ * 以弹层把两个形态都交付)。范围文案 = calendar_range_* (CalendarImportDialog 同源)。
+ */
+function IcsOptionsSheet({
+  dated, range, onDatedChange, onRangeChange, onExport, onDismiss,
+}: {
+  dated: boolean
+  range: IcsRange
+  onDatedChange: (v: boolean) => void
+  onRangeChange: (r: IcsRange) => void
+  onExport: () => void
+  onDismiss: () => void
+}) {
+  const { t } = useTranslation()
+  const ranges: [IcsRange, string][] = [
+    ['NEXT_WEEK', t('calendar_range_week')],
+    ['NEXT_MONTH', t('calendar_range_month')],
+    ['SEMESTER', t('calendar_range_semester')],
+  ]
+  const radio = (selected: boolean) => (
+    <span
+      aria-hidden
+      style={{
+        width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+        border: selected ? '5px solid var(--md-primary)' : '2px solid var(--md-outline)',
+        boxSizing: 'border-box',
+      }}
+    />
+  )
+  const optionRow = (selected: boolean, label: string, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+        padding: '10px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
+        color: 'var(--md-on-surface)',
+      }}
+    >
+      {radio(selected)}
+      <span className="m3-body-medium">{label}</span>
+    </button>
+  )
+  return (
+    <div
+      onClick={onDismiss}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.4)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 520, background: 'var(--md-surface-container-low)',
+          borderRadius: '28px 28px 0 0', padding: '20px 20px calc(20px + env(safe-area-inset-bottom))',
+        }}
+      >
+        <div className="m3-title-medium" style={{ marginBottom: 8 }}>{t('ics_export_options_title')}</div>
+        {optionRow(!dated, t('ics_recurring_label'), () => onDatedChange(false))}
+        {optionRow(dated, t('ics_dated_label'), () => onDatedChange(true))}
+        {dated && (
+          <div style={{ marginLeft: 30 }}>
+            <div className="m3-label-medium" style={{ color: 'var(--md-on-surface-variant)', padding: '4px 0' }}>
+              {t('calendar_range_label')}
+            </div>
+            <div className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)', padding: '0 0 4px' }}>
+              {t('ics_dated_note')}
+            </div>
+            {ranges.map(([r, label]) => (
+              <div key={r} style={{ marginLeft: 16 }}>
+                {optionRow(range === r, label, () => onRangeChange(r))}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="m3-label-large"
+            style={{
+              padding: '10px 20px', borderRadius: 20, border: 'none', cursor: 'pointer',
+              background: 'transparent', color: 'var(--md-primary)',
+            }}
+          >
+            {t('cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            className="m3-label-large"
+            style={{
+              padding: '10px 24px', borderRadius: 20, border: 'none', cursor: 'pointer',
+              background: 'var(--md-primary)', color: 'var(--md-on-primary)',
+            }}
+          >
+            {t('export_ics_title')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function toExportTable(tb: Table): import('../domain/import/scheduleExporter').ExportTable {
   // scheduleExporter 的 ExportTable 用 nodesPerDay; web 端 Table 是 nodeCount
   return {
@@ -389,6 +559,7 @@ function toExportCourses(cs: Course[]): ExportCourse[] {
     ownTime: c.ownTime,
     startTime: c.startTime,
     endTime: c.endTime,
+    isIrregularTime: c.isIrregularTime,
   }))
 }
 

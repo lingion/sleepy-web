@@ -510,6 +510,9 @@
   "notif_before_class_text": "Next class: %1$s at %2$s in %3$s",
   "notif_before_class_text_with_teacher": "Next class: %1$s at %2$s in %3$s, Teacher: %4$s",
   "notif_room_unknown": "Unknown room",
+  "notif_tomorrow_title": "Tomorrow is day %1$d of the month, you have %2$d classes",
+  "notif_tomorrow_title_no_course": "Tomorrow is day %1$d of the month, no classes tomorrow",
+  "notif_tomorrow_text_no_course": "No classes tomorrow. Take a break!",
   "about_title": "About",
   "about_version": "Version",
   "about_version_detail": "Version %1$s (Build %2$d)",
@@ -730,5 +733,10 @@
   "period_table_preview_more": "…and %1$d more courses",
   "period_table_preview_confirm": "Save",
   "period_table_bind_preview_title": "Confirm rebind",
-  "period_table_bind_preview_body": "After switching, this timetable interprets periods via the new bell schedule; custom-time courses are unaffected"
+  "period_table_bind_preview_body": "After switching, this timetable interprets periods via the new bell schedule; custom-time courses are unaffected",
+  "about_update_dismiss": "Dismiss update banner",
+  "calendar_range_label": "Import range",
+  "calendar_range_week": "Next 7 days",
+  "calendar_range_month": "Next month",
+  "calendar_range_semester": "Rest of this semester"
 }

@@ -104,3 +104,54 @@ describe('JwChaoxingParser (chaoxing)', () => {
     expect(new JwChaoxingParser('').generateCourseList()).toHaveLength(0)
   })
 })
+
+describe('JwChaoxingFzmjtc — 闽江师范契约 (ac6a3367 同源, fzmjtc-grdb.json)', () => {
+  function fzmjtc(): string {
+    return readFileSync(join(HERE, '__fixtures__', 'fzmjtc-grdb.json'), 'utf8')
+  }
+
+  function parseFzmjtc() {
+    return new JwChaoxingParser(fzmjtc()).generateCourseList()
+  }
+
+  it('换教室多行合并后 40 条, 无重叠课程卡', () => {
+    const courses = parseFzmjtc()
+    expect(courses).toHaveLength(40)
+    const keys = courses.map((c) => [c.name, c.day, c.startNode, c.endNode, c.startWeek, c.endWeek])
+    expect(new Set(keys.map((k) => JSON.stringify(k))).size).toBe(keys.length)
+  })
+
+  it('大学英语 周三 1-2 节, 周次并集拆 [3-5][7-19]', () => {
+    const cs = parseFzmjtc().filter((c) => c.name === '大学英语(一)' && c.day === 3)
+    expect(cs).toHaveLength(2)
+    for (const c of cs) {
+      expect([c.startNode, c.endNode, c.teacher, c.room]).toEqual([1, 2, '叶月英', '仓-3-501'])
+    }
+    expect(cs.some((c) => c.startWeek === 3 && c.endWeek === 5)).toBe(true)
+    expect(cs.some((c) => c.startWeek === 7 && c.endWeek === 19)).toBe(true)
+  })
+
+  it('换教室课周次并集 → 单卡含两间教室', () => {
+    const cs = parseFzmjtc().filter((c) => c.name === '安全与急救处理' && c.day === 1 && c.startNode === 3)
+    expect(cs).toHaveLength(1)
+    const c = cs[0]
+    expect([c.endNode, c.type, c.startWeek, c.endWeek]).toEqual([4, 1, 5, 19])
+    expect(c.room).toContain('仓-1-703-急危重症实训室')
+    expect(c.room).toContain('仓-3-703')
+  })
+
+  it('思想道德与法治 周四 5-7 节, 周次拆两段', () => {
+    const cs = parseFzmjtc().filter((c) => c.name === '思想道德与法治' && c.day === 4)
+    expect(cs).toHaveLength(2)
+    for (const c of cs) {
+      expect([c.startNode, c.endNode, c.teacher]).toEqual([5, 7, '刘姝辰'])
+    }
+  })
+
+  it('单周课 type=1 / 双周课 type=2', () => {
+    const c1 = parseFzmjtc().find((c) => c.name === '书写训练与工程素养' && c.day === 2)!
+    expect([c1.type, c1.startWeek, c1.endWeek]).toEqual([1, 3, 17])
+    const c2 = parseFzmjtc().find((c) => c.name.startsWith('大学生心理健康') && c.day === 5)!
+    expect([c2.type, c2.startWeek, c2.endWeek]).toEqual([2, 10, 14])
+  })
+})

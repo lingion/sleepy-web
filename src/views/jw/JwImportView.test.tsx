@@ -11,6 +11,8 @@ import { resolve } from 'node:path'
 import { JwImportView } from './JwImportView'
 import { initI18n } from '../../i18n'
 import { getCourses, observeAllTables } from '../../data/repository'
+import { db } from '../../data/db'
+import { loadImportDrafts } from '../../data/repository'
 import { useBackStack } from '../../state/backStack'
 import type { ProxyFetcher } from './proxyClient'
 import { SCHOOLS } from './schools'
@@ -36,10 +38,11 @@ beforeAll(() => {
   initI18n('zh-CN')
 })
 
-afterEach(() => {
+afterEach(async () => {
   cleanup()
   vi.restoreAllMocks()
   useBackStack.getState().reset()
+  await db.importDrafts.clear()
 })
 
 /** 目录里首个可点学校 (有 URL 且已适配) */
@@ -198,5 +201,48 @@ describe('JwImportView', () => {
     expect(screen.getByText('选择学校')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '选择学校' }))
     expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  describe('教务草稿持久化 (Android 696f13bd 1:1)', () => {
+    it('解析成功即落草稿; 确认落库后草稿清除', async () => {
+      const { onBack } = renderView()
+      fireEvent.click(screen.getByRole('option', { name: pickable().name }))
+      fireEvent.change(screen.getByRole('textbox', { name: '粘贴课表网页源码' }), { target: { value: OK_HTML } })
+      fireEvent.click(screen.getByRole('button', { name: '解析此 HTML' }))
+      // 进入确认页 → 草稿已写库 (Android: 课程解析出来之前也要能保存)
+      await waitFor(async () => {
+        const ds = await loadImportDrafts()
+        expect(ds.length).toBe(1)
+        expect(ds[0].sourceType).toBe('jw-html')
+      })
+      // 补齐时间确认 → 落库 + 草稿删除
+      for (const node of [1, 2, 3, 4]) {
+        fireEvent.change(screen.getByLabelText(`第${node}节 开始`), { target: { value: '08:00' } })
+        fireEvent.change(screen.getByLabelText(`第${node}节 结束`), { target: { value: '08:45' } })
+      }
+      fireEvent.click(screen.getByRole('button', { name: /确认导入/ }))
+      await screen.findAllByText('成功导入 2 门课程')
+      expect(await loadImportDrafts()).toHaveLength(0)
+      fireEvent.click(screen.getByRole('button', { name: '确定' }))
+      await act(async () => {})
+      expect(onBack).toHaveBeenCalledTimes(1)
+    })
+
+    it('解析后返回/退出 → selectSchool 显示续导卡; 删除按钮清库', async () => {
+      renderView()
+      fireEvent.click(screen.getByRole('option', { name: pickable().name }))
+      fireEvent.change(screen.getByRole('textbox', { name: '粘贴课表网页源码' }), { target: { value: OK_HTML } })
+      fireEvent.click(screen.getByRole('button', { name: '解析此 HTML' }))
+      // 草稿落库后, 从确认页一路返回到 selectSchool
+      fireEvent.click(screen.getByRole('button', { name: '返回' }))
+      fireEvent.click(screen.getByRole('button', { name: /教务导入/ }))
+      fireEvent.click(screen.getByRole('button', { name: '选择学校' }))
+      await screen.findByText('未完成的导入')
+      fireEvent.click(screen.getByRole('button', { name: '删除' }))
+      await waitFor(async () => {
+        expect(await loadImportDrafts()).toHaveLength(0)
+      })
+      await db.importDrafts.clear()
+    })
   })
 })
