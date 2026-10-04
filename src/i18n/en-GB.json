@@ -725,5 +725,18 @@
   "calendar_range_month": "Next month",
   "calendar_range_semester": "Rest of this semester",
   "schedule_redo": "Redo",
-  "schedule_redo_none": "Nothing to redo"
+  "schedule_redo_none": "Nothing to redo",
+  "schedule_conflict_dialog_title": "Where should this schedule change go?",
+  "schedule_conflict_dialog_summary": "Current schedule: {{v1}} ({{v2}})",
+  "schedule_conflict_dialog_summary_only_this": "only this timetable uses it",
+  "schedule_conflict_dialog_summary_other_count": "{{v1}} other timetables bound",
+  "schedule_conflict_option_detach_title": "Only this timetable",
+  "schedule_conflict_option_detach_sub": "This timetable gets its own schedule and stops following the shared period table",
+  "schedule_conflict_option_create_title": "Create a new schedule and bind",
+  "schedule_conflict_option_create_sub": "Creates a new schedule named after this timetable; others are unaffected",
+  "schedule_conflict_option_sync_title": "Sync changes to period table “{{v1}}”",
+  "schedule_conflict_option_sync_sub_other": "Will affect {{v1}} other timetables",
+  "schedule_conflict_option_sync_sub_only": "Only this timetable uses this schedule",
+  "schedule_conflict_banner_format": "Pending: {{v1}} · takes effect on next save",
+  "schedule_conflict_banner_modify": "Change"
 }

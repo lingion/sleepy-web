@@ -4,7 +4,7 @@
  * 保存走 updateTableRemappingCourses (issue#28 P3: timeJson 变了课程节次自适应)。
  */
 
-import { useState } from 'react'
+import { useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowBack, IconCheck, IconClose } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -18,7 +18,11 @@ import {
   loadPeriodTables,
   updateBoundTableSettings,
   updateTableMetadataAndBind,
+  executePolicyAndSave,
+  getTablesBoundTo,
 } from '../data/repository'
+import { EditPolicyState, SchedulePolicy } from '../domain/schedulePolicy'
+import { ScheduleConflictBottomSheet, PendingPolicyBanner } from './mine/ScheduleConflictSheet'
 import {
   parseTimeSlotRows,
   buildTimeJsonFromRows,
@@ -66,7 +70,9 @@ export function EditTableView({
     return await countCourses(table.id)
   }, [table?.id]) ?? 0
   // issue#40: 全部作息表(换绑选择器数据源 §4.3) + 本表当前绑定
-  const allPeriodTables = useLiveQuery(() => loadPeriodTables(), []) ?? []
+  // 原值 (undefined = 首载未完成) 用于甲案会话 original 定型时机 — 防止把未加载当"未绑定"
+  const allPeriodTablesLive = useLiveQuery(() => loadPeriodTables(), [])
+  const allPeriodTables = allPeriodTablesLive ?? []
 
   const [name, setName] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<string | null>(null)
@@ -84,6 +90,26 @@ export function EditTableView({
   const [pendingBindInit, setPendingBindInit] = useState(false)
   // issue#40 §5.3: 换绑确认弹窗 — 非 null 时弹「确认换绑」, 确认才真正写 periodTableId
   const [pendingRebind, setPendingRebind] = useState<number | null>(null)
+  // 甲案 §2.2: 作息冲突三选项 — 绑定共享作息表时改了作息内容, 保存先弹三选项。
+  const [showConflictSheet, setShowConflictSheet] = useState(false)
+  const [boundCount, setBoundCount] = useState(0)
+  // 甲案: 会话状态 remember(table.id) 语义 — 只随 table.id 重建;
+  // 首载 (allPeriodTablesLive===undefined) 时不建会话, 防止把未加载误判成未绑定 (original=null)
+  const editStateRef = useRef<{ tableId: number; state: EditPolicyState } | null>(null)
+  function getEditState(): EditPolicyState | null {
+    if (!table || allPeriodTablesLive === undefined) return null
+    if (!editStateRef.current || editStateRef.current.tableId !== table.id) {
+      const origPt = table.periodTableId != null
+        ? allPeriodTables.find((pt) => pt.id === table.periodTableId) ?? null
+        : null
+      editStateRef.current = { tableId: table.id, state: new EditPolicyState(table.id, origPt) }
+    }
+    return editStateRef.current.state
+  }
+  const editState = getEditState()
+  const subscribePolicy = (fn: () => void) => (editState ? editState.subscribe(fn) : () => {})
+  const getPolicy = () => editState?.pendingSchedulePolicy ?? SchedulePolicy.NONE
+  const pendingPolicy = useSyncExternalStore(subscribePolicy, getPolicy, getPolicy)
 
   // 返回分层 (EditTableScreen.kt:142): 待保存的新表 → 退出即丢弃, 普通编辑 → 直接返回
   const handleBack = () => {
@@ -96,13 +122,19 @@ export function EditTableView({
     done()
   }
 
-  // 表异步到达后再初始化受控值 (remember(table.id) 等价)
+  // 表异步到达后再初始化受控值 (remember(table.id) 等价);
+  // 甲案取消撤销后 rowsDraft/smartConfig 复位 null → 此处按"有效真值"重建
+  // (绑定共享表时 = 共享表内容, 非本表兼容列)
   if (table && name === null) setName(table.name)
   if (table && startDate === null) setStartDate(table.startDate)
   if (table && maxWeekText === null) setMaxWeekText(String(table.maxWeek))
-  if (table && rowsDraft === null) setRowsDraft(parseTimeSlotRows(table.timeJson))
-  if (table && smartConfig === null) {
-    setSmartConfig(decodeSmartConfig(table.smartConfigJson) ?? inferSmartConfig(parseTimeSlotRows(table.timeJson)))
+  if (table && rowsDraft === null) {
+    const initBindId = pendingBindInit ? pendingBind : (table.periodTableId ?? null)
+    const initPeriod = initBindId != null ? allPeriodTables.find((pt) => pt.id === initBindId) : undefined
+    const initTimeJson = initPeriod?.timeJson ?? table.timeJson
+    const initSmartJson = initPeriod?.smartConfigJson ?? table.smartConfigJson
+    setRowsDraft(parseTimeSlotRows(initTimeJson))
+    setSmartConfig(decodeSmartConfig(initSmartJson) ?? inferSmartConfig(parseTimeSlotRows(initTimeJson)))
   }
   // pendingBind 初始化一次性 — table.periodTableId (remember(table.id, table.periodTableId) 等价)
   if (table && !pendingBindInit) {
@@ -138,8 +170,9 @@ export function EditTableView({
   const effectiveTimeJson = effectivePeriodTable?.timeJson ?? tbl.timeJson
   const effectiveSmartJson = effectivePeriodTable?.smartConfigJson ?? tbl.smartConfigJson
 
-  /** 返回 true = 已提交(或异步提交中); false = 校验失败; 'confirm' = 弹出换绑确认框 */
-  function handleSave(newRows: TimeSlotRow[], skipBindConfirm = false): Promise<boolean> | 'confirm' | false {
+  /** 返回 true = 已提交(或异步提交中); false = 校验失败; 'confirm' = 弹出换绑确认框;
+   *  'conflict' = 弹出作息三选项 Sheet (EditTableScreen.kt:397-422 三选项闸门) */
+  function handleSave(newRows: TimeSlotRow[], skipBindConfirm = false): Promise<boolean> | 'confirm' | 'conflict' | false {
     const maxWeek = /^\d+$/.test(tableMaxWeek) ? parseInt(tableMaxWeek, 10) : 20
     const valid =
       /^\d{4}-\d{2}-\d{2}$/.test(tableStart) &&
@@ -166,6 +199,29 @@ export function EditTableView({
       timeJson: newTimeJson,
       smartConfigJson: smartJson,
       nodeCount: Math.max(1, newRows.length),
+    }
+    // 甲案 §2.2 三选项闸门 (绑定保持不变 + 编辑区是共享作息表时):
+    // ①改了作息+无策略 → 弹窗 (invariant ②; 选择后再改的策略已被 updateDraft
+    //   自动作废, 自然落回此分支 = invariant ⑤ 重弹)
+    // ②有策略(=选择后未再动作息) → 执行策略 (invariant ④)
+    if (!bindChanged && effectivePeriodTable != null && editState) {
+      if (editState.hasScheduleChanged() && pendingPolicy === SchedulePolicy.NONE) {
+        void getTablesBoundTo(effectivePeriodTable.id).then(setBoundCount)
+        setShowConflictSheet(true)
+        return 'conflict'
+      }
+      if (pendingPolicy !== SchedulePolicy.NONE) {
+        const policy = pendingPolicy
+        const draft = editState.draftEffectiveSchedule ?? effectivePeriodTable
+        return (async () => {
+          await executePolicyAndSave(
+            tbl.id, metaTable, newTimeJson, smartJson, Math.max(1, newRows.length), policy, draft,
+          )
+          // 策略执行完清零 — 下次保存不再弹窗 (invariant ④, Android editState.selectPolicy(NONE))
+          editState.selectPolicy(SchedulePolicy.NONE)
+          return true
+        })()
+      }
     }
     return (async () => {
       if (bindChanged) {
@@ -206,7 +262,7 @@ export function EditTableView({
   /** 主保存按钮: 提交成功后再导航 (确认框直通路径同理) */
   function saveAndSettle(newRows: TimeSlotRow[], skipBindConfirm = false) {
     const r = handleSave(newRows, skipBindConfirm)
-    if (r === 'confirm') return
+    if (r === 'confirm' || r === 'conflict') return
     if (r === false) return
     void r.then((ok) => {
       if (ok) settle(onSaved)()
@@ -245,9 +301,30 @@ export function EditTableView({
         expanded={timeSlotsExpanded}
         onToggle={() => setTimeSlotsExpanded((v) => !v)}
         rows={slotRows}
-        onRowsChange={setRowsDraft}
+        onRowsChange={(newRows) => {
+          setRowsDraft(newRows)
+          // 甲案 §2.1: 节次编辑即草稿变化 — 同步进会话状态;
+          // 策略已登记时自动失效 (invariant ⑤, 下次保存重弹)
+          if (effectivePeriodTable != null && editState) {
+            editState.updateDraft({
+              ...effectivePeriodTable,
+              timeJson: buildTimeJsonFromRows(newRows),
+              nodesPerDay: Math.max(1, newRows.length),
+            })
+          }
+        }}
         smartConfig={decodeSmartConfig(effectiveSmartJson) ?? inferSmartConfig(parseTimeSlotRows(effectiveTimeJson))}
-        onSmartConfigChange={setSmartConfig}
+        onSmartConfigChange={(newCfg) => {
+          setSmartConfig(newCfg)
+          // 甲案 §2.1: 自动模式配置也属作息草稿 — 变化即同步+旧策略作废
+          if (effectivePeriodTable != null && editState) {
+            editState.updateDraft({
+              ...effectivePeriodTable,
+              smartConfigJson: encodeSmartConfig(newCfg),
+              nodesPerDay: Math.max(1, slotRows.length),
+            })
+          }
+        }}
         onSave={saveAndSettle}
         periodTableOptions={allPeriodTables.map((pt) => ({
           id: pt.id, name: pt.name, nodesPerDay: pt.nodesPerDay,
@@ -258,6 +335,20 @@ export function EditTableView({
 
       {error && (
         <div role="alert" className="m3-body-medium" style={{ color: 'var(--md-error)' }}>{error}</div>
+      )}
+
+      {/* 甲案 §4.2: 待执行提醒 — 登记策略后常驻; 「修改」重弹三选项(草稿不丢);
+          作息草稿再变 → 策略自动作废(updateDraft 内), Banner 随 NONE 消失。 */}
+      {pendingPolicy !== SchedulePolicy.NONE && (
+        <PendingPolicyBanner
+          policy={pendingPolicy}
+          onModify={() => {
+            void (effectivePeriodTable
+              ? getTablesBoundTo(effectivePeriodTable.id).then(setBoundCount)
+              : Promise.resolve())
+            setShowConflictSheet(true)
+          }}
+        />
       )}
 
       {/* 保存 */}
@@ -343,6 +434,25 @@ export function EditTableView({
             </button>
           </div>
         </Overlay>
+      )}
+
+      {/* 甲案 §4.1: 三选项底部弹层。「取消」/点外部 = 撤销本次作息改动,
+          其他字段草稿保留 (invariant ⑥): cancelPolicy + rowsDraft/smartConfig 复位重建。 */}
+      {showConflictSheet && effectivePeriodTable != null && (
+        <ScheduleConflictBottomSheet
+          periodTableName={effectivePeriodTable.name}
+          boundTableCount={boundCount}
+          onSelect={(policy) => {
+            setShowConflictSheet(false)
+            editState?.selectPolicy(policy)
+          }}
+          onCancel={() => {
+            setShowConflictSheet(false)
+            editState?.cancelPolicy()
+            // scheduleEpoch++ 等价: 复位受控草稿 → 渲染层按库中真值重建 (EditTableScreen.kt:568-572)
+            setRowsDraft(null)
+          }}
+        />
       )}
     </div>
   )

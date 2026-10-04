@@ -714,5 +714,18 @@
   "calendar_range_month": "未來 1 個月",
   "calendar_range_semester": "本學期剩餘課程",
   "schedule_redo": "取消撤回",
-  "schedule_redo_none": "沒有可取消的撤回"
+  "schedule_redo_none": "沒有可取消的撤回",
+  "schedule_conflict_dialog_title": "這次作息改動要改到哪裡？",
+  "schedule_conflict_dialog_summary": "目前作息：{{v1}}（{{v2}}）",
+  "schedule_conflict_dialog_summary_only_this": "僅此課表使用",
+  "schedule_conflict_dialog_summary_other_count": "另有 {{v1}} 張課表綁定",
+  "schedule_conflict_option_detach_title": "只改本課表作息",
+  "schedule_conflict_option_detach_sub": "本課表改用獨立作息，不再跟隨共享節次表",
+  "schedule_conflict_option_create_title": "新建獨立作息表並綁定",
+  "schedule_conflict_option_create_sub": "以本課表名新建作息表，其他課表不受影響",
+  "schedule_conflict_option_sync_title": "同步變更作息表「{{v1}}」",
+  "schedule_conflict_option_sync_sub_other": "將影響另外 {{v1}} 張課表",
+  "schedule_conflict_option_sync_sub_only": "僅此課表使用該作息",
+  "schedule_conflict_banner_format": "待執行：{{v1}} · 再次儲存後生效",
+  "schedule_conflict_banner_modify": "修改"
 }

@@ -717,5 +717,18 @@
   "calendar_range_month": "未来 1 个月",
   "calendar_range_semester": "本学期剩余课程",
   "schedule_redo": "取消撤回",
-  "schedule_redo_none": "没有可取消的撤回"
+  "schedule_redo_none": "没有可取消的撤回",
+  "schedule_conflict_dialog_title": "这次作息改动要改到哪里？",
+  "schedule_conflict_dialog_summary": "当前作息：{{v1}}（{{v2}}）",
+  "schedule_conflict_dialog_summary_only_this": "仅此课表使用",
+  "schedule_conflict_dialog_summary_other_count": "另有 {{v1}} 张课表绑定",
+  "schedule_conflict_option_detach_title": "只改本课表作息",
+  "schedule_conflict_option_detach_sub": "本课表改用独立作息，不再跟随共享节次表",
+  "schedule_conflict_option_create_title": "新建独立作息表并绑定",
+  "schedule_conflict_option_create_sub": "以本课表名新建作息表，其他课表不受影响",
+  "schedule_conflict_option_sync_title": "同步更改作息表「{{v1}}」",
+  "schedule_conflict_option_sync_sub_other": "将影响另外 {{v1}} 张课表",
+  "schedule_conflict_option_sync_sub_only": "仅此课表使用该作息",
+  "schedule_conflict_banner_format": "待执行：{{v1}} · 再次保存后生效",
+  "schedule_conflict_banner_modify": "修改"
 }

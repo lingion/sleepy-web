@@ -714,5 +714,18 @@
   "calendar_range_month": "Próximo mes",
   "calendar_range_semester": "Resto del semestre",
   "schedule_redo": "Rehacer",
-  "schedule_redo_none": "Nada que rehacer"
+  "schedule_redo_none": "Nada que rehacer",
+  "schedule_conflict_dialog_title": "¿Dónde aplicar este cambio de horario?",
+  "schedule_conflict_dialog_summary": "Horario actual: {{v1}} ({{v2}})",
+  "schedule_conflict_dialog_summary_only_this": "solo este horario lo usa",
+  "schedule_conflict_dialog_summary_other_count": "otros {{v1}} horarios vinculados",
+  "schedule_conflict_option_detach_title": "Solo este horario",
+  "schedule_conflict_option_detach_sub": "Este horario usará su propia pauta y dejará de seguir la pauta compartida",
+  "schedule_conflict_option_create_title": "Crear un horario nuevo y vincular",
+  "schedule_conflict_option_create_sub": "Crea un horario nuevo con el nombre de este horario; los demás no se afectan",
+  "schedule_conflict_option_sync_title": "Sincronizar cambios en la pauta «{{v1}}»",
+  "schedule_conflict_option_sync_sub_other": "Afectará a otros {{v1}} horarios",
+  "schedule_conflict_option_sync_sub_only": "Solo este horario usa esta pauta",
+  "schedule_conflict_banner_format": "Pendiente: {{v1}} · se aplicará al próximo guardado",
+  "schedule_conflict_banner_modify": "Cambiar"
 }

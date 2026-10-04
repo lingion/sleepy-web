@@ -11,6 +11,7 @@ import { DEFAULT_TIME_JSON, reclaimUnusedEdgeNodes, remapCourseNodes, timeToNode
 import i18next from 'i18next'
 import { pruneConflictDefaultTop } from '../domain/conflictLayout'
 import { loadPrefs, savePrefs } from './db'
+import { suggestUniqueName } from '../views/mine/periodTableNames'
 
 // ---- 读 ---------------------------------------------------------------
 
@@ -196,6 +197,12 @@ export async function deleteImportDraft(id: string): Promise<void> {
   return id
 }
 
+/** 19b. getTablesBoundTo — 绑定到指定作息表的课表数 (Android repoTablesBoundToCount 1:1,
+ *  用于作息冲突弹窗「另有 N 张课表绑定」提示)。 */
+export async function getTablesBoundTo(periodTableId: number): Promise<number> {
+  return db.timetables.where('periodTableId').equals(periodTableId).count()
+}
+
 /** 20. updatePeriodTableContent — 修改共享作息表内容 (issue#40: 全部绑定课表立即生效)。
  *  Android savePeriodTable 只写 period_tables (读路径经 hydratedWith 投影);
  *  web 读路径直接渲染兼容列 (defaultTable.timeJson), 因此这里保留镜像写:
@@ -252,6 +259,66 @@ export async function updateBoundTableSettings(table: Table, pt: PeriodTable): P
   })
 }
 
+/** 20b. executePolicyAndSave — 甲案 §3.1-§3.3 三策略落库 (Android ScheduleViewModel.kt:144-204 1:1)。
+ *  全程 UndoManager.beginBatch/endBatch = 单撤销单元 (绑定关系+作息内容一次回退)。
+ *  DETACH_COPY: 先 bindPeriodTable(null) 回复快照再写内置列; CREATE_NEW: insertPeriodTableWithUniqueName;
+ *  SYNC: updatePeriodTable 写共享表 + updateTable 写课表元数据。
+ *  执行后清 pendingPolicy — 下次保存不再弹窗(invariant ④)。 */
+export async function executePolicyAndSave(
+  tableId: number,
+  editedTable: Table,
+  newTimeJson: string,
+  smartConfigJson: string,
+  nodesPerDay: number,
+  policy: 'DETACH_COPY' | 'CREATE_NEW' | 'SYNC',
+  draft: PeriodTable,
+): Promise<void> {
+  undoManager.beginBatch()
+  try {
+    const current = await db.timetables.get(tableId)
+    if (!current) return
+    switch (policy) {
+      case 'DETACH_COPY':
+        // 先解绑(恢复快照)再写内置列(草稿), 写入在最后保赢 (Android 顺序同)
+        await bindPeriodTable(tableId, null)
+        await updateTableRemappingCourses({
+          ...editedTable,
+          periodTableId: null,
+          timeJson: newTimeJson,
+          smartConfigJson,
+          nodeCount: nodesPerDay,
+        })
+        break
+      case 'CREATE_NEW': {
+        const newId = await insertPeriodTableWithUniqueName(current.name, newTimeJson, nodesPerDay, smartConfigJson)
+        await bindPeriodTable(tableId, newId)
+        await updateTableRemappingCourses({ ...editedTable, periodTableId: newId })
+        break
+      }
+      case 'SYNC': {
+        // Android: updatePeriodTable(draft.copy(id=boundId))+updateTable — web 读路径直接渲染
+        // 兼容列 (Android 读时 hydrate), 故走 updateBoundTableSettings 原子双写:
+        // 写回共享表 + 镜像全部绑定课表兼容列 (§5.2), 课程行零改动 (§9.1)
+        const boundId = current.periodTableId
+        const boundPt = boundId != null ? await db.periodTables.get(boundId) : undefined
+        if (boundPt) {
+          await updateBoundTableSettings(editedTable, {
+            ...draft,
+            id: boundPt.id,
+            name: boundPt.name,
+            timeJson: newTimeJson,
+            smartConfigJson,
+            nodesPerDay,
+          })
+        }
+        break
+      }
+    }
+  } finally {
+    undoManager.endBatch()
+  }
+}
+
 /** 21. copyPeriodTableAs — 复制作息表 (v1.0.56 T8: 复制先命名, 确认才落库)。
  *  返回新 id; -2 = 名被占用 (Android 同语义返回码)。 */
 export async function copyPeriodTableAs(sourceId: number, newName: string): Promise<number> {
@@ -275,6 +342,28 @@ export async function copyPeriodTableAs(sourceId: number, newName: string): Prom
   return id
 }
 
+
+/** 21b. insertPeriodTableWithUniqueName — CREATE_NEW 策略 (issue#40 §3.2):
+ *  按课表名新建独立作息表, 全局唯一名顺延 (suggestUniqueName), 返回新 id。
+ *  Android insertPeriodTableWithUniqueName 1:1。 */
+export async function insertPeriodTableWithUniqueName(
+  name: string,
+  timeJson: string,
+  nodesPerDay: number,
+  smartConfigJson: string,
+): Promise<number> {
+  const courseNames = (await db.timetables.toArray()).map((t) => t.name)
+  const periodNames = (await db.periodTables.toArray()).map((p) => p.name)
+  const unique = suggestUniqueName(name, courseNames, periodNames, name)
+  return insertPeriodTable({
+    name: unique,
+    nodesPerDay,
+    timeJson,
+    smartConfigJson,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  })
+}
 
 /** 1. insertTable */
 export async function insertTable(table: Omit<Table, 'id'> & { id?: number }): Promise<number> {

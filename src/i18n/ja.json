@@ -714,5 +714,18 @@
   "calendar_range_month": "今後1か月",
   "calendar_range_semester": "今学期の残り",
   "schedule_redo": "やり直す",
-  "schedule_redo_none": "やり直せる操作はありません"
+  "schedule_redo_none": "やり直せる操作はありません",
+  "schedule_conflict_dialog_title": "この時程の変更をどこに適用しますか？",
+  "schedule_conflict_dialog_summary": "現在の時程：{{v1}}（{{v2}}）",
+  "schedule_conflict_dialog_summary_only_this": "この時間割のみ使用",
+  "schedule_conflict_dialog_summary_other_count": "ほか {{v1}} 件の時間割が紐付け済み",
+  "schedule_conflict_option_detach_title": "この時間割のみ変更",
+  "schedule_conflict_option_detach_sub": "この時間割は独自の時程を使い、共有時程表に従わなくなります",
+  "schedule_conflict_option_create_title": "新しい時程表を作成して紐付け",
+  "schedule_conflict_option_create_sub": "この時間割名で新しい時程表を作成し、他には影響しません",
+  "schedule_conflict_option_sync_title": "時程表「{{v1}}」に同期反映",
+  "schedule_conflict_option_sync_sub_other": "ほか {{v1}} 件の時間割に影響します",
+  "schedule_conflict_option_sync_sub_only": "この時程はこの時間割のみが使用",
+  "schedule_conflict_banner_format": "実行待ち：{{v1}} · 次回保存時に反映",
+  "schedule_conflict_banner_modify": "変更"
 }
