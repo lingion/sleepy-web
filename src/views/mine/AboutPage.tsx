@@ -14,6 +14,7 @@ import { ALL_ABIS, apkDownloadUrl, detectAbi, type Abi } from '../../domain/abi'
 import { usePrefsStore } from '../../state/prefsStore'
 import { getCachedUpdate, maybeCheckOnStart, dismissUpdate, clearUpdateCache } from '../../domain/update/updateChecker'
 import { parseReleaseJson, type UpdateInfo } from '../../domain/update/updateCore'
+import { UpdateChangelogDialog } from './UpdateChangelogDialog'
 import pkg from '../../../package.json'
 
 const QQ_GROUP = '1063407652'
@@ -26,6 +27,9 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
   const [abi, setAbi] = useState<Abi>('arm64-v8a')
   useEffect(() => { void detectAbi().then(setAbi) }, [])
   const [qqCopied, setQqCopied] = useState(false)
+  // 手动检查发现新版 → UpdateChangelogDialog (Android checkUpdate→UpdateAvailable 态;
+  // banner 点击仍直开 Releases tag 页 = MainActivity UpdateBanner 语义)
+  const [updateDialog, setUpdateDialog] = useState<UpdateInfo | null>(null)
 
   // ---- 更新检查 (UpdateNotifier/UpdateManager 的 web 接线) ----
   const updateCheckEnabled = usePrefsStore((s) => s.prefs.updateCheckEnabled)
@@ -46,7 +50,7 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
   }
 
   // checkUpdate (AboutScreen.kt:171-186): 手动检查总是重新拉取;
-  // 有更新 → 打开 Releases 页 (web 对位"下载"弹窗); 无更新 → toast "已是最新"。
+  // 有更新 → 弹 UpdateChangelogDialog (changelog + 下载/取消); 无更新 → toast "已是最新"。
   const checkUpdate = async () => {
     if (checking) return
     setChecking(true)
@@ -57,7 +61,7 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const info: UpdateInfo = parseReleaseJson(await res.json(), version)
       if (info.isUpdateAvailable) {
-        window.open(info.releaseUrl || GITHUB_LATEST, '_blank', 'noopener')
+        setUpdateDialog(info)
       } else {
         showToast(t('about_update_latest', { v1: info.version }))
       }
@@ -348,6 +352,18 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
         </div>
         <IconChevronRight size={20} color="var(--md-on-surface-variant)" />
       </div>
+
+      {updateDialog && (
+        <UpdateChangelogDialog
+          version={updateDialog.version}
+          changelog={updateDialog.changelog}
+          onDismiss={() => setUpdateDialog(null)}
+          onDownload={() => {
+            window.open(updateDialog.releaseUrl || GITHUB_LATEST, '_blank', 'noopener')
+            setUpdateDialog(null)
+          }}
+        />
+      )}
     </SettingsScaffold>
   )
 }

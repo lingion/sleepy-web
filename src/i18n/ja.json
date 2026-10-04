@@ -727,5 +727,16 @@
   "schedule_conflict_option_sync_sub_other": "ほか {{v1}} 件の時間割に影響します",
   "schedule_conflict_option_sync_sub_only": "この時程はこの時間割のみが使用",
   "schedule_conflict_banner_format": "実行待ち：{{v1}} · 次回保存時に反映",
-  "schedule_conflict_banner_modify": "変更"
+  "schedule_conflict_banner_modify": "変更",
+  "calendar_import_title": "システムカレンダーに追加",
+  "calendar_import_subtitle": "カレンダーと範囲を選び、確認してから追加",
+  "reminder_experimental_tag": "実験",
+  "reminder_preview_date": "{{v1}}（{{v2}}）",
+  "reminder_preview_teacher": "、担当：{{v1}}",
+  "reminder_preview_today_date": "今日 {{v1}}（{{v2}}）",
+  "reminder_preview_tomorrow_date": "明日 {{v1}}（{{v2}}）",
+  "reminder_daily_preview_dynamic": "例：{{v1}}、授業は{{v2}}コマ。最初の授業は「{{v3}}」、{{v4}}、教室{{v5}}{{v6}}",
+  "reminder_daily_preview_dynamic_no_course": "例：{{v1}}、授業はありません。",
+  "reminder_before_class_preview_dynamic": "例：{{v1}}、次の授業は「{{v2}}」、{{v3}}、教室{{v4}}{{v5}}",
+  "reminder_before_class_preview_dynamic_no_course": "例：通知対象の授業はありません。"
 }

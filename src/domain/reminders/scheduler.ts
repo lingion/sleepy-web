@@ -125,23 +125,24 @@ export async function fireBeforeClass(now: Date, p: ReminderPrefs): Promise<void
 // ==================== 课程/时间解析 ====================
 
 /** WidgetTableResolver.resolveCurrentTable 的 web 对位 = 默认课表 */
-async function currentTable(): Promise<Table | null> {
+export async function currentTable(): Promise<Table | null> {
   return (await db.timetables.where('isDefault').equals(1).first()) ?? null
 }
 
-/** 今日(或明日)在学期的课, 已按 normalizeNode 归一 (TodayView.todayCourses 同链路) */
-async function coursesOn(table: Table, day: Date): Promise<Course[]> {
+/** 今日(或明日)在学期的课, 已按 normalizeNode 归一 (TodayView.todayCourses 同链路)。
+ *  allCourses 传入 = 免重查 (预览循环逐日扫描; Android loadReminderSchedulePreview 先取全量)。 */
+export async function coursesOn(table: Table, day: Date, allCourses?: Course[]): Promise<Course[]> {
   if (semesterStatus(table.startDate, table.maxWeek, day) !== 'IN_RANGE') return []
   const week = currentWeek(table.startDate, day)
   const dayIso = toIsoDay(day)
   const dow = effectiveDayOfWeek(dayIso, scopedTransfers(table.id))
-  const all = await db.courses.where('tableId').equals(table.id).toArray()
+  const all = allCourses ?? (await db.courses.where('tableId').equals(table.id).toArray())
   return all
     .filter((c) => inWeek(c, week) && c.day === dow)
     .map((c) => normalizeNode(c, table.timeJson))
 }
 
-function courseStartStr(table: Table, c: Course): string {
+export function courseStartStr(table: Table, c: Course): string {
   if (c.ownTime && c.startTime) return c.startTime
   const node = parseNodes(table.timeJson).find((n) => n.node === c.startNode)
   return node?.start ?? ''

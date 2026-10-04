@@ -90,6 +90,13 @@ export function ExportView({ onBack }: { onBack: () => void }) {
   const [icsDated, setIcsDated] = useState(false)
   const [icsRange, setIcsRange] = useState<IcsRange>(calendarPrefs.calendarImportRange)
 
+  // C4 §4: 「添加到系统日历」对位 — web 无系统日历 API → 下载范围 .ics (预置 dated 模式)。
+  // Android 走系统日历写入选取器; 文件头注明平台差异。
+  function handleIcsOpen(preset?: { date?: boolean; range?: IcsRange }) {
+    if (preset?.date !== undefined) setIcsDated(preset.date)
+    if (preset?.range !== undefined) setIcsRange(preset.range)
+    setIcsOverlay(true)
+  }
   async function handleIcs() {
     if (!table) return
     const fileName = `sleepy_${table.name}_${await stamp()}.ics`
@@ -253,7 +260,7 @@ export function ExportView({ onBack }: { onBack: () => void }) {
             <Hairline />
             <ExportItem
               icon={<IconCalendarMonth size={24} />} title={t('export_ics_title')} subtitle={t('export_ics_subtitle')}
-              onClick={() => setIcsOverlay(true)}
+              onClick={() => { void handleIcsOpen({ date: true }) }}
             />
             <Hairline />
             <ExportItem
@@ -263,6 +270,18 @@ export function ExportView({ onBack }: { onBack: () => void }) {
           </>
         )}
       </div>
+
+      {/* 甲案 C4 §4: 「添加到系统日历」(ExportScreen.kt:339-361 web 对位)。
+          Android 走系统日历写入选取器; web 无系统日历 API → 下载范围 .ics (预置 dated 模式)。
+          平台差异: 仅形态对位, 文件头注明。 */}
+      {table && (
+        <ExportItem
+          icon={<IconCalendarMonth size={24} />}
+          title={t('calendar_import_title')}
+          subtitle={t('calendar_import_subtitle')}
+          onClick={() => { void handleIcsOpen({ date: true }) }}
+        />
+      )}
 
       {/* v1.0.57 全量备份 — .sleepybackup (EXPORTABLE_MODULES: database + preferences) */}
       <ExportItem

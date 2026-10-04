@@ -27,6 +27,12 @@ import {
   useReminderStore,
   type FluidPrimary,
 } from '../../state/reminderStore'
+import {
+  buildBeforeClassPreviewText,
+  buildDailyPreviewText,
+  loadReminderSchedulePreview,
+  type ReminderSchedulePreview,
+} from '../../domain/reminders/preview'
 
 type NotifyState = 'unsupported' | NotificationPermission
 
@@ -43,6 +49,28 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
   const [notifyState, setNotifyState] = useState<NotifyState>(() =>
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported',
   )
+
+  // 动态预览 (ReminderScreen.kt:301-309): 有默认课表且非空 → 示例文案换成真实现存课;
+  // 加载失败/无课表 → null 回落静态 reminder_*_preview 文案
+  const [schedulePreview, setSchedulePreview] = useState<ReminderSchedulePreview | null>(null)
+  useEffect(() => {
+    let alive = true
+    void loadReminderSchedulePreview().then((p) => {
+      if (alive) setSchedulePreview(p)
+    })
+    return () => {
+      alive = false
+    }
+  }, [prefs.masterEnabled])
+  const todayPreviewText = schedulePreview
+    ? buildDailyPreviewText(schedulePreview.today, 'reminder_preview_today_date')
+    : t('reminder_daily_preview')
+  const tomorrowPreviewText = schedulePreview
+    ? buildDailyPreviewText(schedulePreview.tomorrow, 'reminder_preview_tomorrow_date')
+    : t('reminder_tomorrow_preview')
+  const beforeClassPreviewText = schedulePreview
+    ? buildBeforeClassPreviewText(schedulePreview.nextClass)
+    : t('reminder_before_class_preview')
 
   // debounce: 分钟输入停止 500ms 后才持久化 (Android LaunchedEffect(minutesInput){delay(500)} 同构)
   useEffect(() => {
@@ -140,7 +168,7 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
                 <span className="m3-body-large" style={{ fontWeight: 500, color: 'var(--md-primary)' }}>{prefs.dailyTime}</span>
               </div>
               <p className="m3-body-small" style={{ margin: '8px 4px 8px 4px', color: 'var(--md-on-surface-variant)' }}>
-                {t('reminder_daily_preview')}
+                {todayPreviewText}
               </p>
               <SubDivider />
               <ReminderToggleRow
@@ -163,7 +191,7 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
                 <span className="m3-body-large" style={{ fontWeight: 500, color: 'var(--md-primary)' }}>{prefs.tomorrowTime}</span>
               </div>
               <p className="m3-body-small" style={{ margin: '8px 4px 8px 4px', color: 'var(--md-on-surface-variant)' }}>
-                {t('reminder_tomorrow_preview')}
+                {tomorrowPreviewText}
               </p>
             </>
           )}
@@ -202,7 +230,7 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
               </div>
               <SubDivider />
               <p className="m3-body-small" style={{ margin: '8px 4px 8px 52px', color: 'var(--md-on-surface-variant)' }}>
-                {t('reminder_before_class_preview')}
+                {beforeClassPreviewText}
               </p>
               <SubDivider />
               <ReminderToggleRow
@@ -215,6 +243,7 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
               <ReminderToggleRow
                 title={t('reminder_fluid_title')}
                 subtitle={t('reminder_fluid_sub')}
+                tag={t('reminder_experimental_tag')}
                 checked={prefs.fluidEnabled}
                 onChange={(v) => update({ fluidEnabled: v })}
               />
@@ -335,19 +364,35 @@ function IconTitleSub({ icon, title, sub }: { icon: ReactNode; title: string; su
   )
 }
 
-/** ReminderToggleRow — bodyMedium SemiBold 标题 + bodySmall 副标题 + 主题色 Switch */
+/** ReminderToggleRow — bodyMedium SemiBold 标题 (+可选 tag pill) + bodySmall 副标题 + 主题色 Switch */
 function ReminderToggleRow({
-  title, subtitle, checked, onChange,
+  title, subtitle, tag, checked, onChange,
 }: {
   title: string
   subtitle: string
+  /** 标题右侧小标签 (ReminderScreen.kt:996-1008): primary@12% 胶囊 labelSmall */
+  tag?: string
   checked: boolean
   onChange: (v: boolean) => void
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 4px' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="m3-body-medium" style={{ fontWeight: 600, color: 'var(--md-on-surface)' }}>{title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="m3-body-medium" style={{ fontWeight: 600, color: 'var(--md-on-surface)' }}>{title}</span>
+          {tag != null && (
+            <span
+              className="m3-label-small"
+              style={{
+                color: 'var(--md-primary)', fontWeight: 500,
+                background: 'color-mix(in srgb, var(--md-primary) 12%, transparent)',
+                borderRadius: 999, padding: '2px 6px',
+              }}
+            >
+              {tag}
+            </span>
+          )}
+        </div>
         <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{subtitle}</div>
       </div>
       <Switch checked={checked} onChange={onChange} />

@@ -753,5 +753,16 @@
   "schedule_conflict_option_sync_sub_other": "Will affect {{v1}} other timetables",
   "schedule_conflict_option_sync_sub_only": "Only this timetable uses this schedule",
   "schedule_conflict_banner_format": "Pending: {{v1}} · takes effect on next save",
-  "schedule_conflict_banner_modify": "Change"
+  "schedule_conflict_banner_modify": "Change",
+  "calendar_import_title": "Add to system calendar",
+  "calendar_import_subtitle": "Choose a calendar and range, review before adding",
+  "reminder_experimental_tag": "Experimental",
+  "reminder_preview_date": "{{v1}} ({{v2}})",
+  "reminder_preview_teacher": ", Teacher: {{v1}}",
+  "reminder_preview_today_date": "Today, {{v1}} ({{v2}})",
+  "reminder_preview_tomorrow_date": "Tomorrow, {{v1}} ({{v2}})",
+  "reminder_daily_preview_dynamic": "Example: {{v1}} — {{v2}} classes. First class: {{v3}} at {{v4}} in {{v5}}{{v6}}",
+  "reminder_daily_preview_dynamic_no_course": "Example: {{v1}} — no classes.",
+  "reminder_before_class_preview_dynamic": "Example: {{v1}} — next class: {{v2}} at {{v3}} in {{v4}}{{v5}}",
+  "reminder_before_class_preview_dynamic_no_course": "Example: No upcoming classes to remind you about."
 }

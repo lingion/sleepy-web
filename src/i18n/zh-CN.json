@@ -730,5 +730,16 @@
   "schedule_conflict_option_sync_sub_other": "将影响另外 {{v1}} 张课表",
   "schedule_conflict_option_sync_sub_only": "仅此课表使用该作息",
   "schedule_conflict_banner_format": "待执行：{{v1}} · 再次保存后生效",
-  "schedule_conflict_banner_modify": "修改"
+  "schedule_conflict_banner_modify": "修改",
+  "calendar_import_title": "添加到系统日历",
+  "calendar_import_subtitle": "选择日历与课程范围，预览后添加",
+  "reminder_experimental_tag": "实验",
+  "reminder_preview_date": "{{v1}}（{{v2}}）",
+  "reminder_preview_teacher": "，老师：{{v1}}",
+  "reminder_preview_today_date": "今日 {{v1}}（{{v2}}）",
+  "reminder_preview_tomorrow_date": "明日 {{v1}}（{{v2}}）",
+  "reminder_daily_preview_dynamic": "示例：{{v1}}，您有 {{v2}} 节课。第一节课是「{{v3}}」，于 {{v4}} 在 {{v5}} 上课{{v6}}",
+  "reminder_daily_preview_dynamic_no_course": "示例：{{v1}}，暂无课程。",
+  "reminder_before_class_preview_dynamic": "示例：{{v1}}，下节课是「{{v2}}」，于 {{v3}} 在 {{v4}} 上课{{v5}}",
+  "reminder_before_class_preview_dynamic_no_course": "示例：未来没有可提醒的课程。"
 }

@@ -727,5 +727,16 @@
   "schedule_conflict_option_sync_sub_other": "Afectará a otros {{v1}} horarios",
   "schedule_conflict_option_sync_sub_only": "Solo este horario usa esta pauta",
   "schedule_conflict_banner_format": "Pendiente: {{v1}} · se aplicará al próximo guardado",
-  "schedule_conflict_banner_modify": "Cambiar"
+  "schedule_conflict_banner_modify": "Cambiar",
+  "calendar_import_title": "Añadir al calendario del sistema",
+  "calendar_import_subtitle": "Elige calendario y fechas, revisa antes de añadir",
+  "reminder_experimental_tag": "Experimental",
+  "reminder_preview_date": "{{v1}} ({{v2}})",
+  "reminder_preview_teacher": ", Profesor: {{v1}}",
+  "reminder_preview_today_date": "Hoy {{v1}} ({{v2}})",
+  "reminder_preview_tomorrow_date": "Mañana {{v1}} ({{v2}})",
+  "reminder_daily_preview_dynamic": "Ejemplo: {{v1}}: tienes {{v2}} clases. Primera clase: {{v3}} a las {{v4}} en {{v5}}{{v6}}",
+  "reminder_daily_preview_dynamic_no_course": "Ejemplo: {{v1}}: no hay clases.",
+  "reminder_before_class_preview_dynamic": "Ejemplo: {{v1}}: próxima clase {{v2}} a las {{v3}} en {{v4}}{{v5}}",
+  "reminder_before_class_preview_dynamic_no_course": "Ejemplo: No hay próximas clases que recordar."
 }
