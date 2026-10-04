@@ -1,18 +1,18 @@
 /**
  * MineHome — 我的 tab 主页 (MineScreen.kt 1:1)。
- * Header + 统计卡 + 6 入口 + 刷新小组件按钮。从 MineView.tsx 拆出。
- * Web 无小组件 → refreshWidgets 动作与 widget 分组保留开关本体, 「管理桌面小组件」入口
- * 与「刷新小组件」按钮省略(无小组件可管, 后续发布浏览器扩展时恢复)。
+ * Header + 统计卡 + 7 入口 + 刷新小组件按钮 (FilledTonalButton 48dp, MineScreen.kt:148)。
+ * Web 无小组件 → 按钮形态保留 (Android 布局节奏), onClick 以 toast 说明;
+ * 「管理桌面小组件」入口省略 (无小组件可管, 后续发布浏览器扩展时恢复)。
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../data/db'
 import { computeCurrentWeek } from '../ScheduleView'
 import {
   IconEdit, IconShare, IconPalette, IconTune, IconInfo,
-  IconNotifications, IconSchedule,
+  IconNotifications, IconSchedule, IconRefresh,
 } from '../../components/icons'
 import type { Course } from '../../data/types'
 import { HDiv } from './shared'
@@ -39,6 +39,7 @@ export function MineHome({
   onOpenCourseList: () => void
 }) {
   const { t } = useTranslation()
+  const [toast, setToast] = useState('')
   const tables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
   const courses = useLiveQuery(
@@ -62,9 +63,10 @@ export function MineHome({
 
       {/* 统计卡 */}
       <div className="m3-card" style={{ display: 'flex', padding: '18px 8px', justifyContent: 'space-evenly', alignItems: 'center' }}>
-        <button type="button" onClick={onOpenAllTables} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit' }}><StatItem value={String(tables.length)} label={t('mine_stat_tables')} /></button>
+        {/* 可点统计格热区 — MineScreen.kt:189-199 clip(medium)+padding(h12,v4) */}
+        <button type="button" onClick={onOpenAllTables} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit', padding: '4px 12px', borderRadius: 12 }}><StatItem value={String(tables.length)} label={t('mine_stat_tables')} /></button>
         <VDivider />
-        <button type="button" onClick={onOpenCourseList} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit' }}><StatItem value={String(courseCount)} label={t('mine_stat_courses')} /></button>
+        <button type="button" onClick={onOpenCourseList} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit', padding: '4px 12px', borderRadius: 12 }}><StatItem value={String(courseCount)} label={t('mine_stat_courses')} /></button>
         <VDivider />
         <StatItem value={String(currentWeek)} label={t('mine_stat_week')} />
       </div>
@@ -90,10 +92,40 @@ export function MineHome({
         <SettingsItem icon={<IconInfo size={20} />} label={t('about_title')} onClick={onOpenAbout} />
       </div>
 
-      <div className="m3-card" style={{ padding: 16, color: 'var(--md-on-surface-variant)' }}>
-        <div className="m3-title-small">{t('settings_widget', '小组件')}</div>
-        <div className="m3-body-small" style={{ marginTop: 6 }}>{t('web_widget_unavailable', 'Web 不提供 Android 桌面小组件；课表数据会在本页面实时更新。')}</div>
-      </div>
+      {/* 动作区 — 刷新所有小组件 (MineScreen.kt:148-163 FilledTonalButton 1:1 形态:
+          fillMaxWidth × regularHeight 48dp × secondaryContainer × Buttons.shape)。
+          Web 无小组件通道 → onClick 以 toast 说明, 布局节奏与 Android 一致。 */}
+      <div style={{ height: 16 }} />
+      <button
+        type="button"
+        onClick={() => {
+          setToast(t('web_widget_unavailable', 'Web 不提供 Android 桌面小组件；课表数据会在本页面实时更新。'))
+          window.setTimeout(() => setToast(''), 3000)
+        }}
+        className="m3-label-large"
+        style={{
+          width: '100%', height: 48, borderRadius: 24, border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+        }}
+      >
+        <IconRefresh size={18} />
+        {t('mine_refresh_widgets')}
+      </button>
+
+      {toast !== '' && (
+        <div
+          role="status"
+          className="m3-body-medium"
+          style={{
+            marginTop: 12, padding: '12px 16px', borderRadius: 12,
+            background: 'var(--md-inverse-surface, var(--md-surface-container-highest))',
+            color: 'var(--md-inverse-on-surface, var(--md-on-surface))',
+          }}
+        >
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

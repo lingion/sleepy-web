@@ -12,15 +12,13 @@
  * - 选表弹窗: Android 为居中 AlertDialog (ExportScreen.kt:271), web 保留底部弹层形态
  *   (平台差异), 行内容/徽标/勾选 1:1。
  * - snackbar: themes.ts 未导出 inverse 系 token, 以 on-surface/surface 近似 (审计#4 允许并注明)。
- * - 下拉箭头: icons.tsx 暂无 IconExpandMore, 以 IconChevronLeft rotate(-90deg) 等价指向下;
- *   icons.tsx 补图标后替换 (跨分区待办)。
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconStar, IconCode, IconShare, IconCalendarMonth, IconArrowBack,
-  IconCheck, IconChevronLeft,
+  IconCheck, IconExpandMore,
 } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
@@ -208,8 +206,8 @@ export function ExportView({ onBack }: { onBack: () => void }) {
           <div className="m3-title-medium" style={{ fontWeight: 700, flex: 1 }}>
             {selectedPeriodTable?.name ?? table!.name}
           </div>
-          {/* Icons.Outlined.ExpandMore 的 web 等价 — icons.tsx 暂无该图标, 用 chevron 旋转 (见文件头注记) */}
-          <IconChevronLeft size={24} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }} />
+          {/* Icons.Outlined.ExpandMore 1:1 (icons.tsx IconExpandMore) */}
+          <IconExpandMore size={24} style={{ flexShrink: 0 }} />
         </div>
         <div className="m3-body-medium">
           {selectedPeriodTable != null

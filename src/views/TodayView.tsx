@@ -225,7 +225,8 @@ function TodayHeader({
       </span>
       <div style={{ height: 6 }} />
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-        <span className="m3-headline-small" style={{ fontWeight: 400, fontSize: 28, lineHeight: '36px' }}>
+        {/* 日期字号 — TodayScreen.kt:200 headlineMedium (Material 基准 28/36, global.css token 同值) */}
+        <span className="m3-headline-medium" style={{ fontWeight: 400 }}>
           {t('date_long_format', { v1: date.getMonth() + 1, v2: date.getDate() })}
         </span>
         <span

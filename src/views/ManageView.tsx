@@ -21,10 +21,15 @@ import { JwImportView } from './jw/JwImportView'
 import { EditTableView } from './EditTableView'
 import { AddCourseView } from './AddCourseView'
 import { ExportView } from './ExportView'
+import { PeriodTableEditView } from './mine/PeriodTableEditView'
 import { computeCurrentWeek } from './ScheduleView'
+import { insertPeriodTable } from '../data/repository'
+import { DEFAULT_TIME_JSON } from '../domain/timeTable'
+import { suggestUniqueName } from './mine/periodTableNames'
 import {
   IconFileUpload,
   IconAutoAwesome,
+  IconSchedule,
   IconAdd,
   IconEdit,
   IconShare,
@@ -49,6 +54,8 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   const [addingCourse, setAddingCourse] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  // v1.0.56 T7: 新建作息表编辑层 — 与 editTable 同栈模式 (ManagementPage 第3卡)
+  const [editingPeriodId, setEditingPeriodId] = useState<number | null>(null)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
   const replace = useBackStack((s) => s.replace)
@@ -62,6 +69,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
     else if (key === 'jwImport') setJwImporting(false)
     else if (key === 'export') setExporting(false)
     else if (key === 'editTable') setEditingId(null)
+    else if (key === 'periodTableEdit') setEditingPeriodId(null)
   }), [])
 
   // 二级页 push 入栈 (带 hash 地址, 浏览器返回可弹); 返回按钮 pop 出栈。
@@ -106,6 +114,16 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
         onDiscardPending={() => { void abandonPendingTable(); leave(); setEditingId(null) }}
         onSaved={() => { leave(); setEditingId(null) }}
         onDeleted={() => { leave(); setEditingId(null) }}
+      />
+    )
+  }
+  if (editingPeriodId !== null) {
+    return (
+      <PeriodTableEditView
+        id={editingPeriodId}
+        unsavedNew
+        onBack={() => { leave(); setEditingPeriodId(null) }}
+        onSaved={() => { leave(); setEditingPeriodId(null) }}
       />
     )
   }
@@ -184,6 +202,28 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
           title={t('manage_new_table')}
           subtitle={t('manage_new_table_sub')}
           onClick={() => handleNewTable()}
+        />
+        {/* v1.0.56 T7: 新建作息表 — ManagementPage.kt:158 用户指定卡位 (新建课表正下方);
+            建空白 12 节作息表 (全局唯一名顺延) 后进其编辑页, PeriodTablesPage 新建动线同款 */}
+        <ManageCard
+          icon={IconSchedule}
+          title={t('manage_new_period_table')}
+          subtitle={t('manage_new_period_table_sub')}
+          onClick={() => {
+            void (async () => {
+              const periodNames = await db.periodTables.toArray().then((ps) => ps.map((p) => p.name))
+              const unique = suggestUniqueName(t('period_table_new'), list.map((tb) => tb.name), periodNames, t('period_table_new'))
+              const id = await insertPeriodTable({
+                name: unique,
+                nodesPerDay: 12,
+                timeJson: DEFAULT_TIME_JSON,
+                smartConfigJson: '',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              })
+              open('periodTableEdit', () => setEditingPeriodId(id))
+            })()
+          }}
         />
         <ManageCard
           icon={IconAdd}

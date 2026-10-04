@@ -493,15 +493,17 @@ function DayHeadCell({
       ? 'color-mix(in srgb, var(--md-on-primary-container) 80%, transparent)'
       : 'var(--md-on-surface-variant)'
   const dayLabel = localizedDay(day, i18n.language)
+  // CourseTableView.kt:903-906 DayHeadCell 1:1: radius (10*scale*cornerRatio@max1), v-padding date?4:3
+  const vPad = (dateStr ? 4 : 3) * scale
 
   return (
     <div
       style={{
         flex: 1,
         height: (dateStr ? 56 : 52) * scale,
-        borderRadius: 16 * scale * cornerRatio,
+        borderRadius: 10 * scale * Math.min(1, cornerRatio),
         background: bg,
-        padding: `${6 * scale}px 0`,
+        padding: `${vPad}px 0`,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
