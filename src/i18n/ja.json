@@ -712,5 +712,7 @@
   "calendar_range_label": "追加する期間",
   "calendar_range_week": "今後7日間",
   "calendar_range_month": "今後1か月",
-  "calendar_range_semester": "今学期の残り"
+  "calendar_range_semester": "今学期の残り",
+  "schedule_redo": "やり直す",
+  "schedule_redo_none": "やり直せる操作はありません"
 }

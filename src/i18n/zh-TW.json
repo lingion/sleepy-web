@@ -712,5 +712,7 @@
   "calendar_range_label": "匯入範圍",
   "calendar_range_week": "未來 7 天",
   "calendar_range_month": "未來 1 個月",
-  "calendar_range_semester": "本學期剩餘課程"
+  "calendar_range_semester": "本學期剩餘課程",
+  "schedule_redo": "取消撤回",
+  "schedule_redo_none": "沒有可取消的撤回"
 }

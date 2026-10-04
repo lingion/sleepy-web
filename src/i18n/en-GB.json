@@ -723,5 +723,7 @@
   "calendar_range_label": "Import range",
   "calendar_range_week": "Next 7 days",
   "calendar_range_month": "Next month",
-  "calendar_range_semester": "Rest of this semester"
+  "calendar_range_semester": "Rest of this semester",
+  "schedule_redo": "Redo",
+  "schedule_redo_none": "Nothing to redo"
 }

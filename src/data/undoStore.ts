@@ -12,6 +12,10 @@
  * - 快照含 defaultTableId: 撤回恢复默认表指向 (isDefault 随快照回滚)
  * - v8 扩展: 快照覆盖 period_tables — 恢复顺序 periodTables→time_tables→courses
  * - App 进程被杀快照即失效(不落盘) — web 同为内存态
+ * - 2026-09-21 用户令 (Android UndoManager.kt:35-97): 单级 redo — 撤回把「撤回前库态」
+ *   挂进 redoSlot (recordRedo), 取消撤回 pollRedo 取走并把「redo 前库态」重挂回 slot
+ *   (reinsertForRedoSymmetry); 任何正常写动作 capture 清空 redo (历史不分支);
+ *   restoring 抑制路径不清 redo。
  *
  * Web 端实现: Zustand store 存单槽全量快照 (数据库全量 {periodTables, tables, courses} 深拷贝)。
  * 数据量级 (一张表几百门课) 全量快照开销可忽略, 与 Android UndoManager 语义一致。
@@ -31,6 +35,8 @@ interface Snapshot {
 interface UndoState {
   /** 单槽 — Android UndoManager.slot 同名同义 */
   slot: Snapshot | null
+  /** redo 槽 — Android UndoManager.redoSlot (2026-09-21) 同名同义 */
+  redoSlot: Snapshot | null
   batchDepth: number
   /** 本批首拍是否已落: 批内多次 capture 只保第一次 — 锚定本批开始前(非旧快照) */
   batchCaptured: boolean
@@ -38,6 +44,8 @@ interface UndoState {
   restoring: boolean
   /** 撤回按钮显隐 — Android UndoManager.hasSnapshot / ScheduleRepository.canUndo 同义 */
   canUndo: () => boolean
+  /** 取消撤回显隐 — Android UndoManager.hasRedoSnapshot 同义 */
+  canRedo: () => boolean
 }
 
 interface UndoActions {
@@ -47,31 +55,56 @@ interface UndoActions {
   beginBatch: () => void
   /** 复合动作出口 */
   endBatch: () => Promise<void>
-  /** 撤回: poll 取走快照恢复 — 单级语义, 不可再撤回 */
+  /** 撤回: poll 取走快照恢复; 「撤回前库态」挂 redo 槽 (recordRedo) */
   undo: () => Promise<boolean>
+  /** 取消撤回: pollRedo 取走恢复; 「redo 前库态」重挂回 slot (reinsertForRedoSymmetry) */
+  redo: () => Promise<boolean>
+  /** 双槽清空 — Android UndoManager.clear 同义 */
+  clear: () => void
+}
+
+async function takeSnapshot(): Promise<Snapshot> {
+  return {
+    periodTables: await db.periodTables.toArray(),
+    tables: await db.timetables.toArray(),
+    courses: await db.courses.toArray(),
+  }
+}
+
+async function restore(snap: Snapshot): Promise<void> {
+  // isDefault 是 Table 字段本身 — 全量重插即恢复默认表指向 (Android setDefault 同效)
+  // 恢复顺序与 Android ScheduleRepository.restore 1:1: periodTables → time_tables → courses
+  await db.transaction('rw', db.periodTables, db.timetables, db.courses, async () => {
+    await db.periodTables.clear()
+    await db.periodTables.bulkPut(snap.periodTables)
+    await db.timetables.clear()
+    await db.timetables.bulkPut(snap.tables)
+    await db.courses.clear()
+    await db.courses.bulkPut(snap.courses)
+  })
 }
 
 export const useUndoStore = create<UndoState & UndoActions>((set, get) => ({
   slot: null,
+  redoSlot: null,
   batchDepth: 0,
   batchCaptured: false,
   restoring: false,
 
   canUndo: () => get().slot !== null,
+  canRedo: () => get().redoSlot !== null,
 
   capture: async (_label) => {
     const { restoring, batchDepth, batchCaptured } = get()
     if (restoring) return
+    // 新用户动作 = 历史从 redo 分叉 — redo 立即作废 UndoManager.kt:66-68
+    // (Android 顺序: restoring 后无条件清 redo, 再进批判)
+    set({ redoSlot: null })
     if (batchDepth > 0) {
       if (batchCaptured) return // 批内已有本动作快照 — 保动作链起点
       set({ batchCaptured: true })
     }
-    const snapshot: Snapshot = {
-      periodTables: await db.periodTables.toArray(),
-      tables: await db.timetables.toArray(),
-      courses: await db.courses.toArray(),
-    }
-    set({ slot: snapshot })
+    set({ slot: await takeSnapshot() })
   },
 
   beginBatch: () => {
@@ -86,24 +119,38 @@ export const useUndoStore = create<UndoState & UndoActions>((set, get) => ({
   },
 
   undo: async () => {
+    // ScheduleRepository.restoreLastSnapshot 1:1: poll → 当前库态落 redo → 抑制下恢复
     const { slot } = get()
     if (!slot) return false
-    set({ restoring: true })
+    const redoSnap = await takeSnapshot()
+    set({ slot: null, restoring: true })
     try {
-      // isDefault 是 Table 字段本身 — 全量重插即恢复默认表指向 (Android setDefault 同效)
-      // 恢复顺序与 Android ScheduleRepository.restore 1:1: periodTables → time_tables → courses
-      await db.transaction('rw', db.periodTables, db.timetables, db.courses, async () => {
-        await db.periodTables.clear()
-        await db.periodTables.bulkPut(slot.periodTables)
-        await db.timetables.clear()
-        await db.timetables.bulkPut(slot.tables)
-        await db.courses.clear()
-        await db.courses.bulkPut(slot.courses)
-      })
+      await restore(slot)
     } finally {
-      set({ restoring: false, slot: null })
+      set({ restoring: false })
     }
+    set({ redoSlot: redoSnap })
     return true
+  },
+
+  redo: async () => {
+    // ScheduleRepository.redoLastUndo 1:1: pollRedo → 当前库态回填 undo 槽 → 抑制下恢复
+    const { redoSlot } = get()
+    if (!redoSlot) return false
+    const undoSnap = await takeSnapshot()
+    set({ redoSlot: null, restoring: true })
+    try {
+      await restore(redoSlot)
+    } finally {
+      set({ restoring: false })
+    }
+    // reinsertForRedoSymmetry: redo 也是一次"回到过去", 再点撤回应能撤掉它本身
+    set({ slot: undoSnap })
+    return true
+  },
+
+  clear: () => {
+    set({ slot: null, redoSlot: null })
   },
 }))
 
@@ -113,4 +160,6 @@ export const undoManager = {
   beginBatch: () => useUndoStore.getState().beginBatch(),
   endBatch: () => useUndoStore.getState().endBatch(),
   undo: () => useUndoStore.getState().undo(),
+  redo: () => useUndoStore.getState().redo(),
+  clear: () => useUndoStore.getState().clear(),
 }

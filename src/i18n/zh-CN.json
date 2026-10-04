@@ -715,5 +715,7 @@
   "calendar_range_label": "导入范围",
   "calendar_range_week": "未来 7 天",
   "calendar_range_month": "未来 1 个月",
-  "calendar_range_semester": "本学期剩余课程"
+  "calendar_range_semester": "本学期剩余课程",
+  "schedule_redo": "取消撤回",
+  "schedule_redo_none": "没有可取消的撤回"
 }

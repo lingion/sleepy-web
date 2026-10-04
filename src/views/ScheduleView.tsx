@@ -187,8 +187,16 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   }
   const leave = () => back()
 
-  // 撤回按钮显隐 — 单槽有快照即显示 (Android hasSnapshot 同义, 响应式订阅)
+  // 撤回/重做失败 toast — Android Toast.makeText(schedule_undo_none/redo_none) 同义
+  const [toastMsg, setToastMsg] = useState('')
+  const toast = (msg: string) => {
+    setToastMsg(msg)
+    window.setTimeout(() => setToastMsg(''), 2500)
+  }
+
+  // 撤回/重做显隐 — Android UndoManager.hasSnapshot/hasRedoSnapshot 同义 (ScheduleScreen.kt:518-519)
   const undoDepth = useUndoStore((s) => (s.slot ? 1 : 0))
+  const redoDepth = useUndoStore((s) => (s.redoSlot ? 1 : 0))
 
   const tableList = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) as Table[] | undefined
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
@@ -401,13 +409,13 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
               >
                 <SleepyLogo size={18} />
               </NavCircleBtn>}
-              {!readOnly && undoDepth > 0 && (
-                <NavCircleBtn
-                  title={t('schedule_undo', { defaultValue: '撤回' })}
-                  onClick={() => void undoManager.undo()}
-                >
-                  <IconUndo size={18} />
-                </NavCircleBtn>
+              {!readOnly && (undoDepth > 0 || redoDepth > 0) && (
+                <UndoRedoCapsule
+                  showUndo={undoDepth > 0}
+                  showRedo={redoDepth > 0}
+                  onUndo={async () => { if (!await undoManager.undo()) toast(t('schedule_undo_none')) }}
+                  onRedo={async () => { if (!await undoManager.redo()) toast(t('schedule_redo_none')) }}
+                />
               )}
             </div>
 
@@ -721,6 +729,22 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           onDefaultTopChanged={handleDefaultTopChanged}
         />
       )}
+
+      {/* 撤回/重做失败 toast — Android SnackbarHost 底部居中同位 */}
+      {toastMsg !== '' && (
+        <div
+          role="status"
+          className="m3-body-medium"
+          style={{
+            position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 1100, maxWidth: 'calc(100vw - 32px)', padding: '10px 16px', borderRadius: 8,
+            background: 'var(--md-inverse-surface, var(--md-surface-container-highest))',
+            color: 'var(--md-inverse-on-surface, var(--md-on-surface))',
+          }}
+        >
+          {toastMsg}
+        </div>
+      )}
     </div>
   )
 }
@@ -774,6 +798,84 @@ function IconUndo({ size = 24 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ display: 'block' }} aria-hidden="true">
       <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
     </svg>
+  )
+}
+
+/**
+ * IconRedo — Icons.AutoMirrored.Outlined.Redo 同形矢量 (undo 的水平镜像)。
+ */
+function IconRedo({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ display: 'block' }} aria-hidden="true">
+      <path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z" />
+    </svg>
+  )
+}
+
+/**
+ * UndoRedoCapsule — ScheduleScreen.kt:692-750 1:1 (2026-09-21 用户令):
+ * 体育场胶囊 surfaceContainerHigh, 左右半 32×32 各一 icon, 中缝 1×14 淡竖线
+ * (onSurfaceVariant@Alpha.inactive); 无快照侧半透明禁用 (alpha .38 占位保形);
+ * hasUndo||hasRedo 才渲染整个胶囊 (ScheduleScreen.kt:520)。web 无捏合缩放 → scale=1。
+ */
+function UndoRedoCapsule({
+  showUndo,
+  showRedo,
+  onUndo,
+  onRedo,
+}: {
+  showUndo: boolean
+  showRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
+}) {
+  const half = 32
+  return (
+    <div
+      style={{
+        height: half,
+        borderRadius: half / 2,
+        background: 'var(--md-surface-container-high)',
+        display: 'flex',
+        alignItems: 'center',
+        overflow: 'hidden',
+      }}
+    >
+      <button
+        type="button"
+        aria-label="撤回"
+        disabled={!showUndo}
+        onClick={onUndo}
+        style={{
+          width: half, height: half, border: 'none', background: 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: showUndo ? 'pointer' : 'default', padding: 0,
+          color: 'var(--md-on-surface-variant)', opacity: showUndo ? 1 : 0.38,
+        }}
+      >
+        <IconUndo size={20} />
+      </button>
+      <div
+        style={{
+          width: 1, height: 14, flexShrink: 0,
+          background: 'color-mix(in srgb, var(--md-on-surface-variant) 38%, transparent)',
+        }}
+      />
+      <button
+        type="button"
+        aria-label="取消撤回"
+        disabled={!showRedo}
+        onClick={onRedo}
+        style={{
+          width: half, height: half, border: 'none', background: 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: showRedo ? 'pointer' : 'default', padding: 0,
+          color: 'var(--md-on-surface-variant)', opacity: showRedo ? 1 : 0.38,
+        }}
+      >
+        <IconRedo size={20} />
+      </button>
+    </div>
   )
 }
 

@@ -712,5 +712,7 @@
   "calendar_range_label": "Periodo",
   "calendar_range_week": "Próximos 7 días",
   "calendar_range_month": "Próximo mes",
-  "calendar_range_semester": "Resto del semestre"
+  "calendar_range_semester": "Resto del semestre",
+  "schedule_redo": "Rehacer",
+  "schedule_redo_none": "Nada que rehacer"
 }
