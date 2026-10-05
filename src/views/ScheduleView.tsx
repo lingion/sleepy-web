@@ -858,7 +858,8 @@ function UndoRedoCapsule({
       <div
         style={{
           width: 1, height: 14, flexShrink: 0,
-          background: 'color-mix(in srgb, var(--md-on-surface-variant) 38%, transparent)',
+          // Alpha.inactive = 0.6 (Theme.kt:385, ScheduleScreen.kt:730)
+          background: 'color-mix(in srgb, var(--md-on-surface-variant) 60%, transparent)',
         }}
       />
       <button
@@ -915,7 +916,7 @@ function SegmentedSwitcher<T extends string>({
           bottom: 4,
           left: `calc(4px + ${idx} * (100% - 8px) / ${count})`,
           width: `calc((100% - 8px) / ${count})`,
-          borderRadius: 10,
+          borderRadius: 12,
           background: 'var(--md-secondary-container)',
           transition: 'left 180ms cubic-bezier(0.2, 0, 0, 1)',
         }}
@@ -1010,7 +1011,7 @@ function TableSwitcherDialog({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  borderRadius: 12,
+                  borderRadius: 8,
                   padding: '10px 8px',
                   cursor: 'pointer',
                   background: isCurrent ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
@@ -1050,7 +1051,9 @@ function EmptyStateCard({ onGoImport, onCreateTable }: { onGoImport: () => void;
   return (
     <div
       style={{
-        width: '100%',
+        width: 'auto',
+        // ScheduleScreen.kt EmptyState: Column 外衬 horizontal=22 → 卡体再内缩 22
+        margin: '0 22px',
         background: 'var(--md-surface-container)',
         borderRadius: 28,
         padding: '24px 22px',
@@ -1068,9 +1071,9 @@ function EmptyStateCard({ onGoImport, onCreateTable }: { onGoImport: () => void;
       <button
         onClick={onGoImport}
         style={{
-          width: '100%', padding: 14, borderRadius: 14, border: 'none', cursor: 'pointer',
+          width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
           background: 'var(--md-primary)', color: 'var(--md-on-primary)',
-          fontSize: 15, fontWeight: 600,
+          fontSize: 14, fontWeight: 500,
         }}
       >
         {t('schedule_empty_import', { defaultValue: '导入第一张课表' })}
@@ -1078,9 +1081,9 @@ function EmptyStateCard({ onGoImport, onCreateTable }: { onGoImport: () => void;
       <button
         onClick={onCreateTable}
         style={{
-          width: '100%', padding: 14, borderRadius: 14, border: 'none', cursor: 'pointer',
+          width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
           background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
-          fontSize: 15, fontWeight: 600,
+          fontSize: 14, fontWeight: 500,
         }}
       >
         {t('schedule_empty_create_table', { defaultValue: '创建第一张课表' })}
@@ -1123,9 +1126,9 @@ function NoCourseCard({
       <button
         onClick={onAddCourse}
         style={{
-          width: '100%', padding: 14, borderRadius: 14, border: 'none', cursor: 'pointer',
+          width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
           background: 'var(--md-primary)', color: 'var(--md-on-primary)',
-          fontSize: 15, fontWeight: 600,
+          fontSize: 14, fontWeight: 500,
         }}
       >
         {t('schedule_manual_first', { defaultValue: '先手动添加一门课' })}
@@ -1133,9 +1136,9 @@ function NoCourseCard({
       <button
         onClick={onImport}
         style={{
-          width: '100%', padding: 14, borderRadius: 14, border: 'none', cursor: 'pointer',
+          width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
           background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
-          fontSize: 15, fontWeight: 600,
+          fontSize: 14, fontWeight: 500,
         }}
       >
         {t('schedule_go_manage', { defaultValue: '前往导入' })}

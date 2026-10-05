@@ -302,13 +302,14 @@ function SingleTimeHeadCell({
   const isPh = !!slot.isPlaceholder
   const hangingOffset = hanging * 10 * scale
   return (
-    <div style={{ width: 68 * scale, padding: 2 * scale, display: 'flex' }} data-period-header-hanging={hanging}>
+    <div style={{ width: 68 * scale, display: 'flex' }} data-period-header-hanging={hanging}>
       <div
         style={{
           flex: 1,
-          borderRadius: 12 * scale * cornerRatio,
+          // CourseTableView.kt:733 单层形态: 圆角 8*ratio(≤1), 内衬 3 (资源篮 2026-09-28 逐层相等令)
+          borderRadius: 8 * scale * Math.min(1, cornerRatio),
           background: isPh ? 'color-mix(in srgb, var(--md-surface-container-low) 50%, transparent)' : 'var(--md-surface-container-low)',
-          padding: 4 * scale,
+          padding: 3 * scale,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
