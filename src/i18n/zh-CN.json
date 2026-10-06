@@ -512,9 +512,9 @@
   "about_download_sub": "已根据你的浏览器识别架构：{{abi}}",
   "about_download_btn": "下载 APK（{{abi}}）",
   "about_qq_title": "QQ 交流群",
-  "about_qq_detail": "群号 {{group}} · 复制后在 QQ 搜索群号申请加入",
+  "about_qq_detail": "群号 %1$s · 点击复制并拉起 QQ 申请加入",
   "about_qq_copy": "复制群号",
-  "about_qq_copied": "已复制",
+  "about_qq_copied": "群号已复制,请在 QQ 中申请加入",
   "license_page_title": "开源许可与致谢",
   "license_gpl_section": "许可证",
   "license_gpl_body": "Sleepy 是一款开源的智能课表应用，源代码基于 GNU General Public License v3.0 协议发布。任何人都可以自由使用、修改和分发本软件。欢迎通过 GitHub 参与贡献。",
@@ -766,5 +766,10 @@
   "settings_migration_import_fail": "导入失败：备份文件无法读取",
   "appearance_section_schedule_display": "课表显示",
   "course_list_arrangements": "{{v1}}个上课安排",
-  "course_list_title": "课程清单"
+  "course_list_title": "课程清单",
+  "about_qq_copy_action": "复制群号",
+  "about_qq_no_qq": "群号已复制,未检测到 QQ,请手动打开 QQ 搜索加入",
+  "about_feedback_email_subject": "[Sleepy 反馈]",
+  "about_feedback_email_body": "请描述你遇到的问题或建议：\n\n— 环境 —\n（选填）\n",
+  "about_feedback_no_mail_app": "未找到可用的邮件应用，请改用 GitHub Issue"
 }

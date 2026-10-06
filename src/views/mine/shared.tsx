@@ -7,9 +7,10 @@
 import type { ReactNode } from 'react'
 import { IconArrowBack, IconCheck } from '../../components/icons'
 
-export function SettingsScaffold({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
+/** bg: 内容区底色 (TopAppBar 下方, Android Column.background 同位); 内容区撑满剩余高度 */
+export function SettingsScaffold({ title, onBack, children, bg }: { title: string; onBack: () => void; children: ReactNode; bg?: string }) {
   return (
-    <div style={{ height: '100%', overflow: 'auto', boxSizing: 'border-box', paddingBottom: 16 }}>
+    <div style={{ height: '100%', overflow: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 8px 6px' }}>
         <button
           onClick={onBack}
@@ -23,7 +24,7 @@ export function SettingsScaffold({ title, onBack, children }: { title: string; o
         </button>
         <span className="m3-title-large">{title}</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '16px 16px 32px', flexGrow: 1, background: bg }}>
         {children}
       </div>
     </div>
@@ -108,7 +109,9 @@ export function ToggleRow({
  * 1.3.0 默认无选中 ✓ 图标 (1.4+ expressive 才有), 故此处不画。
  * button 元素 = 键盘可聚焦 (Space/Enter 原生), 与 Android focusable 对齐。
  */
-export function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+export function Switch({
+  checked, onChange, uncheckedTrack = 'var(--md-surface-container-highest)',
+}: { checked: boolean; onChange: (v: boolean) => void; uncheckedTrack?: string }) {
   return (
     <button
       type="button"
@@ -117,7 +120,7 @@ export function Switch({ checked, onChange }: { checked: boolean; onChange: (v: 
       aria-checked={checked}
       style={{
         width: 52, height: 32, borderRadius: 16, border: 'none', padding: 0,
-        background: checked ? 'var(--md-primary)' : 'var(--md-surface-container-highest)',
+        background: checked ? 'var(--md-primary)' : uncheckedTrack,
         // 2dp outline 描边画在轨道内侧 (Android Modifier.border(TrackOutlineWidth)); 选中时透明
         boxShadow: checked ? 'none' : 'inset 0 0 0 2px var(--md-outline)',
         position: 'relative', cursor: 'pointer', flexShrink: 0,

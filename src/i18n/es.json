@@ -388,9 +388,9 @@
   "about_download_sub": "Arquitectura detectada del navegador: {{abi}}",
   "about_download_btn": "Descargar APK ({{abi}})",
   "about_qq_title": "Grupo de QQ",
-  "about_qq_detail": "ID del grupo {{group}} · cópialo y búscalo en QQ para unirte",
+  "about_qq_detail": "ID del grupo %1$s · tócalo para copiar y abrir QQ",
   "about_qq_copy": "Copiar ID",
-  "about_qq_copied": "Copiado",
+  "about_qq_copied": "ID copiado: únete en QQ",
   "license_page_title": "Licencia y agradecimientos",
   "license_gpl_section": "Licencia",
   "license_gpl_body": "Sleepy es una aplicación de horario escolar inteligente de código abierto. El código fuente se publica bajo la licencia GNU General Public License v3.0. Cualquiera puede usar, modificar y distribuir este software libremente. Las contribuciones a través de GitHub son bienvenidas.",
@@ -410,7 +410,7 @@
   "about_feedback_github": "Issue de GitHub",
   "about_feedback_email": "Correo",
   "about_feedback_email_subject": "[Sleepy Comentario]",
-  "about_feedback_email_body": "Por favor describe el problema o la idea:\\n\\n— Entorno —\\n(opcional)\\n",
+  "about_feedback_email_body": "Por favor describe el problema o la idea:\n\n— Entorno —\n(opcional)\n",
   "about_feedback_no_mail_app": "No se encontró ninguna app de correo. Usa un Issue de GitHub.",
   "about_title": "Acerca de",
   "about_update": "Buscar actualizaciones",
@@ -763,5 +763,7 @@
   "settings_migration_import_fail": "Error al importar: no se pudo leer la copia",
   "appearance_section_schedule_display": "Visualización del horario",
   "course_list_arrangements": "{{v1}} clases",
-  "course_list_title": "Lista de cursos"
+  "course_list_title": "Lista de cursos",
+  "about_qq_copy_action": "Copiar ID del grupo",
+  "about_qq_no_qq": "ID copiado. QQ no está instalado, búscalo manualmente."
 }

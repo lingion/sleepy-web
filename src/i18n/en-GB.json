@@ -394,9 +394,9 @@
   "about_download_sub": "Architecture detected from your browser: {{abi}}",
   "about_download_btn": "Download APK ({{abi}})",
   "about_qq_title": "QQ Group",
-  "about_qq_detail": "Group ID {{group}} · copy it, then search in QQ to join",
+  "about_qq_detail": "Group ID %1$s · tap to copy and open QQ to join",
   "about_qq_copy": "Copy ID",
-  "about_qq_copied": "Copied",
+  "about_qq_copied": "Group ID copied — join it in QQ",
   "license_page_title": "License & Acknowledgements",
   "license_gpl_section": "License",
   "license_gpl_body": "Sleepy is an open-source smart class schedule app. The source code is released under the GNU General Public License v3.0. Anyone is free to use, modify, and distribute this software. Contributions via GitHub are welcome.",
@@ -416,7 +416,7 @@
   "about_feedback_github": "GitHub Issue",
   "about_feedback_email": "Email",
   "about_feedback_email_subject": "[Sleepy Feedback]",
-  "about_feedback_email_body": "Please describe the issue or idea:\\n\\n— Environment —\\n(optional)\\n",
+  "about_feedback_email_body": "Please describe the issue or idea:\n\n— Environment —\n(optional)\n",
   "about_feedback_no_mail_app": "No email app found. Please use GitHub Issue instead.",
   "about_title": "About",
   "about_update": "Check for Updates",
@@ -774,5 +774,7 @@
   "settings_migration_import_fail": "Import failed: backup file could not be read",
   "appearance_section_schedule_display": "Schedule display",
   "course_list_arrangements": "Arrangements: {{v1}}",
-  "course_list_title": "Course list"
+  "course_list_title": "Course list",
+  "about_qq_copy_action": "Copy group ID",
+  "about_qq_no_qq": "Group ID copied. QQ not found — search it manually."
 }

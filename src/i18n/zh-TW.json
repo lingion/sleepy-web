@@ -388,9 +388,9 @@
   "about_download_sub": "已根據你的瀏覽器識別架構：{{abi}}",
   "about_download_btn": "下載 APK（{{abi}}）",
   "about_qq_title": "QQ 交流群",
-  "about_qq_detail": "群號 {{group}} · 複製後在 QQ 搜尋群號申請加入",
+  "about_qq_detail": "群號 %1$s · 點擊複製並拉起 QQ 申請加入",
   "about_qq_copy": "複製群號",
-  "about_qq_copied": "已複製",
+  "about_qq_copied": "群號已複製,請在 QQ 中申請加入",
   "license_page_title": "開源授權與致謝",
   "license_gpl_section": "授權條款",
   "license_gpl_body": "Sleepy 是一款開源的智慧課表應用，原始碼基於 GNU General Public License v3.0 協議發布。任何人都可以自由使用、修改和分發本軟體。歡迎透過 GitHub 參與貢獻。",
@@ -410,7 +410,7 @@
   "about_feedback_github": "GitHub Issue",
   "about_feedback_email": "電子郵件",
   "about_feedback_email_subject": "[Sleepy 回饋]",
-  "about_feedback_email_body": "請描述你遇到的問題或建議：\\n\\n— 環境 —\\n（選填）\\n",
+  "about_feedback_email_body": "請描述你遇到的問題或建議：\n\n— 環境 —\n（選填）\n",
   "about_feedback_no_mail_app": "找不到可用的電子郵件應用，請改用 GitHub Issue",
   "about_title": "關於",
   "about_update": "取得更新",
@@ -763,5 +763,7 @@
   "settings_migration_import_fail": "匯入失敗：備份檔案無法讀取",
   "appearance_section_schedule_display": "課表顯示",
   "course_list_arrangements": "{{v1}}個上課安排",
-  "course_list_title": "課程清單"
+  "course_list_title": "課程清單",
+  "about_qq_copy_action": "複製群號",
+  "about_qq_no_qq": "群號已複製,未偵測到 QQ,請手動打開 QQ 搜尋加入"
 }
