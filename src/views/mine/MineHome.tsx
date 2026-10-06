@@ -58,9 +58,9 @@ export function MineHome({
     [defaultTable?.id]
   )
   const currentWeek = computeCurrentWeek(defaultTable?.startDate ?? '', defaultTable?.maxWeek ?? 20)
-  // mine_stat_courses: distinctBy courseName (MineScreen.kt L102)
+  // mine_stat_courses: distinctBy courseName.ifBlank{"#groupId"} (MineScreen.kt, 与 CourseListScreen 同口径)
   const courseCount = useMemo(
-    () => new Set((courses ?? []).map((c) => c.courseName)).size,
+    () => new Set((courses ?? []).map((c) => (c.courseName.trim() === '' ? `#${c.groupId}` : c.courseName))).size,
     [courses]
   )
 
