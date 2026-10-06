@@ -11,7 +11,8 @@ import { deriveCustomScheme } from '../../theme/customSchemeDeriver'
 import { CUSTOM_KEY_PREFIX, getAllThemes, type CustomTheme } from '../../data/customThemeStore'
 import { SleepyLogo } from '../../components/icons'
 import type { Prefs } from '../../data/types'
-import { SettingsScaffold, SectionHeader, CheckIcon, FlatCard, SliderRow } from './shared'
+import { SettingsScaffold, SectionHeader, CheckIcon } from './shared'
+import { ScheduleDisplayContent } from './ScheduleDisplayPage'
 
 
 export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader }: { onBack: () => void; onOpenThemeEditor?: (id: string | null) => void; onOpenPeriodHeader?: () => void }) {
@@ -97,40 +98,35 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader }
             onEdit={() => onOpenThemeEditor?.(theme.id)}
           />
         ))}
-        {/* 新建主题 — 虚线卡, 恒为网格最后一格 (不变量, 非快照) */}
+        {/* 新建主题 — 裸虚线圆圈+加号, 无卡无文字 (AppearanceScreen.kt:325-341 用户定稿),
+            恒为网格最后一格 (不变量, 非快照) */}
         <div
           onClick={() => onOpenThemeEditor?.(null)}
           style={{
-            flex: '1 1 calc(50% - 6px)', boxSizing: 'border-box', borderRadius: 16,
-            border: '1.5px dashed var(--md-outline)', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16, minHeight: 96,
-            cursor: 'pointer', color: 'var(--md-on-surface-variant)',
+            flex: '1 1 calc(50% - 6px)', boxSizing: 'border-box', height: 96,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
           }}
         >
-          <span style={{ fontSize: 24 }}>＋</span>
-          <span className="m3-title-small">{t('theme_new')}</span>
+          <svg width={40} height={40} viewBox="0 0 40 40" aria-hidden>
+            <circle
+              cx="20" cy="20" r="17" fill="none"
+              stroke="var(--md-on-surface)" strokeWidth="2"
+              strokeDasharray="5 4"
+            />
+            <path
+              d="M13 20h14M20 13v14"
+              stroke="var(--md-on-surface)" strokeWidth="2.4" strokeLinecap="round"
+            />
+          </svg>
         </div>
         {(Object.keys(THEME_PRESETS).length + customThemes.length + 1) % 2 === 1 && (
           <div style={{ flex: '1 1 calc(50% - 6px)' }} aria-hidden />
         )}
       </div>
 
-      <SectionHeader title={t('appearance_section_schedule_display', '课表显示')} />
-      <div className="m3-card" style={{ padding: 16 }}>
-        <SliderRow label={t('settings_pill_scale', '课表缩放')} value={prefs.gridScale} min={0.7} max={1.3} step={0.05} formatValue={(v) => `${Math.round(v * 100)}%`} onChange={(v) => void update({ gridScale: v })} />
-        <SliderRow label={t('settings_pill_week_scale', '周视图缩放')} value={prefs.weekScale} min={0.7} max={1.3} step={0.05} formatValue={(v) => `${Math.round(v * 100)}%`} onChange={(v) => void update({ weekScale: v })} />
-        <SliderRow label={t('settings_pill_corner', '圆角比例')} value={prefs.gridCornerRatio} min={0} max={2} step={0.05} formatValue={(v) => `${Math.round(v * 100)}%`} onChange={(v) => void update({ gridCornerRatio: v })} />
-        <FlatCard title={t('settings_conflict_style')} options={[t('settings_conflict_stack'), t('settings_conflict_fold'), t('settings_conflict_rail')]} selectedKey={['stack', 'fold', 'rail'].indexOf(prefs.conflictStyle)} onSelect={(i) => void update({ conflictStyle: (['stack', 'fold', 'rail'] as const)[i] })} />
-        {prefs.conflictStyle === 'stack' && <SliderRow label={t('settings_conflict_stack_inset', '堆叠偏移')} value={prefs.conflictStackInset} min={4} max={20} step={1} formatValue={(v) => `${v}dp`} onChange={(v) => void update({ conflictStackInset: v })} />}
-        {prefs.conflictStyle === 'rail' && <SliderRow label={t('settings_conflict_rail_inset', '侧轨偏移')} value={prefs.conflictRailInset} min={4} max={20} step={1} formatValue={(v) => `${v}dp`} onChange={(v) => void update({ conflictRailInset: v })} />}
-        {prefs.conflictStyle === 'fold' && <SliderRow label={t('settings_conflict_fold_size', '折叠尺寸')} value={prefs.conflictFoldSize} min={8} max={28} step={1} formatValue={(v) => `${v}dp`} onChange={(v) => void update({ conflictFoldSize: v })} />}
-      </div>
-      <SectionHeader title={t('appearance_period_header', '节次表头')} />
-      <div className="m3-card" onClick={onOpenPeriodHeader} style={{ padding: 16, cursor: 'pointer' }}>{t('settings_period_header', '节次表头')} <span style={{ float: 'right' }}>›</span></div>
-
-      {/* 外观模式三态分段 — clip(shapes.medium)=12dp 外层 */}
-      <div className="m3-title-small" style={{ fontWeight: 600 }}>{t('theme_appearance')}</div>
-      <div style={{ height: 8 }} />
+      {/* Section② 外观深浅 (AppearanceScreen.kt ①主题色彩 ②外观深浅 ③课表显示 ④节次表头) */}
+      <SectionHeader title={t('theme_appearance')} />
       <div style={{ display: 'flex', gap: 3, padding: 3, borderRadius: 12, background: 'var(--md-surface-container)' }}>
         {modes.map(([mode, label]) => {
           const sel = mode === prefs.themeMode
@@ -152,6 +148,15 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader }
           )
         })}
       </div>
+
+      {/* Section③ 课表显示 — Surface(surfaceContainer, shapes.large) 内嵌 ScheduleDisplayContent
+          (AppearanceScreen.kt:206-211 与 ScheduleDisplayScreen 共用同一可复用体) */}
+      <SectionHeader title={t('appearance_section_schedule_display', '课表显示')} />
+      <div className="m3-card" style={{ padding: 16, borderRadius: 16, background: 'var(--md-surface-container)' }}>
+        <ScheduleDisplayContent />
+      </div>
+      <SectionHeader title={t('appearance_period_header', '节次表头')} />
+      <div className="m3-card" onClick={onOpenPeriodHeader} style={{ padding: 16, cursor: 'pointer' }}>{t('settings_period_header', '节次表头')} <span style={{ float: 'right' }}>›</span></div>
     </SettingsScaffold>
   )
 }

@@ -28,8 +28,6 @@ import { exportDatedIcs, type IcsRange } from '../domain/import/icsRangeExporter
 import { exportSleepyV1File, exportSleepyV1ShareText, exportPeriodTableShareText, exportPeriodTableJson } from '../domain/import/sleepyNativeExporter'
 import type { Table, Course, PeriodTable } from '../data/types'
 import type { ExportCourse } from '../domain/import/scheduleExporter'
-import { exportBackup, backupFileName, EXPORTABLE_MODULES } from '../domain/migration/backupExecutor'
-import { IconDownload } from '../components/icons'
 import { usePrefsStore } from '../state/prefsStore'
 import { scopedTransfers } from '../state/holidayStore'
 
@@ -160,28 +158,6 @@ export function ExportView({ onBack }: { onBack: () => void }) {
     }
   }
 
-  async function handleBackup() {
-    try {
-      const { bytes } = await exportBackup(EXPORTABLE_MODULES)
-      const fileName = backupFileName()
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/zip' })
-      const url = URL.createObjectURL(blob)
-      try {
-        const a = document.createElement('a')
-        a.href = url
-        a.download = fileName
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-      } finally {
-        setTimeout(() => URL.revokeObjectURL(url), 1000)
-      }
-      show(t('export_saved_to', { v1: fileName, defaultValue: `已保存到 Download/Sleepy/${fileName}` }))
-    } catch {
-      show(t('export_failed', '导出失败，请重试'))
-    }
-  }
-
   if ((tables.length === 0 && periodTables.length === 0) || (!table && !selectedPeriodTable)) {
     return (
       <div style={{ padding: 16 }}>
@@ -263,6 +239,15 @@ export function ExportView({ onBack }: { onBack: () => void }) {
               onClick={() => { void handleIcsOpen({ date: true }) }}
             />
             <Hairline />
+            {/* 甲案 C4 §4: 「添加到系统日历」(ExportScreen.kt:339-361, 卡内 ICS 与原生之间)。
+                Android 走系统日历写入选取器; web 无系统日历 API → 下载范围 .ics (预置 dated)。平台差异: 仅形态对位 */}
+            <ExportItem
+              icon={<IconCalendarMonth size={24} />}
+              title={t('calendar_import_title')}
+              subtitle={t('calendar_import_subtitle')}
+              onClick={() => { void handleIcsOpen({ date: true }) }}
+            />
+            <Hairline />
             <ExportItem
               icon={<IconStar size={24} />} title={t('export_native_title')} subtitle={t('export_native_subtitle')}
               onClick={() => { void handleNative() }}
@@ -270,26 +255,6 @@ export function ExportView({ onBack }: { onBack: () => void }) {
           </>
         )}
       </div>
-
-      {/* 甲案 C4 §4: 「添加到系统日历」(ExportScreen.kt:339-361 web 对位)。
-          Android 走系统日历写入选取器; web 无系统日历 API → 下载范围 .ics (预置 dated 模式)。
-          平台差异: 仅形态对位, 文件头注明。 */}
-      {table && (
-        <ExportItem
-          icon={<IconCalendarMonth size={24} />}
-          title={t('calendar_import_title')}
-          subtitle={t('calendar_import_subtitle')}
-          onClick={() => { void handleIcsOpen({ date: true }) }}
-        />
-      )}
-
-      {/* v1.0.57 全量备份 — .sleepybackup (EXPORTABLE_MODULES: database + preferences) */}
-      <ExportItem
-        icon={<IconDownload size={24} />}
-        title={t('backup_title', '全量备份')}
-        subtitle={t('backup_subtitle', '跨设备/跨平台迁移 (.sleepybackup)')}
-        onClick={() => { void handleBackup() }}
-      />
 
       {/* M3 snackbar 等价 — inverse token 未导出, on-surface/surface 近似, 4s 自动消失 */}
       {notice && (

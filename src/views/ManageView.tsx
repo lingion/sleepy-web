@@ -22,6 +22,7 @@ import { EditTableView } from './EditTableView'
 import { AddCourseView } from './AddCourseView'
 import { ExportView } from './ExportView'
 import { PeriodTableEditView } from './mine/PeriodTableEditView'
+import { AllTablesPage } from './mine/AllTablesPage'
 import { computeCurrentWeek } from './ScheduleView'
 import { insertPeriodTable } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
@@ -56,6 +57,8 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   const [editingId, setEditingId] = useState<number | null>(null)
   // v1.0.56 T7: 新建作息表编辑层 — 与 editTable 同栈模式 (ManagementPage 第3卡)
   const [editingPeriodId, setEditingPeriodId] = useState<number | null>(null)
+  // 2026-09-21 用户令: 点当前课表大卡 → 所有课表页 (Android onOpenAllTables 回调同构)
+  const [allTablesOpen, setAllTablesOpen] = useState(false)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
   const replace = useBackStack((s) => s.replace)
@@ -70,6 +73,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
     else if (key === 'export') setExporting(false)
     else if (key === 'editTable') setEditingId(null)
     else if (key === 'periodTableEdit') setEditingPeriodId(null)
+    else if (key === 'allTables') setAllTablesOpen(false)
   }), [])
 
   // 二级页 push 入栈 (带 hash 地址, 浏览器返回可弹); 返回按钮 pop 出栈。
@@ -127,6 +131,9 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
       />
     )
   }
+  if (allTablesOpen) {
+    return <AllTablesPage onBack={() => { leave(); setAllTablesOpen(false) }} />
+  }
 
   // 新建动线 — MainActivity:311-317 同款: 建空表(不切选中) + 记住原默认表 + 跳 EditTable,
   // 用户没保存就返回 → discardNewTable 删表落回原表 (pendingTable 状态机)。
@@ -158,9 +165,10 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
         </p>
       )}
 
-      {/* 当前课表摘要 — ManagementPage.kt:91-116 */}
+      {/* 当前课表摘要 — ManagementPage.kt:91-140 (点大卡 → 所有课表, 2026-09-21 用户令) */}
       {defaultTable && (
         <div
+          onClick={() => open('allTables', () => setAllTablesOpen(true))}
           style={{
             background: 'var(--md-surface-container)',
             borderRadius: 16,
@@ -168,17 +176,23 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
+            cursor: 'pointer',
           }}
         >
-          <div className="m3-title-small" style={{ fontWeight: 600, color: 'var(--md-primary)' }}>
-            {t('manage_current_table')}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="m3-title-small" style={{ fontWeight: 600, flex: 1, color: 'var(--md-primary)' }}>
+              {t('manage_current_table')}
+            </span>
+            <span className="m3-label-medium" style={{ color: 'var(--md-on-surface-variant)' }}>
+              {t('manage_view_all_tables')}
+            </span>
           </div>
           <div className="m3-title-large" style={{ fontWeight: 600, color: 'var(--md-on-surface)' }}>
             {defaultTable.name}
           </div>
           <div
             className="m3-body-small"
-            style={{ fontSize: 12, lineHeight: '16px', color: 'var(--md-on-surface-variant)' }}
+            style={{ color: 'var(--md-on-surface-variant)' }}
           >
             {t('table_info', {
               v1: defaultTable.startDate || '—',

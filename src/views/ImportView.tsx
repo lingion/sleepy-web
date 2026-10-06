@@ -9,8 +9,7 @@ import { useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { IconDescription, IconExpandLess, IconExpandMore, IconFileUpload, IconInfo, IconQrCode2, IconDownload } from '../components/icons'
-import { importBackup, type ImportMode } from '../domain/migration/backupExecutor'
+import { IconDescription, IconExpandLess, IconExpandMore, IconFileUpload, IconInfo, IconQrCode2 } from '../components/icons'
 import { FormatDetailDialog } from '../components/FormatDetailDialog'
 import { FORMAT_KEYS, IMPORT_FORMATS, type ImportFormat } from '../components/formatHelp'
 import { db } from '../data/db'
@@ -416,40 +415,6 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
     }
   }
 
-  // v1.0.57 全量备份导入 — .sleepybackup (MigrationExecutor web 对位)
-  const backupInputRef = useRef<HTMLInputElement>(null)
-  const [pendingBackup, setPendingBackup] = useState<Uint8Array | null>(null)
-
-  function handleBackupFile(file: File) {
-    setIsLoading(true)
-    setErrorMsg(null)
-    file
-      .arrayBuffer()
-      .then((buf) => {
-        // 先完整校验 (assemblePackage 在 importBackup 内), 坏包不落数据
-        setPendingBackup(new Uint8Array(buf))
-      })
-      .catch((e: unknown) => {
-        setErrorMsg(t('backup_import_fail', { v1: e instanceof Error ? e.message : String(e) }))
-      })
-      .finally(() => setIsLoading(false))
-  }
-
-  async function runBackupImport(mode: ImportMode) {
-    const bytes = pendingBackup
-    if (!bytes) return
-    setPendingBackup(null)
-    setIsLoading(true)
-    try {
-      const report = await importBackup(bytes, mode)
-      setNotice(t('backup_import_ok', { v1: report.counts.timeTables, v2: report.counts.courses }))
-    } catch (e: unknown) {
-      setNotice(t('backup_import_fail', { v1: e instanceof Error ? e.message : String(e) }))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   function handleFile(file: File) {
     setIsLoading(true)
     void file
@@ -531,23 +496,9 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
         }}
       />
 
-      {/* 行 4：从 .sleepybackup 全量恢复 — GeneralSettingsScreen 分组⑥ 的 web 对位 */}
-      <ImportMethodRow
-        icon={IconDownload}
-        label={t('backup_import_title', '从 .sleepybackup 恢复')}
-        onClick={() => backupInputRef.current?.click()}
-      />
-      <input
-        ref={backupInputRef}
-        type="file"
-        accept=".sleepybackup,application/zip"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) handleBackupFile(f)
-          e.target.value = ''
-        }}
-      />
+      {/* 备份导入入口在 我的→通用设置→数据迁移 (Android GeneralSettingsScreen 分组⑥ 1:1);
+          ImportSheet.kt 无此行 → 本页不放 */}
+
 
       {/* 支持的导入类型 — ImportSheet.kt FormatRow: • + 课名 + 说明 + ⓘ 详情 */}
       <div className="m3-card" style={{ padding: 16 }}>
@@ -721,53 +672,6 @@ export function ImportView({ onDone, onJwImport }: { onDone: () => void; onJwImp
         />
       )}
 
-      {/* 备份恢复模式选择 — OVERWRITE / MERGE */}
-      {pendingBackup && (
-        <Overlay onDismiss={() => setPendingBackup(null)}>
-          <div className="m3-card" style={{ padding: 20, maxWidth: 420, width: '100%' }}>
-            <div className="m3-title-medium" style={{ fontWeight: 700, marginBottom: 8 }}>
-              {t('backup_import_title', '从 .sleepybackup 恢复')}
-            </div>
-            <p className="m3-body-medium" style={{ margin: '0 0 16px', color: 'var(--md-on-surface-variant)' }}>
-              {t('backup_import_sub', '选择备份文件, 选择覆盖或合并')}
-            </p>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12, cursor: 'pointer' }}>
-              <input type="radio" name="backupMode" value="OVERWRITE" defaultChecked style={{ marginTop: 3 }} />
-              <span>{t('backup_mode_overwrite', '覆盖导入 — 先清空本机数据再写入')}</span>
-            </label>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 20, cursor: 'pointer' }}>
-              <input type="radio" name="backupMode" value="MERGE" style={{ marginTop: 3 }} />
-              <span>{t('backup_mode_merge', '合并导入 — 保留本机数据, 追加备份内容')}</span>
-            </label>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setPendingBackup(null)}
-                style={{
-                  padding: '10px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                  background: 'transparent', color: 'var(--md-primary)', fontWeight: 600,
-                }}
-              >
-                {t('backup_cancel', '取消')}
-              </button>
-              <button
-                onClick={(e) => {
-                  const root = (e.currentTarget.closest('.m3-card') ?? document) as ParentNode
-                  const mode = (root.querySelector('input[name=backupMode]:checked') as HTMLInputElement | null)?.value
-                  void runBackupImport(mode === 'MERGE' ? 'MERGE' : 'OVERWRITE')
-                }}
-                disabled={isLoading}
-                style={{
-                  padding: '10px 20px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                  background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontWeight: 600,
-                  opacity: isLoading ? 0.5 : 1,
-                }}
-              >
-                {t('backup_confirm', '开始恢复')}
-              </button>
-            </div>
-          </div>
-        </Overlay>
-      )}
     </div>
   )
 }

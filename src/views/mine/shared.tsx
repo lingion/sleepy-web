@@ -159,20 +159,23 @@ export function HDiv({ inset = 0 }: { inset?: number }) {
   )
 }
 
-/** SegmentedSwitcher — 轨道 + secondaryContainer thumb 色块滑动 */
+/** SegmentedSwitcher — 轨道 + secondaryContainer thumb 色块滑动。
+ *  full=true: 段等分撑满 (Android Modifier.fillMaxWidth(), 如冲突样式); 默认内容宽 (嵌标题行)。 */
 export function SegmentedSwitcher({
-  options, selected, onSelect, compact = false,
+  options, selected, onSelect, compact = false, full = false,
 }: {
   options: string[]
   selected: number
   onSelect: (i: number) => void
   compact?: boolean
+  full?: boolean
 }) {
   return (
     <div
       style={{
         display: 'flex', gap: 3, padding: 3, borderRadius: 12,
         background: 'var(--md-surface-container-highest)', height: compact ? 36 : 42,
+        ...(full ? { width: '100%', boxSizing: 'border-box' as const } : null),
       }}
     >
       {options.map((label, i) => {
@@ -183,7 +186,9 @@ export function SegmentedSwitcher({
             onClick={() => onSelect(i)}
             className="m3-label-large"
             style={{
-              padding: '0 14px', display: 'flex', alignItems: 'center', borderRadius: 9,
+              padding: full ? 0 : '0 14px', display: 'flex', alignItems: 'center', borderRadius: 9,
+              justifyContent: 'center',
+              ...(full ? { flex: 1 } : null),
               background: sel ? 'var(--md-secondary-container)' : 'transparent',
               color: sel ? 'var(--md-on-secondary-container)' : 'var(--md-on-surface-variant)',
               fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
