@@ -325,7 +325,6 @@ export function EditTableView({
             })
           }
         }}
-        onSave={saveAndSettle}
         periodTableOptions={allPeriodTables.map((pt) => ({
           id: pt.id, name: pt.name, nodesPerDay: pt.nodesPerDay,
         }))}

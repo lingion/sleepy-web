@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconClose, IconDelete } from '../../components/icons'
+import { IconAdd, IconCheck, IconClose, IconRemoveCircleOutline } from '../../components/icons'
 import { SegmentedSwitcher } from './shared'
 import {
   breakDisplayLabel,
@@ -32,7 +32,7 @@ export interface PeriodTableOption {
 }
 
 export function TimeSlotSection({
-  expanded, onToggle, rows, onRowsChange, smartConfig, onSmartConfigChange, onSave,
+  expanded, onToggle, rows, onRowsChange, smartConfig, onSmartConfigChange,
   periodTableOptions, selectedPeriodTableId, onSelectPeriodTable, excludePeriodTableId,
 }: {
   expanded: boolean
@@ -41,7 +41,6 @@ export function TimeSlotSection({
   onRowsChange: (rows: TimeSlotRow[]) => void
   smartConfig: SmartPeriodConfig
   onSmartConfigChange: (cfg: SmartPeriodConfig) => void
-  onSave: (rows: TimeSlotRow[]) => void
   /** 非空 = 显示第三 Tab「作息表」(EditTableScreen 换绑 / PeriodTableEditScreen 取入) */
   periodTableOptions?: PeriodTableOption[]
   /** null = 未绑定; 选中态由调用方持有, 组件零写库 */
@@ -92,7 +91,7 @@ export function TimeSlotSection({
             onSelect={(i) => setMode(i === 0 ? 'manual' : i === 1 ? 'auto' : 'periodTable')}
           />
           {mode === 'manual' ? (
-            <ManualTimeSlotEditor rows={rows} onRowsChange={onRowsChange} onSave={onSave} />
+            <ManualTimeSlotEditor rows={rows} onRowsChange={onRowsChange} />
           ) : mode === 'auto' ? (
             <SmartPeriodEditor config={smartConfig} onConfigChange={onSmartConfigChange} />
           ) : (
@@ -188,69 +187,92 @@ function BindChoiceRow({
 // ── 手动模式 — ManualTimeSlotEditor 1:1 (逐节起止时间+增删节) ────────────────
 
 function ManualTimeSlotEditor({
-  rows, onRowsChange, onSave,
+  rows, onRowsChange,
 }: {
   rows: TimeSlotRow[]
   onRowsChange: (rows: TimeSlotRow[]) => void
-  onSave: (rows: TimeSlotRow[]) => void
 }) {
   const { t } = useTranslation()
   return (
-    <>
-      {rows.map((r, i) => (
-        <div key={r.node} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="m3-label-medium" style={{ width: 28, color: 'var(--md-on-surface-variant)' }}>
-            {t('course_node_format', { v1: r.node })}
-          </span>
-          <input
-            type="time"
-            value={r.start}
-            aria-label={`${t('start_label')} ${t('course_node_format', { v1: r.node })}`}
-            onChange={(e) => {
-              const next = [...rows]
-              next[i] = { ...r, start: e.target.value }
-              onRowsChange(next)
-            }}
-            style={{ ...fieldStyle, flex: 1 }}
-          />
-          <span style={{ color: 'var(--md-on-surface-variant)' }}>–</span>
-          <input
-            type="time"
-            value={r.end}
-            aria-label={`${t('end_label')} ${t('course_node_format', { v1: r.node })}`}
-            onChange={(e) => {
-              const next = [...rows]
-              next[i] = { ...r, end: e.target.value }
-              onRowsChange(next)
-            }}
-            style={{ ...fieldStyle, flex: 1 }}
-          />
-          {rows.length > 1 ? (
-            <button
-              type="button"
-              aria-label={t('delete_period')}
-              onClick={() => onRowsChange(removeAndRenumber(rows, r.node))}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer', padding: 4,
-                color: 'var(--md-error)', display: 'inline-flex', alignItems: 'center',
-              }}
-            >
-              <IconDelete size={18} />
-            </button>
-          ) : (
-            <span style={{ width: 26 }} />
-          )}
-        </div>
-      ))}
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <button onClick={() => onRowsChange(appendEmptyRow(rows))} style={{ ...ghostBtnStyle, flex: 1 }}>
-          + {t('add_period')}
-        </button>
-        <button onClick={() => onSave(rows)} style={{ ...ghostBtnStyle, flex: 1, color: 'var(--md-primary)' }}>
-          {t('apply_to_all_slots')}
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* Header — Android: pad(12,12,6) = n_periods bodySmall 左 + secondaryContainer 小按钮右 */}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '6px 12px',
+        }}
+      >
+        <span className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+          {t('n_periods', { v1: rows.length })}
+        </span>
+        <button
+          type="button"
+          onClick={() => onRowsChange(appendEmptyRow(rows))}
+          style={{
+            height: 32, padding: '0 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
+            background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+            fontSize: 14, fontWeight: 500,
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+          }}
+        >
+          <IconAdd size={18} />
+          {t('add_period')}
         </button>
       </div>
-    </>
+      {/* Rows — surfaceContainerLow r16(shapes.large) pad10 gap10 */}
+      <div
+        style={{
+          background: 'var(--md-surface-container-low)', borderRadius: 16, padding: 10,
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}
+      >
+        {rows.map((r, i) => (
+          <div key={r.node} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="m3-body-medium" style={{ width: 44, color: 'var(--md-on-surface)' }}>
+              {t('course_node_format', { v1: r.node })}
+            </span>
+            <input
+              type="time"
+              value={r.start}
+              aria-label={`${t('start_label')} ${t('course_node_format', { v1: r.node })}`}
+              onChange={(e) => {
+                const next = [...rows]
+                next[i] = { ...r, start: e.target.value }
+                onRowsChange(next)
+              }}
+              style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
+            />
+            <input
+              type="time"
+              value={r.end}
+              aria-label={`${t('end_label')} ${t('course_node_format', { v1: r.node })}`}
+              onChange={(e) => {
+                const next = [...rows]
+                next[i] = { ...r, end: e.target.value }
+                onRowsChange(next)
+              }}
+              style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
+            />
+            {rows.length > 1 ? (
+              <button
+                type="button"
+                aria-label={t('delete_period')}
+                onClick={() => onRowsChange(removeAndRenumber(rows, r.node))}
+                style={{
+                  width: 32, height: 32, padding: 0, background: 'transparent', border: 'none',
+                  cursor: 'pointer', color: 'var(--md-error)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}
+              >
+                <IconRemoveCircleOutline size={20} />
+              </button>
+            ) : (
+              <span style={{ width: 32, flexShrink: 0 }} />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -566,16 +588,6 @@ const fieldStyle: React.CSSProperties = {
   borderRadius: 8,
   padding: '8px 10px',
   fontSize: 14,
-}
-
-const ghostBtnStyle: React.CSSProperties = {
-  padding: '8px 14px',
-  borderRadius: 12,
-  border: 'none',
-  cursor: 'pointer',
-  background: 'var(--md-surface-container-high)',
-  color: 'var(--md-on-surface)',
-  fontSize: 13,
 }
 
 function ChevronDownIcon() {
