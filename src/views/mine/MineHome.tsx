@@ -5,7 +5,7 @@
  * 「管理桌面小组件」入口省略 (无小组件可管, 后续发布浏览器扩展时恢复)。
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../data/db'
@@ -16,6 +16,8 @@ import {
 } from '../../components/icons'
 import type { Course } from '../../data/types'
 import { HDiv } from './shared'
+import { getCachedUpdate, maybeCheckOnStart } from '../../domain/update/updateChecker'
+import pkg from '../../../package.json'
 
 export function MineHome({
   navExtraBottom = 0,
@@ -40,6 +42,14 @@ export function MineHome({
 }) {
   const { t } = useTranslation()
   const [toast, setToast] = useState('')
+  // updateNoticeVisible — UpdateNotifier.noticeVisible 同构: 会话首查 + 缓存命中则
+  // About 行 primary@10% 高亮 (SleepyNavHost.kt:124/301 → MineScreen highlighted)
+  const [refresh, setRefresh] = useState(0)
+  useEffect(() => {
+    void maybeCheckOnStart(pkg.version).then(() => setRefresh((c) => c + 1))
+  }, [])
+  const updateNoticeVisible = getCachedUpdate() !== null
+  void refresh
   const tables = useLiveQuery(() => db.timetables.toArray(), []) ?? []
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
   const courses = useLiveQuery(
@@ -89,7 +99,7 @@ export function MineHome({
         <HDiv inset={72} />
         <SettingsItem icon={<IconTune size={20} />} label={t('mine_general')} onClick={onOpenGeneral} />
         <HDiv inset={72} />
-        <SettingsItem icon={<IconInfo size={20} />} label={t('about_title')} onClick={onOpenAbout} />
+        <SettingsItem icon={<IconInfo size={20} />} label={t('about_title')} onClick={onOpenAbout} highlighted={updateNoticeVisible} />
       </div>
 
       {/* 动作区 — 刷新所有小组件 (MineScreen.kt:148-163 FilledTonalButton 1:1 形态:
@@ -104,7 +114,7 @@ export function MineHome({
         }}
         className="m3-label-large"
         style={{
-          width: '100%', height: 48, borderRadius: 24, border: 'none', cursor: 'pointer',
+          width: '100%', height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
         }}
@@ -143,12 +153,13 @@ function VDivider() {
   return <div style={{ height: 36, width: 1, background: 'color-mix(in srgb, var(--md-outline) 30%, transparent)' }} />
 }
 
-function SettingsItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function SettingsItem({ icon, label, onClick, highlighted = false }: { icon: React.ReactNode; label: string; onClick: () => void; highlighted?: boolean }) {
   return (
     <div
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: 'pointer',
+        background: highlighted ? 'color-mix(in srgb, var(--md-primary) 10%, transparent)' : 'transparent',
       }}
     >
       <div
