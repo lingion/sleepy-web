@@ -14,7 +14,7 @@ import {
   type HolidayEntry,
   type HolidayRange,
 } from '../domain/holiday/ranges'
-import { decodeTransfers, encodeTransfers, type HolidayTransferEntry } from '../domain/holiday/transfers'
+import { decodeTransfers, encodeTransfers, withTargetExclusivity, type HolidayTransferEntry } from '../domain/holiday/transfers'
 
 const OVERRIDES_KEY = 'sleepy_holiday_overrides'
 const TRANSFERS_KEY = 'sleepy_holiday_transfers'
@@ -31,15 +31,10 @@ interface HolidayState {
   status: Record<number, HolidayYearStatus>
   /** 用户范围化覆盖段 (KEY_HOLIDAY_OVERRIDES) — 全局 (Android AppPrefs 同构) */
   overrides: HolidayRange[]
-  /** 放假日 → 补班日课程映射。Android HolidaySettingsScreen 351-376 有 activeTableId 切换器
-   * (tables.size>1 才显示), 映射按课表作用域存储 (AppPrefs.getHolidayTransfers(ctx, tableId))。
-   * web 建模: transfers 索引 tableId → 条目; activeTableId 为空(仅 1 张表时)=global 兼容层。*/
-  transfers: Record<number, HolidayTransferEntry[]>
-  /** 当前正在编辑的课表 id (null=单表全局模式) */
-  activeTableId: number | null
-  saveTransfer: (tableId: number | null, entry: HolidayTransferEntry) => void
-  clearTransfer: (tableId: number | null, sourceDate: string) => void
-  setActiveTable: (tableId: number | null) => void
+  /** 调休映射写入计数 — 映射按表存 localStorage (AppPrefs 同构), 消费方订阅此值重读 (viewModel.refreshTransfer 同位) */
+  transferRevision: number
+  /** AppPrefs.updateHolidayTransfer: targetDate=null 清除该放假日; 否则互斥写 (同 target/同 source 旧条目被替换) */
+  updateTransfer: (tableId: number, sourceDate: string, targetDate: string | null, segmentId: string) => void
   /** 拉取某年 (force=绕过缓存, 已缓存默认跳过) */
   load: (year: number, force?: boolean) => Promise<void>
   /** 保存(新增或替换同 id)一段覆盖 */
@@ -48,10 +43,6 @@ interface HolidayState {
   deleteRange: (range: HolidayRange) => void
   /** 恢复默认: 移除该 id 覆盖(含 REMOVED 型), 网络段随之回来 */
   restoreRange: (range: HolidayRange) => void
-}
-
-function transfersKey(tableId: number | null): string {
-  return tableId === null ? TRANSFERS_KEY : `${TRANSFERS_KEY}_${tableId}`
 }
 
 function loadOverrides(): HolidayRange[] {
@@ -70,36 +61,50 @@ function persistOverrides(ranges: HolidayRange[]): void {
   }
 }
 
-/** 兼容旧版本: 读取全局键迁移到单表(null)命名空间 (仅首次调用生效) */
-let migrateDone = false
-function migrateLegacyTransfers(): void {
-  if (migrateDone) return
-  migrateDone = true
-  try {
-    const raw = localStorage.getItem(TRANSFERS_KEY)
-    if (raw === null) return
-    const entries = decodeTransfers(raw)
-    if (entries.length === 0) { localStorage.removeItem(TRANSFERS_KEY); return }
-    const scopedKey = transfersKey(null)
-    if (localStorage.getItem(scopedKey) === null) localStorage.setItem(scopedKey, encodeTransfers(entries))
-    localStorage.removeItem(TRANSFERS_KEY)
-  } catch { /* 忽略, 后续 load 见空即安全 */ }
+/** AppPrefs.transferKey(tableId) = "holiday_transfer_$tableId" 的 web 键 (prefsCodec 互转) */
+function transferKey(tableId: number): string {
+  return `${TRANSFERS_KEY}_${tableId}`
 }
 
-function loadTransfersFor(tableId: number | null): HolidayTransferEntry[] {
-  if (tableId === null) migrateLegacyTransfers()
+/** 旧版单表模式曾把映射写进无后缀键; 当时只有一张表, 由首个读取的表接管 (表键已有则以表键为准) */
+function adoptLegacyTransfers(tableId: number): void {
   try {
-    return decodeTransfers(localStorage.getItem(transfersKey(tableId)) ?? '[]')
+    const legacy = localStorage.getItem(TRANSFERS_KEY)
+    if (legacy === null) return
+    localStorage.removeItem(TRANSFERS_KEY)
+    if (localStorage.getItem(transferKey(tableId)) === null && decodeTransfers(legacy).length > 0) {
+      localStorage.setItem(transferKey(tableId), legacy)
+    }
+  } catch {
+    /* 忽略 */
+  }
+}
+
+/** AppPrefs.getHolidayTransfers: 某课表的调休映射; 无表/未设置 = 空(全部按自然星期取课) */
+export function getHolidayTransfers(tableId: number | null): HolidayTransferEntry[] {
+  if (tableId === null) return []
+  adoptLegacyTransfers(tableId)
+  try {
+    return decodeTransfers(localStorage.getItem(transferKey(tableId)) ?? '[]')
   } catch {
     return []
   }
 }
 
-function persistTransfersFor(tableId: number | null, transfers: HolidayTransferEntry[]): void {
+function setHolidayTransfers(tableId: number, transfers: HolidayTransferEntry[]): void {
   try {
-    localStorage.setItem(transfersKey(tableId), encodeTransfers(transfers))
+    localStorage.setItem(transferKey(tableId), encodeTransfers(transfers))
   } catch {
     /* 配额/隐私模式失败忽略 */
+  }
+}
+
+/** AppPrefs.clearHolidayTransfers: 删表时清掉该表映射 */
+export function clearHolidayTransfers(tableId: number): void {
+  try {
+    localStorage.removeItem(transferKey(tableId))
+  } catch {
+    /* 忽略 */
   }
 }
 
@@ -147,25 +152,15 @@ export const useHolidayStore = create<HolidayState>((set, get) => ({
   entries: {},
   status: {},
   overrides: loadOverrides(),
-  transfers: { 0: loadTransfersFor(0) },
-  activeTableId: null,
-  saveTransfer: (tableId, entry) => {
-    const key = tableId ?? 0
-    const next = (get().transfers[key] ?? []).filter((item) => item.targetDate !== entry.targetDate && item.sourceDate !== entry.sourceDate)
-    next.push(entry)
-    next.sort((a, b) => a.sourceDate.localeCompare(b.sourceDate))
-    persistTransfersFor(tableId, next)
-    set((s) => ({ transfers: { ...s.transfers, [key]: next } }))
+  transferRevision: 0,
+  updateTransfer: (tableId, sourceDate, targetDate, segmentId) => {
+    const existing = getHolidayTransfers(tableId)
+    const next = targetDate === null
+      ? existing.filter((entry) => entry.sourceDate !== sourceDate)
+      : withTargetExclusivity(existing, { sourceDate, targetDate, segmentId })
+    setHolidayTransfers(tableId, next)
+    set((s) => ({ transferRevision: s.transferRevision + 1 }))
   },
-
-  clearTransfer: (tableId, sourceDate) => {
-    const key = tableId ?? 0
-    const next = (get().transfers[key] ?? []).filter((item) => item.sourceDate !== sourceDate)
-    persistTransfersFor(tableId, next)
-    set((s) => ({ transfers: { ...s.transfers, [key]: next } }))
-  },
-
-  setActiveTable: (tableId) => set({ activeTableId: tableId }),
 
   load: async (year, force = false) => {
     if (!force) {
@@ -251,9 +246,4 @@ export function mergeHolidayYear(entries: HolidayEntry[], overrides: HolidayRang
 /** 生效段 → 灰显判定用日期集合 */
 export function holidaySetsForYear(entries: HolidayEntry[], overrides: HolidayRange[]) {
   return toSets(mergeSegments(entries, overrides).active)
-}
-
-/** 作用域 transfers 读取 — 匹配 activeTableId, 单表时回退 null(全局)层 (ScheduleView/TodayView 消费) */
-export function scopedTransfers(activeTableId: number | null): HolidayTransferEntry[] {
-  return loadTransfersFor(activeTableId)
 }

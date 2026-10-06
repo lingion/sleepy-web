@@ -29,7 +29,7 @@ import { exportSleepyV1File, exportSleepyV1ShareText, exportPeriodTableShareText
 import type { Table, Course, PeriodTable } from '../data/types'
 import type { ExportCourse } from '../domain/import/scheduleExporter'
 import { usePrefsStore } from '../state/prefsStore'
-import { scopedTransfers } from '../state/holidayStore'
+import { getHolidayTransfers } from '../state/holidayStore'
 
 export function ExportView({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation()
@@ -102,7 +102,7 @@ export function ExportView({ onBack }: { onBack: () => void }) {
       ? exportDatedIcs(toExportTable(table), toExportCourses(courses), {
           range: icsRange,
           today: new Date(),
-          transfers: calendarPrefs.calendarApplyTransfers ? scopedTransfers(table.id) : [],
+          transfers: calendarPrefs.calendarApplyTransfers ? getHolidayTransfers(table.id) : [],
           reminderMinutes: calendarPrefs.calendarReminderMinutes,
           firstAlarmEnabled: calendarPrefs.calendarFirstAlarmEnabled,
           firstAlarmMinutes: calendarPrefs.calendarFirstAlarmMinutes,

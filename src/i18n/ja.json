@@ -765,5 +765,14 @@
   "course_list_arrangements": "{{v1}}コマ",
   "course_list_title": "授業一覧",
   "about_qq_copy_action": "グループ番号をコピー",
-  "about_qq_no_qq": "グループ番号をコピーしました。QQ が見つかりません"
+  "about_qq_no_qq": "グループ番号をコピーしました。QQ が見つかりません",
+  "holiday_makeup_title": "振替出勤日の授業曜日",
+  "holiday_makeup_no_table": "設定の前に時間割を作成してください",
+  "holiday_makeup_subtitle": "時間割ごとに設定します。未設定の振替出勤日はその曜日自体の時間割を表示し、自動で推測しません。",
+  "holiday_transfer_edit_segment": "この期間を編集",
+  "holiday_makeup_unset": "なし",
+  "holiday_transfer_pick_other": "その他の日付…",
+  "holiday_transfer_orphan_title": "無効な振替設定",
+  "holiday_transfer_orphan_hint": "対応する休日が存在しなくなりました（年切り替えや期間削除の残り）。手動で削除できます。",
+  "holiday_transfer_clear": "削除"
 }

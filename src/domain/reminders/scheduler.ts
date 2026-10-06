@@ -15,7 +15,7 @@ import { inWeek, normalizeNode, type Course, type Table } from '../../data/types
 import { parseNodes } from '../timeTable'
 import { semesterStatus, currentWeek } from '../semester'
 import { effectiveDayOfWeek } from '../holiday/transfers'
-import { scopedTransfers } from '../../state/holidayStore'
+import { getHolidayTransfers } from '../../state/holidayStore'
 import { useReminderStore, type ReminderPrefs } from '../../state/reminderStore'
 import { notifyGranted, postNotify } from './notify'
 import { alreadyFired, markFired, toIsoDay } from './fireOnce'
@@ -135,7 +135,7 @@ export async function coursesOn(table: Table, day: Date, allCourses?: Course[]):
   if (semesterStatus(table.startDate, table.maxWeek, day) !== 'IN_RANGE') return []
   const week = currentWeek(table.startDate, day)
   const dayIso = toIsoDay(day)
-  const dow = effectiveDayOfWeek(dayIso, scopedTransfers(table.id))
+  const dow = effectiveDayOfWeek(dayIso, getHolidayTransfers(table.id))
   const all = allCourses ?? (await db.courses.where('tableId').equals(table.id).toArray())
   return all
     .filter((c) => inWeek(c, week) && c.day === dow)

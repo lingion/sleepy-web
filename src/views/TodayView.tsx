@@ -17,7 +17,7 @@ import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../domain/c
 import { inWeek, normalizeNode } from '../data/types'
 import type { Course } from '../data/types'
 import { localizedDay } from '../components/schedule/CardsGridView'
-import { scopedTransfers } from '../state/holidayStore'
+import { getHolidayTransfers, useHolidayStore } from '../state/holidayStore'
 import { effectiveDayOfWeek } from '../domain/holiday/transfers'
 import { CourseDetailSheet } from '../components/CourseDetailSheet'
 import { AddCourseView } from './AddCourseView'
@@ -43,7 +43,10 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
 
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
-  const holidayTransfers = scopedTransfers(defaultTable?.id ?? null)
+  const transferRevision = useHolidayStore((s) => s.transferRevision)
+  const defaultTableId = defaultTable?.id ?? null
+  // transferRevision 仅作重读信号: 调休页写 localStorage 后递增
+  const holidayTransfers = useMemo(() => getHolidayTransfers(defaultTableId), [defaultTableId, transferRevision])
   const today = useMemo(() => new Date(), [])
   const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay()
   const allCourses = useLiveQuery(

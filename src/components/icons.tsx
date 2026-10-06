@@ -105,6 +105,11 @@ export const IconContentCopy = outlineSvg('M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm
 
 export const IconArrowBack = outlineSvg('M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z')
 
+export const IconArrowForward = outlineSvg('M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z')
+
+/** ExposedDropdownMenuDefaults.TrailingIcon = Icons.Filled.ArrowDropDown (filled 变体) */
+export const IconArrowDropDown = outlineSvg('M7 10l5 5 5-5z')
+
 // ── 课表顶栏 (ScheduleScreen.kt) ──────────────────────────────────────
 export const IconChevronLeft = outlineSvg('M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59z')
 

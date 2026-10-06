@@ -208,11 +208,8 @@ async function encodePrefsFilesAsync(): Promise<PrefsFileSnapshot> {
   return { entries }
 }
 
-// 供同步路径 (编码单测/无副作用) 使用 — 直接读 Prefs 不经 Dexie。
+// 调休映射按表存 sleepy_holiday_transfers_<tableId> (holidayStore, AppPrefs.transferKey 同构); 键存在即导出。
 function activeTableIds(): number[] {
-  // 调休映射键存在即视为该表有映射 (遍历已知表不可行于纯 codec, 故由调用方注入)
-  // 默认无 — 通过 window 上的注入点扩展; 当前 web 无 holidayTransfer 独立 localStorage 每表键,
-  // 真实数据走 holidayStore 内存; 此处保守仅导出存在键的情况。
   const ids: number[] = []
   if (typeof localStorage === 'undefined') return ids
   for (let i = 0; i < localStorage.length; i++) {
@@ -315,10 +312,12 @@ function writeLocalEntries(entries: Record<string, PrefValue>, _overwrite: boole
 
 function clearHolidayTransferKeys(): void {
   if (typeof localStorage === 'undefined') return
+  const keys: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
-    if (k && k.startsWith('sleepy_holiday_transfers_')) localStorage.removeItem(k)
+    if (k !== null && (k === 'sleepy_holiday_transfers' || k.startsWith('sleepy_holiday_transfers_'))) keys.push(k)
   }
+  for (const k of keys) localStorage.removeItem(k)
 }
 
 function stringifyForLocal(_key: string, v: PrefValue): string {

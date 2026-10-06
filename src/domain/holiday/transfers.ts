@@ -29,20 +29,26 @@ export function encodeTransfers(transfers: HolidayTransferEntry[]): string {
   return JSON.stringify(transfers)
 }
 
+/** HolidayTransferOps.decodeTransfers: 坏行跳过; 同 sourceDate 只留最后一条; 按 sourceDate 升序 */
 export function decodeTransfers(raw: string): HolidayTransferEntry[] {
+  let value: unknown
   try {
-    const value = JSON.parse(raw) as unknown
-    if (!Array.isArray(value)) return []
-    return value.flatMap((item) => {
-      if (typeof item !== 'object' || item === null) return []
-      const entry = item as Record<string, unknown>
-      if (typeof entry.sourceDate !== 'string' || typeof entry.targetDate !== 'string' || typeof entry.segmentId !== 'string') return []
-      if (!isIsoDate(entry.sourceDate) || !isIsoDate(entry.targetDate)) return []
-      return [{ sourceDate: entry.sourceDate, targetDate: entry.targetDate, segmentId: entry.segmentId }]
-    })
+    value = JSON.parse(raw)
   } catch {
     return []
   }
+  if (!Array.isArray(value)) return []
+  const bySource = new Map<string, HolidayTransferEntry>()
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) continue
+    const entry = item as Record<string, unknown>
+    const sourceDate = typeof entry.sourceDate === 'string' ? entry.sourceDate : ''
+    const targetDate = typeof entry.targetDate === 'string' ? entry.targetDate : ''
+    if (!isIsoDate(sourceDate) || !isIsoDate(targetDate)) continue
+    const segmentId = typeof entry.segmentId === 'string' ? entry.segmentId : ''
+    bySource.set(sourceDate, { sourceDate, targetDate, segmentId })
+  }
+  return [...bySource.values()].sort((a, b) => a.sourceDate.localeCompare(b.sourceDate))
 }
 
 function weekdayOf(iso: string): number {

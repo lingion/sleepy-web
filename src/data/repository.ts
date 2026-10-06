@@ -12,6 +12,7 @@ import i18next from 'i18next'
 import { pruneConflictDefaultTop } from '../domain/conflictLayout'
 import { loadPrefs, savePrefs } from './db'
 import { suggestUniqueName } from '../views/mine/periodTableNames'
+import { clearHolidayTransfers } from '../state/holidayStore'
 
 // ---- 读 ---------------------------------------------------------------
 
@@ -412,6 +413,8 @@ export async function deleteTable(id: number): Promise<void> {
     await db.courses.where('tableId').equals(id).delete()
     await db.timetables.delete(id)
   })
+  // issue#44: 同步清该表调休映射, 防 localStorage 孤儿键
+  clearHolidayTransfers(id)
   await reassignDefaultIfEmpty()
   await pruneDefaultTopPrefs()
 }

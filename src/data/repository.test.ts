@@ -104,6 +104,17 @@ describe('课表 CRUD (capture 1-5)', () => {
     expect(await tableCount()).toBe(0)
     expect(await db.courses.count()).toBe(0)
   })
+
+  it('deleteTable: 同步清该表调休映射 (issue#44), 他表不动', async () => {
+    const id = await insertTable({ name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1 })
+    const entry = '[{"sourceDate":"2026-05-01","targetDate":"2026-05-09","segmentId":"x"}]'
+    localStorage.setItem(`sleepy_holiday_transfers_${id}`, entry)
+    localStorage.setItem(`sleepy_holiday_transfers_${id + 1}`, entry)
+    await deleteTable(id)
+    expect(localStorage.getItem(`sleepy_holiday_transfers_${id}`)).toBeNull()
+    expect(localStorage.getItem(`sleepy_holiday_transfers_${id + 1}`)).toBe(entry)
+    localStorage.removeItem(`sleepy_holiday_transfers_${id + 1}`)
+  })
 })
 
 describe('课程 CRUD (capture 6-14)', () => {

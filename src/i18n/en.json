@@ -315,7 +315,7 @@
   "settings_holiday_holiday": "Gray out public holidays",
   "settings_holiday_holiday_sub": "Courses on public holidays (e.g. National Day, Spring Festival) appear gray",
   "settings_holiday_entry_sub": "Configure dimming rules and view holiday and make-up day data",
-  "holiday_page_title": "Holidays &amp; Make-up Days",
+  "holiday_page_title": "Holiday & Make-up Schedule",
   "holiday_data_source": "Data source",
   "holiday_source_label": "unpkg.com/holiday-calendar · CN",
   "holiday_data_failed": "Failed to fetch holiday data. Check your network and retry",
@@ -348,12 +348,7 @@
   "holiday_type_workday": "Make-up workday",
   "holiday_custom_badge": "Custom",
   "holiday_add_entry": "Add custom dates",
-  "holiday_transfers_title": "Holiday course mappings",
-  "holiday_transfer_target_label": "Make-up day",
-  "holiday_transfer_none": "No mapping",
   "holiday_transfer_clear": "Clear",
-  "holiday_transfers_orphan_title": "Orphan holiday mappings",
-  "holiday_transfers_orphan_hint": "These mappings refer to holiday dates no longer present in the current data.",
   "theme_system": "Follow System",
   "theme_system_desc": "Material You dynamic color (Android 12+)",
   "view_full": "Week",
@@ -690,13 +685,13 @@
     "无法识别的行会列在导入预览里，不会静默丢弃"
   ],
   "@day_names": [
-    "周一",
-    "周二",
-    "周三",
-    "周四",
-    "周五",
-    "周六",
-    "周日"
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "Sun"
   ],
   "sample_table_name": "Sample Schedule",
   "sample_table_banner": "This is a sample schedule to show how Sleepy works. Edit it, delete it, or import your own schedule.",
@@ -791,5 +786,13 @@
   "course_list_arrangements": "Arrangements: {{v1}}",
   "course_list_title": "Course list",
   "about_qq_copy_action": "Copy group ID",
-  "about_qq_no_qq": "Group ID copied. QQ not found — search it manually."
+  "about_qq_no_qq": "Group ID copied. QQ not found — search it manually.",
+  "holiday_makeup_title": "Make-up day class source",
+  "holiday_makeup_no_table": "Create a timetable before setting make-up days",
+  "holiday_makeup_subtitle": "Set per timetable. Unmapped make-up days keep their own schedule — nothing is guessed.",
+  "holiday_transfer_edit_segment": "Edit this holiday segment",
+  "holiday_makeup_unset": "None",
+  "holiday_transfer_pick_other": "Other date…",
+  "holiday_transfer_orphan_title": "Expired mappings",
+  "holiday_transfer_orphan_hint": "The holiday day no longer exists (left over after a year switch or segment deletion). Clear manually."
 }
