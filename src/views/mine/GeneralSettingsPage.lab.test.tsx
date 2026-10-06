@@ -1,6 +1,7 @@
 /**
  * GeneralSettingsPage 实验室段 + 语言折叠卡 — GeneralSettingsScreen.kt v1.0.56 1:1 同步测试。
- * 锁定: 实验室 3 开关默认全关 + 晚间起始时间行条件显示 + 语言卡收起只显当前语言。
+ * 锁定: 实验室 3 开关默认全关 + 晚间起始时间行条件显示 + 语言卡收起只显当前语言
+ * + 显示星期 @day_names/非空守卫 + 分栏标准单选 + 折叠展开态跨二级页保留。
  */
 
 import 'fake-indexeddb/auto'
@@ -75,20 +76,65 @@ describe('实验室段 (v1.0.56 T2/T3, Android 默认全关 1:1)', () => {
   })
 })
 
-describe('语言折叠卡 (v1.0.56 T4, Android 收起只显当前语言 1:1)', () => {
-  it('收起态只显当前语言, 展开显 5 项', async () => {
+describe('语言折叠卡 (Android 2026-09-21: 折叠头只显当前语言值 1:1)', () => {
+  it('收起态只显当前语言, 展开显 5 项, 再点收回', async () => {
     renderPage()
-    // settings_language zh-CN 值 = "语言 / Language" (SectionHeader) — 折叠头内部标题同 key
-    await waitFor(() => expect(screen.getAllByText('语言 / Language').length).toBeGreaterThanOrEqual(2))
-    // 收起: 其他语言名不可见
+    await waitFor(() => expect(screen.getByText('简体中文')).toBeTruthy())
+    // 组标题已示「语言」, 卡内不再重复标题
+    expect(screen.getAllByText('语言 / Language')).toHaveLength(1)
     expect(screen.queryByText('English')).toBeNull()
-    // 展开: 点折叠头 (第二处 = 卡内标题)
-    fireEvent.click(screen.getAllByText('语言 / Language')[1])
+    fireEvent.click(screen.getAllByText('简体中文')[0])
     expect(screen.getByText('English')).toBeTruthy()
     expect(screen.getByText('日本語')).toBeTruthy()
     expect(screen.getByText('Español')).toBeTruthy()
-    // 收回
-    fireEvent.click(screen.getAllByText('语言 / Language')[1])
+    fireEvent.click(screen.getAllByText('简体中文')[0])
+    await waitFor(() => expect(screen.queryByText('English')).toBeNull())
+  })
+
+  it('选语言 = recreate: 写 prefs.lang 且卡片立即收起', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByText('简体中文')).toBeTruthy())
+    fireEvent.click(screen.getAllByText('简体中文')[0])
+    fireEvent.click(screen.getByText('日本語'))
+    await waitFor(() => expect(usePrefsStore.getState().prefs.lang).toBe('ja'))
     expect(screen.queryByText('English')).toBeNull()
+    await usePrefsStore.getState().update({ lang: 'zh-CN' })
+  })
+})
+
+describe('课表显示组 (GeneralSettingsScreen.kt 1:1)', () => {
+  it('显示星期: 行名取 @day_names, 不允许全部取消', async () => {
+    await usePrefsStore.getState().update({ visibleDays: [1] })
+    renderPage()
+    fireEvent.click(await screen.findByText('显示星期'))
+    expect(screen.getByText('周一')).toBeTruthy()
+    expect(screen.getByText('周日')).toBeTruthy()
+    fireEvent.click(screen.getByText('周一'))
+    fireEvent.click(screen.getByText('周三'))
+    await waitFor(() => expect(usePrefsStore.getState().prefs.visibleDays).toEqual([1, 3]))
+  })
+
+  it('两栏开 → 分栏标准两行单选 (DisplayModeOption)', async () => {
+    await usePrefsStore.getState().update({ weekTwoColumn: true, weekTwoColumnMode: 'days' })
+    renderPage()
+    fireEvent.click(await screen.findByText('主页显示设置'))
+    const radios = screen.getAllByRole('radio')
+    expect(radios).toHaveLength(2)
+    expect(radios[0].getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(radios[1])
+    await waitFor(() => expect(usePrefsStore.getState().prefs.weekTwoColumnMode).toBe('balance'))
+  })
+
+  it('折叠展开态: 进节假日页保留, 返回上级即丢弃', async () => {
+    sessionStorage.clear()
+    const first = render(<GeneralSettingsPage onBack={() => {}} onOpenHoliday={() => {}} />)
+    fireEvent.click(await screen.findByText('显示星期'))
+    fireEvent.click(screen.getByText('节假日课程灰显'))
+    first.unmount()
+    renderPage()
+    expect(await screen.findByText('周一')).toBeTruthy()
+    cleanup()
+    renderPage()
+    expect(screen.queryByText('周一')).toBeNull()
   })
 })

@@ -7,16 +7,19 @@
 import { useState, type CSSProperties } from 'react'
 
 export function FilledTextField({
-  label, value, onChange, isError = false, inputMode, style,
+  label, value, onChange, isError = false, inputMode, readOnly = false, style,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   isError?: boolean
   inputMode?: 'text' | 'numeric'
+  /** enabled = false + fieldColors (disabled 色与常态同值): 不可聚焦、不可输入 */
+  readOnly?: boolean
   style?: CSSProperties
 }) {
-  const [focused, setFocused] = useState(false)
+  const [focusedState, setFocused] = useState(false)
+  const focused = focusedState && !readOnly
   const floated = focused || value !== ''
   const labelColor = isError ? 'var(--md-error)' : focused ? 'var(--md-primary)' : 'var(--md-on-surface-variant)'
   return (
@@ -42,6 +45,8 @@ export function FilledTextField({
       <input
         value={value}
         inputMode={inputMode}
+        readOnly={readOnly}
+        tabIndex={readOnly ? -1 : undefined}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -49,6 +54,7 @@ export function FilledTextField({
         style={{
           display: 'block', width: '100%', height: '100%', boxSizing: 'border-box',
           padding: '24px 16px 8px', border: 'none', outline: 'none', background: 'transparent',
+          cursor: readOnly ? 'pointer' : undefined,
           fontFamily: 'inherit', color: 'var(--md-on-surface)', caretColor: isError ? 'var(--md-error)' : 'var(--md-primary)',
         }}
       />

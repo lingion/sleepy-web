@@ -245,5 +245,6 @@ describe('useBackStack — 刷新/直达恢复链 (chainFromHash + restoreChain)
     expect(minePageFromHash('#/我的/关于')).toBe('about')
     expect(minePageFromHash('#/我的')).toBe('main')
     expect(minePageFromHash('#/课表/课程详情')).toBe('main')
-  })
+    // 动态 import 冷加载整棵 MineView 子树, 全量并行跑时超默认 5s
+  }, 20_000)
 })

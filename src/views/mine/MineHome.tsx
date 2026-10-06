@@ -109,7 +109,7 @@ export function MineHome({
       <button
         type="button"
         onClick={() => {
-          setToast(t('web_widget_unavailable', 'Web 不提供 Android 桌面小组件；课表数据会在本页面实时更新。'))
+          setToast(t('web_widget_unavailable'))
           window.setTimeout(() => setToast(''), 3000)
         }}
         className="m3-label-large"

@@ -38,6 +38,12 @@ describe('Switch (material3 1.3.0 SwitchTokens)', () => {
     expect(thumb.style.left).toBe('24px')
   })
 
+  it('布局高: 默认上下各 8 撑到 48 触摸区; compact (heightIn max 32) 不留', () => {
+    expect(renderSwitch(false).track.style.margin).toBe('8px 0px')
+    const { container } = render(<Switch checked={false} onChange={() => {}} compact />)
+    expect((container.firstElementChild as HTMLElement).style.margin).toBe('0px')
+  })
+
   it('点击取反回调; aria-checked 反映状态', () => {
     const { track, onChange } = renderSwitch(false)
     expect(track.getAttribute('aria-checked')).toBe('false')
