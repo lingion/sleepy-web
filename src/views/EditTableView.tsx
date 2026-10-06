@@ -6,7 +6,8 @@
 
 import { useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowBack, IconCheck, IconClose } from '../components/icons'
+import { IconArrowBack, IconCheck, IconDelete } from '../components/icons'
+import { DialogActionButtons } from '../components/DialogActionButtons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import type { Table } from '../data/types'
@@ -350,11 +351,11 @@ export function EditTableView({
         />
       )}
 
-      {/* 保存 */}
+      {/* 保存 — Buttons.ctaHeight 56 / shape large r16 */}
       <button
         onClick={() => saveAndSettle(slotRows)}
         style={{
-          padding: 14, borderRadius: 12, border: 'none', cursor: 'pointer',
+          height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
           background: 'var(--md-primary)', color: 'var(--md-on-primary)',
           fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}
@@ -363,17 +364,18 @@ export function EditTableView({
       </button>
 
       {/* 删除 — 最后一张表也可删 (用户 2026-09-03), 空态由 Schedule 兜底;
-          待保存的新表隐藏删除键 (EditTableScreen.kt:312: pendingNewTableId == null 才渲染) */}
+          待保存的新表隐藏删除键 (EditTableScreen.kt:312: pendingNewTableId == null 才渲染)
+          — Buttons.regularHeight 48 / r16 / Icons.Outlined.Delete */}
       {pendingNewTableId == null && (
       <button
         onClick={() => setShowDeleteConfirm(true)}
         style={{
-          padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
+          height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
           background: 'var(--md-error-container)', color: 'var(--md-on-error-container)',
           fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}
       >
-        <IconClose size={18} /> {t('edit_table_delete')}
+        <IconDelete size={18} /> {t('edit_table_delete')}
       </button>
       )}
 
@@ -385,23 +387,16 @@ export function EditTableView({
               ? t('edit_table_delete_msg_count', { v1: table.name, v2: courseCount })
               : t('edit_table_delete_msg', { v1: table.name })}
           </p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => setShowDeleteConfirm(false)}
-              style={{ ...ghostBtnStyle }}
-            >
-              {t('cancel')}
-            </button>
-            <button
-              onClick={() => {
-                setShowDeleteConfirm(false)
-                void deleteTable(table.id).then(settle(onDeleted))
-              }}
-              style={{ padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', color: 'var(--md-error)', background: 'transparent', fontWeight: 600 }}
-            >
-              {t('delete')}
-            </button>
-          </div>
+          <DialogActionButtons
+            confirmText={t('delete')}
+            onConfirm={() => {
+              setShowDeleteConfirm(false)
+              void deleteTable(table.id).then(settle(onDeleted))
+            }}
+            dismissText={t('cancel')}
+            onDismiss={() => setShowDeleteConfirm(false)}
+            destructive
+          />
         </Overlay>
       )}
 
@@ -414,24 +409,16 @@ export function EditTableView({
           <p className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>
             {t('period_table_bind_preview_body')}
           </p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setPendingRebind(null)} style={{ ...ghostBtnStyle }}>
-              {t('cancel')}
-            </button>
-            <button
-              onClick={() => {
-                setPendingRebind(null)
-                // 确认后整单提交 — 元数据 + 换绑 + 编辑区内容原子落库 (不再裸写指针)
-                saveAndSettle(rowsDraft ?? [], true)
-              }}
-              style={{
-                padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontWeight: 600,
-              }}
-            >
-              {t('period_table_preview_confirm')}
-            </button>
-          </div>
+          <DialogActionButtons
+            confirmText={t('period_table_preview_confirm')}
+            onConfirm={() => {
+              setPendingRebind(null)
+              // 确认后整单提交 — 元数据 + 换绑 + 编辑区内容原子落库 (不再裸写指针)
+              saveAndSettle(rowsDraft ?? [], true)
+            }}
+            dismissText={t('cancel')}
+            onDismiss={() => setPendingRebind(null)}
+          />
         </Overlay>
       )}
 
@@ -466,16 +453,6 @@ const fieldStyle: React.CSSProperties = {
   borderRadius: 8,
   padding: '8px 10px',
   fontSize: 14,
-}
-
-const ghostBtnStyle: React.CSSProperties = {
-  padding: '8px 14px',
-  borderRadius: 12,
-  border: 'none',
-  cursor: 'pointer',
-  background: 'var(--md-surface-container-high)',
-  color: 'var(--md-on-surface)',
-  fontSize: 13,
 }
 
 

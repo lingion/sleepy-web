@@ -34,6 +34,7 @@ import { SettingsScaffold } from './shared'
 import {
   IconCheck, IconContentCopy, IconDelete, IconShare,
 } from '../../components/icons'
+import { DialogActionButtons } from '../../components/DialogActionButtons'
 import {
   exportPeriodTableShareText, exportPeriodTableJson,
 } from '../../domain/import/sleepyNativeExporter'
@@ -194,22 +195,23 @@ export function PeriodTableEditView({
       {error && (
         <div role="alert" className="m3-body-medium" style={{ color: 'var(--md-error)' }}>{error}</div>
       )}
+      {/* 保存 — Buttons.ctaHeight 56 / shape large r16 */}
       <button
         onClick={() => handleSave(rowsDraft)}
         style={{
-          padding: 14, borderRadius: 12, border: 'none', cursor: 'pointer',
+          height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
           background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontWeight: 600,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}
       >
         <IconCheck size={18} /> {t('edit_table_save')}
       </button>
-      {/* 删除 (新建未保存的表不显示 — 退出即丢弃) */}
+      {/* 删除 (新建未保存的表不显示 — 退出即丢弃) — Buttons.regularHeight 48 / r16 */}
       {!unsavedNew && (
         <button
           onClick={() => setShowDeleteConfirm(true)}
           style={{
-            padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
+            height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
             background: 'var(--md-error-container)', color: 'var(--md-on-error-container)', fontWeight: 600,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
@@ -252,6 +254,7 @@ export function PeriodTableEditView({
           title={t('period_table_delete_confirm')}
           body={<p className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>{deleteBlockedMsg}</p>}
           confirmText={t('ok')}
+          dismissText={null}
           onConfirm={() => setDeleteBlockedMsg(null)}
           onDismiss={() => setDeleteBlockedMsg(null)}
         />
@@ -360,15 +363,13 @@ function PreviewConfirmDialog({
             {t('period_table_preview_more', { v1: changedCourses.length - 8 })}
           </div>
         )}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-          <button onClick={onDismiss} style={{
-            padding: '8px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
-            background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)', fontSize: 13,
-          }}>{t('cancel')}</button>
-          <button onClick={onConfirm} style={{
-            padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-            background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontSize: 13, fontWeight: 600,
-          }}>{t('period_table_preview_confirm')}</button>
+        <div style={{ marginTop: 4 }}>
+          <DialogActionButtons
+            confirmText={t('period_table_preview_confirm')}
+            onConfirm={onConfirm}
+            dismissText={t('cancel')}
+            onDismiss={onDismiss}
+          />
         </div>
       </div>
     </div>
@@ -381,14 +382,15 @@ function ConfirmDialog({
   title: string
   body: React.ReactNode
   confirmText: string
-  dismissText?: string
+  /** null = 单键弹窗 (Android 绑定拦截「知道了」无取消位) */
+  dismissText?: string | null
   confirmDisabled?: boolean
   destructive?: boolean
   onConfirm: () => void
   onDismiss: () => void
 }) {
   const { t } = useTranslation()
-  const dis = dismissText ?? t('cancel')
+  const dis = dismissText === null ? null : (dismissText ?? t('cancel'))
   return (
     <div
       onClick={onDismiss}
@@ -404,23 +406,13 @@ function ConfirmDialog({
       >
         <h2 className="m3-title-medium" style={{ margin: 0 }}>{title}</h2>
         {body}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onDismiss} style={{
-            padding: '8px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
-            background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)', fontSize: 13,
-          }}>{dis}</button>
-          <button
-            disabled={confirmDisabled === true}
-            onClick={onConfirm}
-            style={{
-              padding: '8px 16px', borderRadius: 12, border: 'none',
-              cursor: confirmDisabled === true ? 'not-allowed' : 'pointer',
-              background: confirmDisabled === true ? 'var(--md-surface-container-high)' : destructive ? 'var(--md-error)' : 'var(--md-primary)',
-              color: confirmDisabled === true ? 'var(--md-on-surface-variant)' : destructive ? 'var(--md-on-error)' : 'var(--md-on-primary)',
-              fontSize: 13, fontWeight: 600,
-            }}
-          >{confirmText}</button>
-        </div>
+        <DialogActionButtons
+          confirmText={confirmText}
+          onConfirm={onConfirm}
+          {...(dis != null ? { dismissText: dis, onDismiss } : {})}
+          destructive={destructive === true}
+          confirmEnabled={confirmDisabled !== true}
+        />
       </div>
     </div>
   )
