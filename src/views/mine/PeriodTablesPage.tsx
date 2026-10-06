@@ -14,7 +14,8 @@ import {
   copyPeriodTableAs,
 } from '../../data/repository'
 import { DEFAULT_TIME_JSON } from '../../domain/timeTable'
-import { SettingsScaffold, HDiv } from './shared'
+import { SettingsScaffold } from './shared'
+import { DialogActionButtons } from '../../components/DialogActionButtons'
 import {
   IconAdd, IconContentCopy, IconEdit,
 } from '../../components/icons'
@@ -31,7 +32,6 @@ type EditState =
   | { kind: 'copying'; source: PeriodTable; name: string }
 
 export function PeriodTablesPage({ onBack }: { onBack: () => void }) {
-  const { t } = useTranslation()
   const push = useBackStack((s) => s.push)
   const back = useBackStack((s) => s.pop)
   const [state, setState] = useState<EditState>({ kind: 'list' })
@@ -41,6 +41,9 @@ export function PeriodTablesPage({ onBack }: { onBack: () => void }) {
   const openEdit = (id: number, unsaved: boolean) => {
     push('periodTableEdit' as BackKey)
     setState({ kind: 'edit', id, unsaved })
+  }
+  const startCopy = (pt: PeriodTable, suggested: string) => {
+    setState({ kind: 'copying', source: pt, name: suggested })
   }
   const handleBack = () => {
     if (state.kind === 'list') back() // pop stack first then return
@@ -70,60 +73,71 @@ export function PeriodTablesPage({ onBack }: { onBack: () => void }) {
 
   if (state.kind === 'copying') {
     return (
-      <CopyDialog
-        source={state.source}
-        name={state.name}
-        tables={tables}
-        periodTables={periodTables}
-        onChange={setState}
-        onBack={backToList}
-      />
+      <>
+        <PeriodTablesList periodTables={periodTables} tables={tables} onOpenEdit={openEdit} onCopy={startCopy} onBack={handleBack} />
+        <CopyDialog
+          source={state.source}
+          name={state.name}
+          tables={tables}
+          periodTables={periodTables}
+          onChange={setState}
+          onBack={backToList}
+        />
+      </>
     )
   }
 
   return (
-    <SettingsScaffold title={t('period_tables_title')} onBack={handleBack}>
-      <div className="m3-card" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
-        {periodTables.length === 0 && (
-          <div className="m3-body-medium" style={{ padding: 16, color: 'var(--md-on-surface-variant)' }}>
-            {t('manage_empty_hint', '还没有作息表，点击下方按钮创建')}
-          </div>
-        )}
-        {periodTables.map((pt, idx) => {
-          const bound = tables.filter((tb) => tb.periodTableId === pt.id).length
-          return (
-            <div key={pt.id}>
-              {idx > 0 && <HDiv inset={0} />}
-              <div
-                style={{
-                  display: 'flex', alignItems: 'center', padding: 16, gap: 12,
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="m3-title-medium" style={{ fontWeight: 600 }}>{pt.name}</div>
-                  <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
-                    {t('period_table_bound_count', { v1: bound })} · {t('period_table_nodes_count', { v1: pt.nodesPerDay })}
-                  </div>
-                </div>
-                <IconButton aria-label={t('edit_table_title')} onClick={() => openEdit(pt.id, false)}>
-                  <IconEdit size={20} />
-                </IconButton>
-                <IconButton
-                  aria-label={t('period_table_copy')}
-                  onClick={() => {
-                    const courseNames = tables.map((tb) => tb.name)
-                    const periodNames = periodTables.map((p) => p.name)
-                    const suggested = suggestUniqueName(pt.name, courseNames, periodNames)
-                    setState({ kind: 'copying', source: pt, name: suggested })
-                  }}
-                >
-                  <IconContentCopy size={20} />
-                </IconButton>
+    <PeriodTablesList periodTables={periodTables} tables={tables} onOpenEdit={openEdit} onCopy={startCopy} onBack={handleBack} />
+  )
+}
+
+function PeriodTablesList({
+  periodTables, tables, onOpenEdit, onCopy, onBack,
+}: {
+  periodTables: PeriodTable[]
+  tables: Table[]
+  onOpenEdit: (id: number, unsaved: boolean) => void
+  onCopy: (pt: PeriodTable, suggested: string) => void
+  onBack: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <SettingsScaffold title={t('period_tables_title')} onBack={onBack}>
+      {/* 每行独立 surfaceContainer extraLarge(28) 卡, spacedBy(10) — Android LazyColumn 同款 */}
+      {periodTables.map((pt) => {
+        const bound = tables.filter((tb) => tb.periodTableId === pt.id).length
+        return (
+          <div
+            key={pt.id}
+            style={{
+              display: 'flex', alignItems: 'center', padding: 16,
+              background: 'var(--md-surface-container)', borderRadius: 28,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="m3-title-medium" style={{ fontWeight: 600 }}>{pt.name}</div>
+              <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+                {t('period_table_bound_count', { v1: bound })}
               </div>
             </div>
-          )
-        })}
-      </div>
+            <IconButton aria-label={t('edit_table_title')} onClick={() => onOpenEdit(pt.id, false)}>
+              <IconEdit size={20} />
+            </IconButton>
+            <IconButton
+              aria-label={t('period_table_copy')}
+              onClick={() => {
+                const courseNames = tables.map((tb) => tb.name)
+                const periodNames = periodTables.map((p) => p.name)
+                const suggested = suggestUniqueName(pt.name, courseNames, periodNames)
+                onCopy(pt, suggested)
+              }}
+            >
+              <IconContentCopy size={20} />
+            </IconButton>
+          </div>
+        )
+      })}
       <button
         onClick={async () => {
           const courseNames = tables.map((tb) => tb.name)
@@ -137,12 +151,11 @@ export function PeriodTablesPage({ onBack }: { onBack: () => void }) {
             createdAt: Date.now(),
             updatedAt: Date.now(),
           })
-          openEdit(id, true)
+          onOpenEdit(id, true)
         }}
-        className="m3-card"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          padding: 14, cursor: 'pointer', border: 'none',
+          height: 56, borderRadius: 16, cursor: 'pointer', border: 'none',
           background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontWeight: 600,
         }}
       >
@@ -170,8 +183,20 @@ function CopyDialog({
   const candidate = localName.trim()
   const nameTaken = candidate !== '' && isTableNameTaken(candidate, courseNames, periodNames)
   return (
-    <SettingsScaffold title={t('period_table_copy_dialog_title')} onBack={onBack}>
-      <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div
+      onClick={onBack}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+      }}
+    >
+      <div
+        role="dialog" aria-modal="true" className="m3-card"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
+      >
+        <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('period_table_copy_dialog_title')}</h2>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
             {t('period_table_name_label')}
@@ -192,30 +217,19 @@ function CopyDialog({
             </span>
           )}
         </label>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button
-            onClick={onBack}
-            style={{
-              padding: '8px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
-              background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)', fontSize: 13,
-            }}
-          >{t('cancel')}</button>
-          <button
-            disabled={candidate === '' || nameTaken}
-            onClick={async () => {
-              const newId = await copyPeriodTableAs(source.id, candidate)
-              if (newId > 0) onChange({ kind: 'list' })
-            }}
-            style={{
-              padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-              background: candidate === '' || nameTaken ? 'var(--md-surface-container-high)' : 'var(--md-primary)',
-              color: candidate === '' || nameTaken ? 'var(--md-on-surface-variant)' : 'var(--md-on-primary)',
-              fontSize: 13, fontWeight: 600,
-            }}
-          >{t('ok')}</button>
-        </div>
+        <DialogActionButtons
+          confirmText={t('ok')}
+          onConfirm={async () => {
+            // 二次查重在 copyPeriodTableAs 内; 命名弹窗确认才落库 (T8)
+            const newId = await copyPeriodTableAs(source.id, candidate)
+            if (newId > 0) onChange({ kind: 'list' })
+          }}
+          dismissText={t('cancel')}
+          onDismiss={onBack}
+          confirmEnabled={candidate !== '' && !nameTaken}
+        />
       </div>
-    </SettingsScaffold>
+    </div>
   )
 }
 
