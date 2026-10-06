@@ -35,6 +35,7 @@ import { semesterStatus } from './TodayView'
 import { inWeek, normalizeNode } from '../data/types'
 import type { Course, Table } from '../data/types'
 import { pagerTrackWeeks, PAGER_SETTLE_MS, useWeekPager } from '../components/schedule/useWeekSwipe'
+import { SegmentedSwitcher } from '../components/SegmentedSwitcher'
 import { normalizeStartDateToMonday } from './importExportUtils'
 
 /** 周次计算 — 与 Android DateUtils 一致，先将任意起始日归一到周一。 */
@@ -543,13 +544,10 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
 
           {/* SegmentedSwitcher — 周视图/网格 (ScheduleScreen.kt:196-204, 容器 surfaceContainer) */}
           <div style={{ padding: '8px 16px' }}>
-            <SegmentedSwitcher<'full' | 'cards'>
-              options={[
-                ['full', t('view_full', { defaultValue: '周视图' })],
-                ['cards', t('view_cards', { defaultValue: '网格' })],
-              ]}
-              selected={display}
-              onSelect={(v) => setViewMode(v)}
+            <SegmentedSwitcher
+              options={[t('view_full', { defaultValue: '周视图' }), t('view_cards', { defaultValue: '网格' })]}
+              selected={display === 'full' ? 0 : 1}
+              onSelect={(i) => setViewMode(i === 0 ? 'full' : 'cards')}
             />
           </div>
 
@@ -879,81 +877,6 @@ function UndoRedoCapsule({
       >
         <IconRedo size={20} />
       </button>
-    </div>
-  )
-}
-
-/**
- * SegmentedSwitcher — ui/component/SegmentedSwitcher.kt web 同构。
- * 容器 surfaceContainer 42px 圆角 14; 选中段 secondaryContainer thumb 色块圆角 10;
- * 文字 label-large 选中 SemiBold 平时 Medium。弹簧动画以 CSS transition 近似
- * (物理弹簧逐帧逐字上色为 Compose 特有实现, web 端 thumb 平移 + 文字整段翻色)。
- */
-function SegmentedSwitcher<T extends string>({
-  options,
-  selected,
-  onSelect,
-}: {
-  options: [T, string][]
-  selected: T
-  onSelect: (v: T) => void
-}) {
-  const idx = Math.max(0, options.findIndex(([v]) => v === selected))
-  const count = Math.max(1, options.length)
-  return (
-    <div
-      role="tablist"
-      style={{
-        position: 'relative',
-        height: 42,
-        borderRadius: 14,
-        background: 'var(--md-surface-container)',
-        padding: 4,
-        display: 'flex',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: 4,
-          bottom: 4,
-          left: `calc(4px + ${idx} * (100% - 8px) / ${count})`,
-          width: `calc((100% - 8px) / ${count})`,
-          borderRadius: 12,
-          background: 'var(--md-secondary-container)',
-          transition: 'left 180ms cubic-bezier(0.2, 0, 0, 1)',
-        }}
-      />
-      {options.map(([v, label], i) => (
-        <button
-          key={v}
-          role="tab"
-          aria-selected={v === selected}
-          onClick={() => onSelect(v)}
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            flex: 1,
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-          }}
-        >
-          <span
-            className="m3-label-large"
-            style={{
-              fontWeight: i === idx ? 600 : 500,
-              color: i === idx ? 'var(--md-on-secondary-container)' : 'var(--md-on-surface-variant)',
-            }}
-          >
-            {label}
-          </span>
-        </button>
-      ))}
     </div>
   )
 }

@@ -8,7 +8,8 @@
 
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from '../../state/prefsStore'
-import { SettingsScaffold, SegmentedSwitcher, SliderRow } from './shared'
+import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
+import { SettingsScaffold, SliderRow } from './shared'
 
 /** ScheduleDisplayContent (ScheduleDisplayScreen.kt:35) —  Appearance 第③节与本屏共用体 */
 export function ScheduleDisplayContent() {
@@ -26,7 +27,7 @@ export function ScheduleDisplayContent() {
         {t('settings_conflict_style')}
       </div>
       <SegmentedSwitcher
-        full
+        containerColor="var(--md-surface-container-highest)"
         options={[t('settings_conflict_stack'), t('settings_conflict_fold'), t('settings_conflict_rail')]}
         selected={['stack', 'fold', 'rail'].indexOf(prefs.conflictStyle)}
         onSelect={(i) => void update({ conflictStyle: (['stack', 'fold', 'rail'] as const)[i] })}

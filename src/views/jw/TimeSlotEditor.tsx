@@ -18,7 +18,7 @@ import {
 } from '../../domain/smartPeriod'
 import { appendEmptyRow, removeAndRenumber, type TimeSlotRow } from '../../domain/timeTable'
 import { IconAdd, IconDelete } from '../../components/icons'
-import { SegmentedSwitcher } from '../mine/shared'
+import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
 
 const inputStyle: React.CSSProperties = {
   flex: 1,
@@ -56,7 +56,6 @@ export function TimeSlotEditor({
         options={[t('mode_manual'), t('mode_auto')]}
         selected={auto ? 1 : 0}
         onSelect={(i) => setAuto(i === 1)}
-        compact
       />
       {auto ? (
         <SmartPeriodEditor

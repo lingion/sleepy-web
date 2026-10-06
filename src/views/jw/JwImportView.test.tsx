@@ -46,6 +46,20 @@ afterEach(async () => {
 })
 
 /** 目录里首个可点学校 (有 URL 且已适配) */
+/** TopAppBar 导航钮 (仅图标, contentDescription = back) */
+function navBack(): HTMLElement {
+  const btn = screen.getAllByRole('button', { name: '返回' }).find((b) => b.textContent === '')
+  if (!btn) throw new Error('nav back button not found')
+  return btn
+}
+
+/** 确认页底部文字「返回」按钮 */
+function textBack(): HTMLElement {
+  const btn = screen.getAllByRole('button', { name: '返回' }).find((b) => b.textContent === '返回')
+  if (!btn) throw new Error('text back button not found')
+  return btn
+}
+
 function pickable() {
   const s = SCHOOLS.find((x) => x.status === 'supported' && x.url.trim() !== '')!
   return s
@@ -195,11 +209,11 @@ describe('JwImportView', () => {
       target: { value: OK_HTML },
     })
     fireEvent.click(screen.getByRole('button', { name: '解析此 HTML' }))
-    fireEvent.click(screen.getByRole('button', { name: '返回' }))
+    fireEvent.click(textBack())
     expect(screen.getByText('直接抓取教务页面')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: `教务导入 - ${s.name}` }))
+    fireEvent.click(navBack())
     expect(screen.getByText('选择学校')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '选择学校' }))
+    fireEvent.click(navBack())
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
@@ -234,9 +248,9 @@ describe('JwImportView', () => {
       fireEvent.change(screen.getByRole('textbox', { name: '粘贴课表网页源码' }), { target: { value: OK_HTML } })
       fireEvent.click(screen.getByRole('button', { name: '解析此 HTML' }))
       // 草稿落库后, 从确认页一路返回到 selectSchool
-      fireEvent.click(screen.getByRole('button', { name: '返回' }))
-      fireEvent.click(screen.getByRole('button', { name: /教务导入/ }))
-      fireEvent.click(screen.getByRole('button', { name: '选择学校' }))
+      fireEvent.click(textBack())
+      fireEvent.click(navBack())
+      fireEvent.click(navBack())
       await screen.findByText('未完成的导入')
       fireEvent.click(screen.getByRole('button', { name: '删除' }))
       await waitFor(async () => {

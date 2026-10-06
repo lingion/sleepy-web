@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAdd, IconCheck, IconClose, IconRemoveCircleOutline } from '../../components/icons'
-import { SegmentedSwitcher } from './shared'
+import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
 import {
   breakDisplayLabel,
   deriveRows,

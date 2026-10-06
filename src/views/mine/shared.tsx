@@ -5,49 +5,91 @@
  */
 
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconArrowBack, IconCheck } from '../../components/icons'
+import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
 
-/** bg: 内容区底色 (TopAppBar 下方, Android Column.background 同位); 内容区撑满剩余高度 */
+/**
+ * 子页骨架 — Scaffold(containerColor=background) + 小型 TopAppBar (高 64, 导航钮 48 起始 4dp,
+ * ArrowBack 24 onBackground, 标题 titleLarge 起 56) + 内容 PaddingValues(16) / spacedBy(16)。
+ * bg: 内容区底色 (TopAppBar 下方, Android Column.background 同位); 内容区撑满剩余高度
+ */
 export function SettingsScaffold({ title, onBack, children, bg }: { title: string; onBack: () => void; children: ReactNode; bg?: string }) {
+  const { t } = useTranslation()
   return (
     <div style={{ height: '100%', overflow: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 8px 6px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', height: 64, flexShrink: 0, padding: '0 4px', color: 'var(--md-on-background)' }}>
         <button
+          type="button"
           onClick={onBack}
-          aria-label={title}
+          aria-label={t('back')}
           style={{
-            width: 40, height: 40, borderRadius: 20, border: 'none', background: 'transparent',
-            color: 'var(--md-on-background)', cursor: 'pointer',
+            width: 48, height: 48, flexShrink: 0, borderRadius: 24, border: 'none', padding: 0, background: 'transparent',
+            color: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <IconArrowBack size={20} />
+          <IconArrowBack size={24} />
         </button>
-        <span className="m3-title-large">{title}</span>
+        <span
+          className="m3-title-large"
+          style={{ padding: '0 4px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {title}
+        </span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '16px 16px 32px', flexGrow: 1, background: bg }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16, flexGrow: 1, background: bg }}>
         {children}
       </div>
     </div>
   )
 }
 
-export function SectionHeader({ title }: { title: string }) {
-  return <div className="m3-title-small" style={{ fontWeight: 600, paddingTop: 8 }}>{title}</div>
+/** SectionHeader: titleSmall SemiBold onBackground + 上距 8; 可选副标题 bodySmall onSurfaceVariant (间 2) */
+export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div className="m3-title-small" style={{ fontWeight: 600, color: 'var(--md-on-background)' }}>{title}</div>
+      {subtitle !== undefined && (
+        <div className="m3-body-small" style={{ marginTop: 2, color: 'var(--md-on-surface-variant)' }}>{subtitle}</div>
+      )}
+    </div>
+  )
 }
 
-/** 平铺设置卡 — 标题行右侧内嵌 SegmentedSwitcher (SettingsFlatCard options 形态) */
+/**
+ * SettingsFlatCard (options 形态) — r16 surfaceContainer, 内边距 16×14, 竖向间距 4;
+ * 标题行 gap 12: 标题 weight 1 + 测宽 SegmentedSwitcher (高 36, surfaceContainerHighest)。
+ */
 export function FlatCard({
-  title, options, selectedKey, onSelect,
+  title, subtitle, options, selectedKey, onSelect,
 }: {
   title: string
+  subtitle?: string
   options: string[]
   selectedKey: number
   onSelect: (i: number) => void
 }) {
   return (
-    <div className="m3-card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px' }}>
-      <span className="m3-title-small" style={{ fontWeight: 600, flex: 1 }}>{title}</span>
-      <SegmentedSwitcher options={options} selected={selectedKey} onSelect={onSelect} compact />
+    <div
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 4, padding: '14px 16px', borderRadius: 16,
+        background: 'var(--md-surface-container)', color: 'var(--md-on-surface)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span className="m3-title-small" style={{ fontWeight: 600, flex: 1, minWidth: 0 }}>{title}</span>
+        <SegmentedSwitcher
+          options={options}
+          selected={selectedKey}
+          onSelect={onSelect}
+          fit
+          height={36}
+          containerColor="var(--md-surface-container-highest)"
+        />
+      </div>
+      {subtitle !== undefined && (
+        <span className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{subtitle}</span>
+      )}
     </div>
   )
 }
@@ -92,8 +134,8 @@ export function ToggleRow({
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', padding: '4px 4px' }}>
-      <div style={{ flex: 1 }}>
-        <div className="m3-body-large">{label}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="m3-body-large" style={{ color: 'var(--md-on-surface)' }}>{label}</div>
         {subtitle && <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{subtitle}</div>}
       </div>
       <Switch checked={checked} onChange={onChange} />
@@ -159,48 +201,5 @@ export function HDiv({ inset = 0 }: { inset?: number }) {
         background: 'color-mix(in srgb, var(--md-outline-variant) 30%, transparent)',
       }}
     />
-  )
-}
-
-/** SegmentedSwitcher — 轨道 + secondaryContainer thumb 色块滑动。
- *  full=true: 段等分撑满 (Android Modifier.fillMaxWidth(), 如冲突样式); 默认内容宽 (嵌标题行)。 */
-export function SegmentedSwitcher({
-  options, selected, onSelect, compact = false, full = false,
-}: {
-  options: string[]
-  selected: number
-  onSelect: (i: number) => void
-  compact?: boolean
-  full?: boolean
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex', gap: 3, padding: 3, borderRadius: 12,
-        background: 'var(--md-surface-container-highest)', height: compact ? 36 : 42,
-        ...(full ? { width: '100%', boxSizing: 'border-box' as const } : null),
-      }}
-    >
-      {options.map((label, i) => {
-        const sel = i === selected
-        return (
-          <div
-            key={i}
-            onClick={() => onSelect(i)}
-            className="m3-label-large"
-            style={{
-              padding: full ? 0 : '0 14px', display: 'flex', alignItems: 'center', borderRadius: 9,
-              justifyContent: 'center',
-              ...(full ? { flex: 1 } : null),
-              background: sel ? 'var(--md-secondary-container)' : 'transparent',
-              color: sel ? 'var(--md-on-secondary-container)' : 'var(--md-on-surface-variant)',
-              fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
-            {label}
-          </div>
-        )
-      })}
-    </div>
   )
 }

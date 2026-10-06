@@ -7,7 +7,8 @@
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from '../../state/prefsStore'
 import { periodHeaderLines, type PeriodHeaderStyle } from '../../components/schedule/periodHeader'
-import { SettingsScaffold, SectionHeader, ToggleRow, SliderRow, SegmentedSwitcher } from './shared'
+import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
+import { SettingsScaffold, SectionHeader, ToggleRow, SliderRow } from './shared'
 
 const STYLES: Array<[PeriodHeaderStyle, string]> = [
   ['arabic', '1  2  3'],
@@ -70,6 +71,8 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
         options={[t('settings_period_header_legacy', '旧式'), t('settings_period_header_three_line', '三行')]}
         selected={prefs.periodHeaderLayout === 'three_line' ? 1 : 0}
         onSelect={(i) => void update({ periodHeaderLayout: i === 1 ? 'three_line' : 'legacy' })}
+        height={40}
+        containerColor="var(--md-surface-container-highest)"
       />
     </div>
 

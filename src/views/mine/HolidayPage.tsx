@@ -34,7 +34,8 @@ import { AlertDialog } from '../../components/AlertDialog'
 import { DatePickerDialog, DatePickerField } from '../../components/DateTimePickers'
 import { DialogActionButtons } from '../../components/DialogActionButtons'
 import { FilledTextField } from '../../components/FilledTextField'
-import { SettingsScaffold, ToggleRow, HDiv, FlatCard, SectionHeader, SegmentedSwitcher } from './shared'
+import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
+import { SettingsScaffold, ToggleRow, HDiv, FlatCard, SectionHeader } from './shared'
 
 const MIN_YEAR = 2005
 const MAX_YEAR = 2049
@@ -212,7 +213,7 @@ export function HolidayPage({ onBack }: { onBack: () => void }) {
               options={tables.map((tb) => tb.name)}
               selected={tables.findIndex((tb) => tb.id === activeTableId)}
               onSelect={(i) => setPicked({ base: tableId, id: tables[i].id })}
-              full
+              containerColor="var(--md-surface-container-highest)"
             />
           </div>
         )}
@@ -580,7 +581,6 @@ function HolidayRangeEditDialog({
           options={[t('holiday_type_holiday'), t('holiday_type_workday')]}
           selected={type === TYPE_TRANSFER_WORKDAY ? 1 : 0}
           onSelect={(i) => setType(i === 1 ? TYPE_TRANSFER_WORKDAY : TYPE_PUBLIC_HOLIDAY)}
-          full
         />
         {!datesValid && (startText.trim() !== '' || endText.trim() !== '') && (
           <div className="m3-body-small" style={{ color: 'var(--md-error)' }}>{t('holiday_date_invalid')}</div>

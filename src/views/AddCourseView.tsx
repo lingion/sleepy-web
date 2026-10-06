@@ -31,6 +31,7 @@ import {
 import { undoManager } from '../data/undoStore'
 import type { Course, WeekType, ColorMode } from '../data/types'
 import { localizedDay } from '../components/schedule/CardsGridView'
+import { SegmentedSwitcher } from '../components/SegmentedSwitcher'
 import {
   groupSlotsForEdit,
   initialMeetingBlock,
@@ -836,24 +837,12 @@ function MeetingBlockCard({
         <NumberField label={`${t('slot_week_range')} ${t('end_week')}`} value={block.endWeek} onChange={(v) => onChange({ endWeek: v })} grow />
       </div>
 
-      {/* 单双周 4 态 — secondaryContainer 选中块 + 14dp 圆角 (Android SegmentedSwitcher §11) */}
-      <div style={{ display: 'flex', gap: 4, background: 'var(--md-surface-container)', borderRadius: 14, padding: 4 }}>
-        {weekTypes.map(([val, label]) => (
-          <button
-            key={val}
-            onClick={() => onChange({ weekType: val })}
-            style={{
-              flex: 1, padding: '6px 0', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12,
-              background: block.weekType === val ? 'var(--md-secondary-container)' : 'transparent',
-              color: block.weekType === val ? 'var(--md-on-secondary-container)' : 'var(--md-on-surface-variant)',
-              fontWeight: block.weekType === val ? 600 : 400,
-              transition: 'background-color 0.15s ease',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* 单双周 4 态 — AddCourseScreen.kt: SegmentedSwitcher fillMaxWidth, 默认容器 */}
+      <SegmentedSwitcher
+        options={weekTypes.map(([, label]) => label)}
+        selected={weekTypes.findIndex(([val]) => val === block.weekType)}
+        onSelect={(i) => onChange({ weekType: weekTypes[i][0] })}
+      />
 
       <Field label={t('course_teacher')} value={block.teacher} onChange={(v) => onChange({ teacher: v })} />
       <Field label={t('course_room')} value={block.room} onChange={(v) => onChange({ room: v })} />
