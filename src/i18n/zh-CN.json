@@ -774,5 +774,8 @@
   "holiday_makeup_unset": "无",
   "holiday_transfer_pick_other": "其他日期…",
   "holiday_transfer_orphan_title": "失效的映射",
-  "holiday_transfer_orphan_hint": "对应的放假日已不存在（改年份或删除假期段后残留），可手动清除。"
+  "holiday_transfer_orphan_hint": "对应的放假日已不存在（改年份或删除假期段后残留），可手动清除。",
+  "appearance_period_header": "节次表头",
+  "theme_new": "新建主题",
+  "theme_custom_edit": "编辑主题"
 }

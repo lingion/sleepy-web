@@ -47,7 +47,7 @@ export function ExpandVisibility({ visible, children }: { visible: boolean; chil
   )
 }
 
-function onActivateKey(e: KeyboardEvent, action: () => void) {
+export function onActivateKey(e: KeyboardEvent, action: () => void) {
   if (e.key !== 'Enter' && e.key !== ' ') return
   e.preventDefault()
   action()
@@ -115,7 +115,7 @@ export function DisplayModeOption({ label, subtitle, selected, onClick }: { labe
  * ArrowBack 24 onBackground, 标题 titleLarge 起 56) + 内容 PaddingValues(16) / spacedBy(16)。
  * bg: 内容区底色 (TopAppBar 下方, Android Column.background 同位); 内容区撑满剩余高度
  */
-export function SettingsScaffold({ title, onBack, children, bg }: { title: string; onBack: () => void; children: ReactNode; bg?: string }) {
+export function SettingsScaffold({ title, onBack, children, bg, gap = 16 }: { title: string; onBack: () => void; children: ReactNode; bg?: string; gap?: number }) {
   const { t } = useTranslation()
   return (
     <div style={{ height: '100%', overflow: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
@@ -138,7 +138,7 @@ export function SettingsScaffold({ title, onBack, children, bg }: { title: strin
           {title}
         </span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16, flexGrow: 1, background: bg }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap, padding: 16, flexGrow: 1, background: bg }}>
         {children}
       </div>
     </div>
@@ -285,10 +285,14 @@ export function Switch({
   )
 }
 
-export function CheckIcon({ size = 20 }: { size?: number }) {
-  // Icons.Outlined.Check 对应 — 矢量图标, tint=primary (禁文本符号)
+export function CheckIcon({ size = 20, label }: { size?: number; label?: string }) {
+  // Icons.Outlined.Check 对应 — 矢量图标, tint=primary (禁文本符号); label = contentDescription
   return (
-    <span style={{ color: 'var(--md-primary)', lineHeight: 1, display: 'inline-flex' }}>
+    <span
+      role={label ? 'img' : undefined}
+      aria-label={label}
+      style={{ color: 'var(--md-primary)', lineHeight: 1, display: 'inline-flex' }}
+    >
       <IconCheck size={size} />
     </span>
   )

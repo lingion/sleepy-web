@@ -9,8 +9,6 @@ import type { Lang } from '../index'
 export const themeExtra: Record<Lang, Record<string, string>> = {
   'zh-CN': {
     custom_theme_editor_title: '自定义主题',
-    theme_new: '新建主题',
-    theme_custom_edit: '编辑主题',
     theme_custom_default_name: '主题 {{v1}}',
     theme_custom_name_label: '主题名称',
     theme_editor_preview: '预览',
@@ -35,8 +33,6 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
   },
   'zh-TW': {
     custom_theme_editor_title: '自訂主題',
-    theme_new: '新建主題',
-    theme_custom_edit: '編輯主題',
     theme_custom_default_name: '主題 {{v1}}',
     theme_custom_name_label: '主題名稱',
     theme_editor_preview: '預覽',
@@ -61,8 +57,6 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
   },
   en: {
     custom_theme_editor_title: 'Custom Theme',
-    theme_new: 'New Theme',
-    theme_custom_edit: 'Edit Theme',
     theme_custom_default_name: 'Theme {{v1}}',
     theme_custom_name_label: 'Theme name',
     theme_editor_preview: 'Preview',
@@ -87,8 +81,6 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
   },
   'en-GB': {
     custom_theme_editor_title: 'Custom Theme',
-    theme_new: 'New Theme',
-    theme_custom_edit: 'Edit Theme',
     theme_custom_default_name: 'Theme {{v1}}',
     theme_custom_name_label: 'Theme name',
     theme_editor_preview: 'Preview',
@@ -113,8 +105,6 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
   },
   ja: {
     custom_theme_editor_title: 'カスタムテーマ',
-    theme_new: '新規テーマ',
-    theme_custom_edit: 'テーマを編集',
     theme_custom_default_name: 'テーマ {{v1}}',
     theme_custom_name_label: 'テーマ名',
     theme_editor_preview: 'プレビュー',
@@ -139,8 +129,6 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
   },
   es: {
     custom_theme_editor_title: 'Tema personalizado',
-    theme_new: 'Nuevo tema',
-    theme_custom_edit: 'Editar tema',
     theme_custom_default_name: 'Tema {{v1}}',
     theme_custom_name_label: 'Nombre del tema',
     theme_editor_preview: 'Vista previa',

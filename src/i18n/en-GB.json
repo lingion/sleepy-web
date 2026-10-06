@@ -779,5 +779,8 @@
   "holiday_makeup_unset": "None",
   "holiday_transfer_pick_other": "Other date…",
   "holiday_transfer_orphan_title": "Expired mappings",
-  "holiday_transfer_orphan_hint": "The holiday day no longer exists (left over after a year switch or segment deletion). Clear manually."
+  "holiday_transfer_orphan_hint": "The holiday day no longer exists (left over after a year switch or segment deletion). Clear manually.",
+  "appearance_period_header": "Period headers",
+  "theme_new": "New theme",
+  "theme_custom_edit": "Edit theme"
 }

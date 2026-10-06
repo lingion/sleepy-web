@@ -774,5 +774,8 @@
   "holiday_transfer_pick_other": "其他日期…",
   "holiday_transfer_orphan_title": "失效的對應",
   "holiday_transfer_orphan_hint": "對應的放假日已不存在（改年份或刪除假期段後殘留），可手動清除。",
-  "holiday_transfer_clear": "清除"
+  "holiday_transfer_clear": "清除",
+  "appearance_period_header": "節次表頭",
+  "theme_new": "新增主題",
+  "theme_custom_edit": "編輯主題"
 }

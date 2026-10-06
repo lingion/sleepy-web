@@ -774,5 +774,8 @@
   "holiday_transfer_pick_other": "その他の日付…",
   "holiday_transfer_orphan_title": "無効な振替設定",
   "holiday_transfer_orphan_hint": "対応する休日が存在しなくなりました（年切り替えや期間削除の残り）。手動で削除できます。",
-  "holiday_transfer_clear": "削除"
+  "holiday_transfer_clear": "削除",
+  "appearance_period_header": "時限ヘッダー",
+  "theme_new": "新しいテーマ",
+  "theme_custom_edit": "テーマを編集"
 }

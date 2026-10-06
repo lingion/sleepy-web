@@ -774,5 +774,8 @@
   "holiday_transfer_pick_other": "Otra fecha…",
   "holiday_transfer_orphan_title": "Asignaciones caducadas",
   "holiday_transfer_orphan_hint": "El día festivo ya no existe (residuo tras cambiar de año o eliminar un tramo). Borra manualmente.",
-  "holiday_transfer_clear": "Borrar"
+  "holiday_transfer_clear": "Borrar",
+  "appearance_period_header": "Encabezados de período",
+  "theme_new": "Nuevo tema",
+  "theme_custom_edit": "Editar tema"
 }
