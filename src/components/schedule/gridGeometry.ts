@@ -6,6 +6,12 @@
 import type { Course } from '../../data/types'
 import type { RenderSlotPlan, TimeSlot } from '../../domain/timeTable'
 import { buildRenderSlotPlan, parseHM, timeToFractionalRows } from '../../domain/timeTable'
+import {
+  estimatePeriodHeaderTextWidth,
+  periodHeaderHangingPlacement,
+  periodHeaderLines,
+  type PeriodHeaderStyle,
+} from './periodHeader'
 
 /** 布局常量 (scale=1) — CourseTableView.kt L160-165 */
 export const GRID = {
@@ -40,7 +46,18 @@ export function buildGridGeometry(
   dayCount: number,
   containerWidth: number,
   scale: number,
-  options: { adaptiveHeight?: boolean; availableHeight?: number; autoHideEmptyEvening?: boolean; eveningStart?: string; rowScale?: number; longBreakSpacing?: boolean } = {},
+  options: {
+    adaptiveHeight?: boolean
+    availableHeight?: number
+    autoHideEmptyEvening?: boolean
+    eveningStart?: string
+    rowScale?: number
+    longBreakSpacing?: boolean
+    periodHeaderLayout?: 'legacy' | 'three_line'
+    periodHeaderStyle?: PeriodHeaderStyle
+    periodHeaderHanging?: number
+    periodHeaderShowX?: boolean
+  } = {},
 ): GridGeometry {
   const d = (v: number) => v * scale
   const fullPlan = buildRenderSlotPlan(courses, timeJson)
@@ -64,7 +81,7 @@ export function buildGridGeometry(
     : GRID.slotH
   const rowScale = Math.min(1.8, Math.max(0.7, options.rowScale ?? 1))
   const rowH = d(fit * rowScale) + d(GRID.gapH)
-  const timeW = d(GRID.timeW)
+  const timeW = d(resolveTimeColumnWidth(plan.slots, options))
   const gapW = d(GRID.gapW)
   const colW = (containerWidth - timeW - gapW * (dayCount + 1)) / dayCount
   return {
@@ -86,6 +103,34 @@ export function buildGridGeometry(
 
 function renderSlotsSize(plan: RenderSlotPlan): number {
   return Math.max(1, plan.slots.length)
+}
+
+function resolveTimeColumnWidth(
+  slots: TimeSlot[],
+  options: {
+    periodHeaderLayout?: 'legacy' | 'three_line'
+    periodHeaderStyle?: PeriodHeaderStyle
+    periodHeaderHanging?: number
+    periodHeaderShowX?: boolean
+  },
+): number {
+  if (options.periodHeaderLayout !== 'three_line') return GRID.timeW
+  const style = options.periodHeaderStyle ?? 'arabic'
+  const hanging = options.periodHeaderHanging ?? 0
+  const showX = options.periodHeaderShowX ?? false
+  const widths = slots
+    .filter((slot) => !slot.isPlaceholder)
+    .map((slot) => {
+      const lines = periodHeaderLines(slot, 'three_line', style, showX)
+      const timeWidth = Math.max(
+        estimatePeriodHeaderTextWidth(lines[0], 11),
+        estimatePeriodHeaderTextWidth(lines[2], 11),
+      )
+      const labelWidth = estimatePeriodHeaderTextWidth(lines[1], 12)
+      const placement = periodHeaderHangingPlacement(timeWidth, labelWidth, hanging)
+      return placement.contentWidth * (16 / 12) + 6
+    })
+  return Math.max(46, ...widths)
 }
 
 function detectMealBreakRows(timeJson: string, courses: Course[], slots: TimeSlot[]): Set<number> {

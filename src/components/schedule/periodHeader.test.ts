@@ -6,6 +6,8 @@ import {
   computeAdaptiveFont,
   columnAdaptiveFont,
   estimateHeaderInk,
+  periodHeaderHangingPlacement,
+  clampPeriodHeaderHanging,
 } from './periodHeader'
 
 describe('adaptive header font (Android 3e4a4dfe parity)', () => {
@@ -33,6 +35,36 @@ describe('adaptive header font (Android 3e4a4dfe parity)', () => {
 })
 
 const slot = { label: '1-2', displayStart: '08:00', displayEnd: '09:35' }
+
+describe('period header hanging geometry (Android PeriodHeaderMetrics parity)', () => {
+  it('anchors the label to the time block edges at the slider endpoints', () => {
+    const left = periodHeaderHangingPlacement(40, 28, -1)
+    const center = periodHeaderHangingPlacement(40, 28, 0)
+    const right = periodHeaderHangingPlacement(40, 28, 1)
+
+    expect(left).toEqual({ timeLeft: 28, labelLeft: 0, contentWidth: 68 })
+    expect(center).toEqual({ timeLeft: 0, labelLeft: 6, contentWidth: 40 })
+    expect(right).toEqual({ timeLeft: 0, labelLeft: 40, contentWidth: 68 })
+  })
+
+  it('keeps the time block dimensions unchanged while only label placement moves', () => {
+    const placements = [-1, 0, 1].map((hanging) => periodHeaderHangingPlacement(40, 28, hanging))
+    const labelCenters = placements.map((placement) => placement.labelLeft + 14)
+    expect(labelCenters).toEqual([14, 20, 54])
+    expect(placements.every((placement) => placement.timeLeft >= 0)).toBe(true)
+    expect(placements.every((placement) => placement.timeLeft + 40 <= placement.contentWidth)).toBe(true)
+  })
+
+  it('normalizes out-of-range hanging values and treats non-finite widths as zero', () => {
+    expect(clampPeriodHeaderHanging(2)).toBe(1)
+    expect(clampPeriodHeaderHanging(Number.NaN)).toBe(0)
+    expect(periodHeaderHangingPlacement(Number.NaN, -5, 1)).toEqual({
+      timeLeft: 0,
+      labelLeft: 0,
+      contentWidth: 0,
+    })
+  })
+})
 
 describe('period header parity', () => {
   it('keeps the legacy two-line header as the default', () => {

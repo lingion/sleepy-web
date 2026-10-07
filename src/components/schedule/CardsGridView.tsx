@@ -15,6 +15,9 @@ import { GridClusterCard } from './GridClusterCard'
 import {
   columnAdaptiveFont,
   estimateHeaderInk,
+  estimatePeriodHeaderTextWidth,
+  periodHeaderHangingPlacement,
+  periodHeaderColumnPlacements,
   periodHeaderLines,
   type AdaptiveFont,
   type PeriodHeaderLayout,
@@ -76,9 +79,13 @@ export function CardsGridView(props: CardsGridViewProps) {
         eveningStart: prefs.gridEveningStart,
         rowScale: prefs.gridPinchZoom ? prefs.gridRowScale : 1,
         longBreakSpacing: prefs.gridLongBreakSpacing,
+        periodHeaderLayout: prefs.periodHeaderLayout,
+        periodHeaderStyle: prefs.periodHeaderStyle,
+        periodHeaderHanging: prefs.periodHeaderHanging,
+        periodHeaderShowX: prefs.periodHeaderShowX,
       },
     ),
-    [courses, timeJson, dayCount, containerWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale, prefs.gridLongBreakSpacing]
+    [courses, timeJson, dayCount, containerWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale, prefs.gridLongBreakSpacing, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX]
   )
   const today = useMemo(() => new Date(), [])
   const updatePrefs = usePrefsStore((s) => s.update)
@@ -117,6 +124,24 @@ export function CardsGridView(props: CardsGridViewProps) {
       : 52 * prefs.gridScale
     return columnAdaptiveFont(cardW, minRowH, inks)
   }, [geo.slots, geo.plan, geo.rowH, geo.gapH, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderShowX])
+
+  const headerPlacements = useMemo(() => {
+    if (prefs.periodHeaderLayout !== 'three_line') return null
+    const projection = (16 / 12) * prefs.gridScale
+    const rows = geo.slots
+      .filter((slot) => !slot.isPlaceholder)
+      .map((slot) => {
+        const lines = periodHeaderLines(slot, 'three_line', prefs.periodHeaderStyle, prefs.periodHeaderShowX)
+        return {
+          timeWidth: Math.max(
+            estimatePeriodHeaderTextWidth(lines[0], 11),
+            estimatePeriodHeaderTextWidth(lines[2], 11),
+          ) * projection,
+          labelWidth: estimatePeriodHeaderTextWidth(lines[1], 12) * projection,
+        }
+      })
+    return periodHeaderColumnPlacements(rows, prefs.periodHeaderHanging)
+  }, [geo.slots, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX])
 
   // 簇: 时间域聚簇 (2026-09-09 假冲突修复同源)
   const clusters = useMemo(() => findClusters(courses, timeJson), [courses, timeJson])
@@ -192,6 +217,7 @@ export function CardsGridView(props: CardsGridViewProps) {
                 hanging={prefs.periodHeaderHanging}
                 showX={prefs.periodHeaderShowX}
                 font={headerFont}
+                placement={headerPlacements?.[geo.slots.slice(0, i).filter((item) => !item.isPlaceholder).length]}
               />
             </div>
           ))}
@@ -306,6 +332,7 @@ function SingleTimeHeadCell({
   hanging,
   showX,
   font,
+  placement: placementOverride,
 }: {
   slot: { label: string; displayStart: string; displayEnd: string; nodeStart?: number; nodeEnd?: number; isPlaceholder?: boolean }
   width: number
@@ -317,52 +344,81 @@ function SingleTimeHeadCell({
   showX: boolean
   /** 整列统一自适应字号 (Android AdaptiveFont 同源); null = 旧固定字号 */
   font?: AdaptiveFont | null
+  placement?: {
+    timeLeft: number
+    labelLeft: number
+    contentWidth: number
+  }
 }) {
   const isPh = !!slot.isPlaceholder
-  const hangingOffset = hanging * 10 * scale
-  return (
-    <div style={{ width, display: 'flex' }} data-period-header-hanging={hanging}>
-      <div
-        style={{
-          flex: 1,
-          // CourseTableView.kt:733 单层形态: 圆角 8*ratio(≤1), 内衬 3 (资源篮 2026-09-28 逐层相等令)
-          borderRadius: 8 * scale * Math.min(1, cornerRatio),
-          background: isPh ? 'color-mix(in srgb, var(--md-surface-container-low) 50%, transparent)' : 'var(--md-surface-container-low)',
-          padding: 3 * scale,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 1 * scale,
-          overflow: 'hidden',
-          transform: layout === 'three_line' ? `translateX(${hangingOffset}px)` : undefined,
-        }}
-      >
-        {!isPh && periodHeaderLines(slot, layout, style, showX).map((line, index) => {
-          const isLabel = index === 1 || layout === 'legacy' && index === 0
-          // 三行布局中间行=标签 (labelSize), 上下=时间 (timeSize); legacy 首行=标签
-          const base = font != null ? (isLabel ? font.labelSize : font.timeSize) : isLabel ? 10 : 9
-          const size = base * scale
-          return (
+  const lines = periodHeaderLines(slot, layout, style, showX)
+  if (layout === 'three_line') {
+    const label = lines[1]
+    const base = font ?? { labelSize: 12, timeSize: 11 }
+    const placement = placementOverride ?? periodHeaderHangingPlacement(
+      Math.max(
+        estimatePeriodHeaderTextWidth(lines[0], base.timeSize),
+        estimatePeriodHeaderTextWidth(lines[2], base.timeSize),
+      ),
+      estimatePeriodHeaderTextWidth(label, base.labelSize),
+      hanging,
+    )
+    const layoutWidth = Math.max(width, placement.contentWidth + 6 * scale)
+    return (
+      <div style={{ width: layoutWidth, display: 'flex' }} data-period-header-hanging={hanging}>
+        <div
+          style={{
+            position: 'relative', flex: 1, minWidth: 0, height: '100%',
+            borderRadius: 8 * scale * Math.min(1, cornerRatio),
+            background: isPh ? 'color-mix(in srgb, var(--md-surface-container-low) 50%, transparent)' : 'var(--md-surface-container-low)',
+            padding: 3 * scale, boxSizing: 'border-box', overflow: 'visible',
+          }}
+        >
+          {!isPh && <>
             <span
-              key={line}
+              data-period-header-line="start"
               className="m3-label-small"
-              style={{
-                fontWeight: isLabel ? 600 : undefined,
-                fontSize: size,
-                lineHeight: `${(isLabel ? size * 1.4 : size * 1.25)}px`,
-                color: isLabel ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)',
-              }}
-            >
-              {line}
-            </span>
-          )
-        })}
+              style={{ position: 'absolute', top: 3 * scale, left: placement.timeLeft + 3 * scale, fontSize: base.timeSize * scale, lineHeight: `${base.timeSize * 1.25 * scale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)' }}
+            >{lines[0]}</span>
+            <span
+              data-period-header-line="label"
+              className="m3-label-small"
+              style={{ position: 'absolute', top: '50%', left: placement.labelLeft + 3 * scale, transform: 'translateY(-50%)', fontSize: base.labelSize * scale, fontWeight: 600, lineHeight: `${base.labelSize * 1.25 * scale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface)' }}
+            >{label}</span>
+            <span
+              data-period-header-line="end"
+              className="m3-label-small"
+              style={{ position: 'absolute', bottom: 3 * scale, left: placement.timeLeft + 3 * scale, fontSize: base.timeSize * scale, lineHeight: `${base.timeSize * 1.25 * scale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)' }}
+            >{lines[2]}</span>
+          </>}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+  if (layout === 'legacy') {
+    return (
+      <div style={{ width, display: 'flex' }} data-period-header-hanging={hanging}>
+        <div
+          style={{
+            flex: 1,
+            borderRadius: 8 * scale * Math.min(1, cornerRatio),
+            background: isPh ? 'color-mix(in srgb, var(--md-surface-container-low) 50%, transparent)' : 'var(--md-surface-container-low)',
+            padding: 3 * scale,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 * scale,
+            overflow: 'hidden',
+          }}
+        >
+          {!isPh && lines.map((line, index) => {
+            const isLabel = index === 0
+            const size = (font != null ? (isLabel ? font.labelSize : font.timeSize) : isLabel ? 10 : 9) * scale
+            return <span key={line} className="m3-label-small" style={{ fontWeight: isLabel ? 600 : undefined, fontSize: size, lineHeight: `${(isLabel ? size * 1.4 : size * 1.25)}px`, color: isLabel ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)' }}>{line}</span>
+          })}
+        </div>
+      </div>
+    )
+  }
+  return null
 }
-
 export function CourseOverlayCard({
   course,
   groupRows,

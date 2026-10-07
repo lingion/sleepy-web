@@ -89,6 +89,43 @@ describe('yOfRows — 加权行坐标', () => {
   })
 })
 
+describe('三行表头列宽 — 悬挂几何', () => {
+  it('uses the hanging envelope instead of moving text outside a fixed time column', () => {
+    const centered = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, {
+      periodHeaderLayout: 'three_line',
+      periodHeaderStyle: 'arabic',
+      periodHeaderHanging: 0,
+      periodHeaderShowX: false,
+    })
+    const left = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, {
+      periodHeaderLayout: 'three_line',
+      periodHeaderStyle: 'arabic',
+      periodHeaderHanging: -1,
+      periodHeaderShowX: false,
+    })
+    const right = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, {
+      periodHeaderLayout: 'three_line',
+      periodHeaderStyle: 'arabic',
+      periodHeaderHanging: 1,
+      periodHeaderShowX: false,
+    })
+
+    expect(centered.timeW).toBeLessThan(left.timeW)
+    expect(centered.timeW).toBeLessThan(right.timeW)
+    expect(left.timeW).toBe(right.timeW)
+  })
+
+  it('keeps legacy geometry at the fixed baseline', () => {
+    const legacy = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, {
+      periodHeaderLayout: 'legacy',
+      periodHeaderStyle: 'arabic',
+      periodHeaderHanging: 1,
+      periodHeaderShowX: true,
+    })
+    expect(legacy.timeW).toBe(68)
+  })
+})
+
 describe('slotIndexOf', () => {
   it('节 1 → 0, 节 12 → 11, 节 99 → -1', () => {
     expect(slotIndexOf(geo.slots, 1)).toBe(0)

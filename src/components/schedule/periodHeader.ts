@@ -57,6 +57,76 @@ export function clampPeriodHeaderHanging(value: number): number {
   return Math.min(1, Math.max(-1, Number.isFinite(value) ? value : 0))
 }
 
+export interface PeriodHeaderHangingPlacement {
+  timeLeft: number
+  labelLeft: number
+  contentWidth: number
+}
+
+export interface PeriodHeaderRowMetrics {
+  timeWidth: number
+  labelWidth: number
+}
+
+/**
+ * Positions the label against the shared time-column edge, then returns the
+ * complete text envelope. This mirrors PeriodHeaderMetrics.solvePlacement.
+ */
+export function periodHeaderHangingPlacement(
+  timeWidth: number,
+  labelWidth: number,
+  hanging: number,
+): PeriodHeaderHangingPlacement {
+  const time = Number.isFinite(timeWidth) ? Math.max(0, timeWidth) : 0
+  const label = Number.isFinite(labelWidth) ? Math.max(0, labelWidth) : 0
+  const u = clampPeriodHeaderHanging(hanging)
+  const rawLabelLeft = -label + ((u + 1) / 2) * (time + label)
+  const inkLeft = Math.min(0, rawLabelLeft)
+  const inkRight = Math.max(time, rawLabelLeft + label)
+  return {
+    timeLeft: inkLeft === 0 ? 0 : -inkLeft,
+    labelLeft: rawLabelLeft - inkLeft,
+    contentWidth: inkRight - inkLeft,
+  }
+}
+
+/**
+ * Shares the widest row's time and label anchors across a whole time column,
+ * matching Android solveColumnPlacement rather than centering each row alone.
+ */
+export function periodHeaderColumnPlacements(
+  rows: PeriodHeaderRowMetrics[],
+  hanging: number,
+): PeriodHeaderHangingPlacement[] {
+  if (rows.length === 0) return []
+  const perRow = rows.map((row) => periodHeaderHangingPlacement(row.timeWidth, row.labelWidth, hanging))
+  const baseIndex = perRow.reduce(
+    (best, placement, index) => placement.contentWidth > perRow[best].contentWidth ? index : best,
+    0,
+  )
+  const base = perRow[baseIndex]
+  const baseRow = rows[baseIndex]
+  const baseTimeMid = base.timeLeft + baseRow.timeWidth / 2
+  const baseLabelMid = base.labelLeft + baseRow.labelWidth / 2
+  return perRow.map((placement, index) => {
+    const row = rows[index]
+    const timeMid = placement.timeLeft + row.timeWidth / 2
+    const shift = baseTimeMid - timeMid
+    return {
+      timeLeft: placement.timeLeft + shift,
+      labelLeft: baseLabelMid - row.labelWidth / 2,
+      contentWidth: base.contentWidth,
+    }
+  })
+}
+
+/** CSS fallback text width estimate, using the same glyph classes as the preview measurer. */
+export function estimatePeriodHeaderTextWidth(text: string, size: number): number {
+  let width = 0
+  for (const char of text) width += /[0-9:]/.test(char) ? size * 0.58 : char === '-' ? size * 0.4 : size
+  return width
+}
+
 /**
  * 表头字号自适应 — PeriodHeaderAdaptiveFont (PeriodHeaderLayoutModel.kt) 1:1。
  * 高度上限唯一驱动 (三行总高 ≈ label×2.6); 墨迹超宽时按比例回缩兜底;
