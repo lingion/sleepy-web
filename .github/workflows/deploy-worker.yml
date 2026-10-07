@@ -34,34 +34,40 @@ jobs:
             echo "Injected public/schedule.sleepy from PUBLIC_SCHEDULE_B64 secret."
           fi
 
-      # 上游仓库无私人课表 → 本 workflow 仅服务 fork/私有部署, 干净跳过不报错
-      - name: Gate on public schedule present
-        id: gate
+      # 有私人课表时构建只读 public 版本；没有课表时仍部署普通 Web 版本，
+      # 避免前端修复因缺少私人数据而无法上线。
+      - name: Detect public schedule
+        id: schedule
         run: |
-          if [ ! -f public/schedule.sleepy ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::public/schedule.sleepy absent — public Worker deploy skipped. Fork + add your schedule (file or PUBLIC_SCHEDULE_B64 secret) to enable, see README."
+          if [ -f public/schedule.sleepy ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::public/schedule.sleepy absent — deploying the regular Web build without embedded schedule data."
           fi
 
       - uses: actions/setup-node@v4
-        if: steps.gate.outputs.skip != 'true'
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
-        if: steps.gate.outputs.skip != 'true'
         run: npm ci
 
       - name: Build public schedule
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.schedule.outputs.present == 'true'
         run: npm run build:public
         env:
           BASE_PATH: /
           VITE_PUBLIC_ACCESS_KEY_HASH: ${{ secrets.VITE_PUBLIC_ACCESS_KEY_HASH }}
 
+      - name: Build regular Web app
+        if: steps.schedule.outputs.present != 'true'
+        run: npm run build
+        env:
+          BASE_PATH: /
+
       - name: Deploy to Cloudflare Worker
-        if: steps.gate.outputs.skip != 'true'
         run: npx wrangler deploy
         working-directory: site
         env:
