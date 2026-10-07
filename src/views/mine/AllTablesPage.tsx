@@ -49,6 +49,7 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
 
   return (
     <SettingsScaffold title={t('all_tables')} onBack={onBack}>
+      <div style={{ height: 4 }} />
       {tables.map((tb: Table) => {
         const isCurrent = tb.id === selectedId
         return (

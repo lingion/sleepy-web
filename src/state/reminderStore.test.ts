@@ -66,9 +66,10 @@ describe('clampReminderPrefs — 值域校验', () => {
     expect(clampReminderPrefs({ dailyTime: '23:59' }).dailyTime).toBe('23:59')
   })
 
-  it('fluidPrimary 白名单 name/time/room — 其余 (含 legacy teacher) 回落 room', () => {
+  it('fluidPrimary 白名单 name/time/room/countdown — 其余 (含 legacy teacher) 回落 room', () => {
     expect(clampReminderPrefs({ fluidPrimary: 'name' }).fluidPrimary).toBe('name')
     expect(clampReminderPrefs({ fluidPrimary: 'time' }).fluidPrimary).toBe('time')
+    expect(clampReminderPrefs({ fluidPrimary: 'countdown' }).fluidPrimary).toBe('countdown')
     expect(clampReminderPrefs({ fluidPrimary: 'teacher' as never }).fluidPrimary).toBe('room')
   })
 
@@ -140,10 +141,11 @@ describe('reminderVisibility — 三级开关依赖链', () => {
     expect(visiblePreviewKeys({ ...base, masterEnabled: true, dailyEnabled: true, beforeClassEnabled: true })).toEqual(['reminder_daily_preview', 'reminder_before_class_preview'])
   })
 
-  it('fluidPrimaryLabelKey — name/time/room 映射, 未知兜底 room', () => {
+  it('fluidPrimaryLabelKey — name/time/room/countdown 映射, 未知兜底 room', () => {
     expect(fluidPrimaryLabelKey('name')).toBe('reminder_fluid_field_name')
     expect(fluidPrimaryLabelKey('time')).toBe('reminder_fluid_field_time')
     expect(fluidPrimaryLabelKey('room')).toBe('reminder_fluid_field_room')
+    expect(fluidPrimaryLabelKey('countdown')).toBe('reminder_fluid_field_countdown')
     expect(fluidPrimaryLabelKey('teacher')).toBe('reminder_fluid_field_room')
   })
 })

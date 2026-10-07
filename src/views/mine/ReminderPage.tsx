@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 import { AlertDialog } from '../../components/AlertDialog'
 import { DialogActionButtons } from '../../components/DialogActionButtons'
 import { IconExpandMore, IconNotifications, IconSchedule, IconSchool } from '../../components/icons'
+import { postNotify } from '../../domain/reminders/notify'
 import { SettingsScaffold, Switch } from './shared'
 import {
   FLUID_PRIMARY_OPTIONS,
@@ -48,6 +49,7 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
   const [showTimePicker, setShowTimePicker] = useState<'today' | 'tomorrow' | null>(null)
   const [minutesInput, setMinutesInput] = useState(() => String(prefs.beforeClassMinutes))
   const [fieldsMenuExpanded, setFieldsMenuExpanded] = useState(false)
+  const [fluidNotice, setFluidNotice] = useState('')
   const [notifyState, setNotifyState] = useState<NotifyState>(() =>
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported',
   )
@@ -85,7 +87,35 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
     return () => clearTimeout(id)
   }, [minutesInput])
 
-  /** master 开关 — 开: 先要权限, 被拒则回弹 off; 关: 只改 master, 子开关配置保留 (Android 同注释) */
+  function showFluidNotice(key: string) {
+    setFluidNotice(t(key))
+    window.setTimeout(() => setFluidNotice(''), 3500)
+  }
+
+  async function requestNotificationPermission(): Promise<void> {
+    if (notifyState === 'unsupported' || typeof Notification.requestPermission !== 'function') return
+    const result = await Notification.requestPermission()
+    setNotifyState(result)
+    update({ masterEnabled: result === 'granted' })
+  }
+
+  async function sendFluidTest(): Promise<void> {
+    if (notifyState !== 'granted') {
+      await requestNotificationPermission()
+      if (notifyState === 'unsupported' || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+        showFluidNotice('reminder_web_notify_denied')
+        return
+      }
+      setNotifyState('granted')
+    }
+    postNotify({
+      tag: 'sleepy-fluid-test',
+      title: t('reminder_fluid_test_button'),
+      body: t('reminder_fluid_test_started'),
+    })
+    showFluidNotice('reminder_fluid_test_started')
+  }
+
   async function onMasterToggle(on: boolean) {
     if (!on) {
       update({ masterEnabled: false })
@@ -307,6 +337,23 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
                     <p className="m3-body-small" style={{ margin: '6px 0 0', color: 'var(--md-on-surface-variant)' }}>
                       {t('reminder_fluid_note')}
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => void sendFluidTest()}
+                      className="m3-label-large"
+                      style={{
+                        marginTop: 8, height: 48, border: 'none', borderRadius: 16, padding: '0 16px', cursor: 'pointer',
+                        background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
+                      }}
+                    >
+                      {t('reminder_fluid_test_button')}
+                    </button>
+                    <ReliabilityBlock notification={notifyState} onRequestPermission={() => void requestNotificationPermission()} />
+                    {fluidNotice !== '' && (
+                      <div role="status" className="m3-body-small" style={{ marginTop: 8, color: 'var(--md-on-surface-variant)' }}>
+                        {fluidNotice}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -457,6 +504,48 @@ function FluidFieldItem({
       />
       <span className="m3-body-large">{label}</span>
     </button>
+  )
+}
+
+function ReliabilityBlock({ notification, onRequestPermission }: { notification: NotifyState; onRequestPermission: () => void }) {
+  const { t } = useTranslation()
+  const status = notification === 'granted' ? t('reminder_reliability_ready') : notification === 'denied' ? t('reminder_reliability_missing') : t('reminder_reliability_not_applicable')
+  const row = (key: string, value: string, onClick?: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={onClick == null}
+      className="m3-body-small"
+      style={{
+        display: 'block', width: '100%', padding: 0, border: 'none', background: 'transparent', textAlign: 'left',
+        color: onClick == null ? 'var(--md-on-surface-variant)' : 'var(--md-primary)', cursor: onClick == null ? 'default' : 'pointer',
+      }}
+    >
+      {t(key, { v1: value })}
+    </button>
+  )
+  return (
+    <div style={{ marginTop: 12, padding: '12px 4px 0', borderTop: '1px solid color-mix(in srgb, var(--md-outline-variant) 30%, transparent)' }}>
+      <div className="m3-body-medium" style={{ fontWeight: 600, color: 'var(--md-on-surface)' }}>{t('reminder_reliability_title')}</div>
+      {row('reminder_reliability_notification', status, notification !== 'granted' ? onRequestPermission : undefined)}
+      {row('reminder_reliability_exact_alarm', t('reminder_reliability_not_applicable'))}
+      {row('reminder_reliability_battery', t('reminder_reliability_not_applicable'))}
+      {row('reminder_reliability_widget', t('reminder_reliability_not_applicable'))}
+      {row('reminder_reliability_vendor', t('reminder_reliability_not_applicable'))}
+      {row('reminder_reliability_promoted', t('reminder_reliability_not_applicable'))}
+      <div className="m3-body-small" style={{ marginTop: 6, color: 'var(--md-on-surface-variant)' }}>{t('reminder_web_only')}</div>
+      <button
+        type="button"
+        className="m3-label-large"
+        onClick={onRequestPermission}
+        style={{
+          marginTop: 8, minHeight: 40, padding: '0 12px', border: 'none', borderRadius: 20,
+          background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', cursor: 'pointer',
+        }}
+      >
+        {t('reminder_fluid_go_to_settings')}
+      </button>
+    </div>
   )
 }
 

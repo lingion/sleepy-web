@@ -496,6 +496,7 @@
   "reminder_daily_title": "Daily Reminder",
   "reminder_fluid_field_name": "Course Name",
   "reminder_fluid_field_room": "Location",
+  "reminder_fluid_field_countdown": "Countdown",
   "reminder_fluid_field_teacher": "Teacher",
   "reminder_fluid_field_time": "Time",
   "reminder_fluid_fields": "Capsule Primary Content",
@@ -781,6 +782,12 @@
   "holiday_transfer_orphan_title": "Expired mappings",
   "holiday_transfer_orphan_hint": "The holiday day no longer exists (left over after a year switch or segment deletion). Clear manually.",
   "appearance_period_header": "Period headers",
+  "appearance_header_layout": "Layout",
+  "appearance_layout_legacy": "Legacy header",
+  "appearance_layout_three_line": "Three-line header",
+  "appearance_header_preview": "Live preview",
+  "appearance_header_show_x": "Show “Period X”",
+  "appearance_header_hanging": "Move left/right by {{v1}} start-time widths",
   "theme_new": "New theme",
   "theme_custom_edit": "Edit theme"
 }

@@ -455,6 +455,7 @@
   "reminder_fluid_field_name": "课程名称",
   "reminder_fluid_field_time": "上课时间",
   "reminder_fluid_field_room": "上课地点",
+  "reminder_fluid_field_countdown": "倒计时",
   "reminder_fluid_field_teacher": "任课老师",
   "reminder_fluid_note": "点击通知后可展开课程详情。具体是否显示为流体云/超级岛由手机系统、通知权限和厂商服务资格决定。",
   "reminder_pick_time": "选择提醒时间",
@@ -776,6 +777,12 @@
   "holiday_transfer_orphan_title": "失效的映射",
   "holiday_transfer_orphan_hint": "对应的放假日已不存在（改年份或删除假期段后残留），可手动清除。",
   "appearance_period_header": "节次表头",
+  "appearance_header_layout": "布局",
+  "appearance_layout_legacy": "旧式表头",
+  "appearance_layout_three_line": "三行表头",
+  "appearance_header_preview": "实时预览",
+  "appearance_header_show_x": "显示“第 X 节”",
+  "appearance_header_hanging": "左右移动 {{v1}} 个开始时间宽度",
   "theme_new": "新建主题",
   "theme_custom_edit": "编辑主题"
 }

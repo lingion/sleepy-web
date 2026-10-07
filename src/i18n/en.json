@@ -486,6 +486,7 @@
   "reminder_fluid_field_name": "Course Name",
   "reminder_fluid_field_time": "Time",
   "reminder_fluid_field_room": "Location",
+  "reminder_fluid_field_countdown": "Countdown",
   "reminder_fluid_field_teacher": "Teacher",
   "reminder_fluid_note": "Tap the notification to expand course details. Whether it appears as Fluid Cloud / Super Island depends on the phone system, notification permissions, and manufacturer service eligibility.",
   "reminder_pick_time": "Pick Reminder Time",
@@ -796,6 +797,12 @@
   "holiday_transfer_orphan_title": "Expired mappings",
   "holiday_transfer_orphan_hint": "The holiday day no longer exists (left over after a year switch or segment deletion). Clear manually.",
   "appearance_period_header": "Period headers",
+  "appearance_header_layout": "Layout",
+  "appearance_layout_legacy": "Legacy header",
+  "appearance_layout_three_line": "Three-line header",
+  "appearance_header_preview": "Live preview",
+  "appearance_header_show_x": "Show “Period X”",
+  "appearance_header_hanging": "Move left/right by {{v1}} start-time widths",
   "theme_new": "New theme",
   "theme_custom_edit": "Edit theme"
 }

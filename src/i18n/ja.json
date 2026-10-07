@@ -491,6 +491,7 @@
   "reminder_daily_title": "毎日リマインダー",
   "reminder_fluid_field_name": "授業名",
   "reminder_fluid_field_room": "教室",
+  "reminder_fluid_field_countdown": "カウントダウン",
   "reminder_fluid_field_teacher": "担当教員",
   "reminder_fluid_field_time": "時刻",
   "reminder_fluid_fields": "カプセルメイン表示内容",
@@ -776,6 +777,12 @@
   "holiday_transfer_orphan_hint": "対応する休日が存在しなくなりました（年切り替えや期間削除の残り）。手動で削除できます。",
   "holiday_transfer_clear": "削除",
   "appearance_period_header": "時限ヘッダー",
+  "appearance_header_layout": "レイアウト",
+  "appearance_layout_legacy": "旧式ヘッダー",
+  "appearance_layout_three_line": "3行ヘッダー",
+  "appearance_header_preview": "ライブプレビュー",
+  "appearance_header_show_x": "「第 X 限」を表示",
+  "appearance_header_hanging": "開始時刻幅 {{v1}} 個分 左右移動",
   "theme_new": "新しいテーマ",
   "theme_custom_edit": "テーマを編集"
 }

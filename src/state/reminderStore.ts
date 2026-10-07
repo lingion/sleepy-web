@@ -9,8 +9,8 @@
 import { create } from 'zustand'
 
 /** 胶囊主显示内容 — AppPrefs.setBeforeClassFluidPrimary require 白名单 */
-export type FluidPrimary = 'name' | 'time' | 'room'
-export const FLUID_PRIMARY_OPTIONS: readonly FluidPrimary[] = ['name', 'time', 'room']
+export type FluidPrimary = 'name' | 'time' | 'room' | 'countdown'
+export const FLUID_PRIMARY_OPTIONS: readonly FluidPrimary[] = ['name', 'time', 'room', 'countdown']
 
 /** 提前分钟数量程 — LaunchedEffect coerceIn(1, 999) */
 export const MINUTES_MIN = 1
@@ -255,5 +255,6 @@ export function visiblePreviewKeys(p: ReminderPrefs): string[] {
 export function fluidPrimaryLabelKey(primary: string): string {
   if (primary === 'name') return 'reminder_fluid_field_name'
   if (primary === 'time') return 'reminder_fluid_field_time'
+  if (primary === 'countdown') return 'reminder_fluid_field_countdown'
   return 'reminder_fluid_field_room'
 }

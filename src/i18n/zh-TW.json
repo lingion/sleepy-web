@@ -491,6 +491,7 @@
   "reminder_daily_title": "每日提醒",
   "reminder_fluid_field_name": "課程名稱",
   "reminder_fluid_field_room": "上課地點",
+  "reminder_fluid_field_countdown": "倒數計時",
   "reminder_fluid_field_teacher": "任課老師",
   "reminder_fluid_field_time": "上課時間",
   "reminder_fluid_fields": "膠囊主顯示內容",
@@ -776,6 +777,12 @@
   "holiday_transfer_orphan_hint": "對應的放假日已不存在（改年份或刪除假期段後殘留），可手動清除。",
   "holiday_transfer_clear": "清除",
   "appearance_period_header": "節次表頭",
+  "appearance_header_layout": "佈局",
+  "appearance_layout_legacy": "舊式表頭",
+  "appearance_layout_three_line": "三行表頭",
+  "appearance_header_preview": "即時預覽",
+  "appearance_header_show_x": "顯示「第 X 節」",
+  "appearance_header_hanging": "左右移動 {{v1}} 個開始時間寬度",
   "theme_new": "新增主題",
   "theme_custom_edit": "編輯主題"
 }

@@ -491,6 +491,7 @@
   "reminder_daily_title": "Recordatorio diario",
   "reminder_fluid_field_name": "Nombre del curso",
   "reminder_fluid_field_room": "Ubicación",
+  "reminder_fluid_field_countdown": "Cuenta atrás",
   "reminder_fluid_field_teacher": "Profesor",
   "reminder_fluid_field_time": "Hora",
   "reminder_fluid_fields": "Contenido principal de la cápsula",
@@ -776,6 +777,12 @@
   "holiday_transfer_orphan_hint": "El día festivo ya no existe (residuo tras cambiar de año o eliminar un tramo). Borra manualmente.",
   "holiday_transfer_clear": "Borrar",
   "appearance_period_header": "Encabezados de período",
+  "appearance_header_layout": "Diseño",
+  "appearance_layout_legacy": "Encabezado clásico",
+  "appearance_layout_three_line": "Encabezado de tres líneas",
+  "appearance_header_preview": "Vista previa en vivo",
+  "appearance_header_show_x": "Mostrar «Período X»",
+  "appearance_header_hanging": "Mover a izquierda/derecha {{v1}} anchos de hora de inicio",
   "theme_new": "Nuevo tema",
   "theme_custom_edit": "Editar tema"
 }

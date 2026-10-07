@@ -68,7 +68,10 @@ export function PeriodTablesPage({ onBack }: { onBack: () => void }) {
         id={state.id}
         unsavedNew={state.unsaved}
         onBack={handleEditBack}
-        onSaved={() => setState({ kind: 'list' })}
+        onSaved={() => {
+          back()
+          setState({ kind: 'list' })
+        }}
       />
     )
   }
@@ -106,6 +109,7 @@ function PeriodTablesList({
   const { t } = useTranslation()
   return (
     <SettingsScaffold title={t('period_tables_title')} onBack={onBack} gap={10}>
+      <div style={{ height: 2 }} />
       {/* 每行独立 surfaceContainer extraLarge(28) 卡, spacedBy(10) — Android LazyColumn 同款 */}
       {periodTables.map((pt) => {
         const bound = tables.filter((tb) => tb.periodTableId === pt.id).length
