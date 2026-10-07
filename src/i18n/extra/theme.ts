@@ -30,6 +30,7 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
     theme_role_surface_desc: '背景与卡片的底色倾向',
     theme_editor_delete_confirm: '删除这个自定义主题?',
     theme_editor_delete_confirm_body: '删除后使用该主题的页面与小组件将回落到默认主题「淡紫」。',
+    theme_system_desc_web: '跟随浏览器系统明暗模式，使用 Web 默认色板',
   },
   'zh-TW': {
     custom_theme_editor_title: '自訂主題',
@@ -54,6 +55,7 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
     theme_role_surface_desc: '背景與卡片的底色傾向',
     theme_editor_delete_confirm: '刪除這個自訂主題?',
     theme_editor_delete_confirm_body: '刪除後使用該主題的頁面與小工具將回落到預設主題「淡紫」。',
+    theme_system_desc_web: '跟隨瀏覽器系統明暗模式，使用 Web 預設色板',
   },
   en: {
     custom_theme_editor_title: 'Custom Theme',
@@ -78,6 +80,7 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
     theme_role_surface_desc: 'Tint of backgrounds and cards',
     theme_editor_delete_confirm: 'Delete this custom theme?',
     theme_editor_delete_confirm_body: 'Pages and widgets using it will fall back to the default theme.',
+    theme_system_desc_web: 'Follows the browser light/dark setting with the Web default palette',
   },
   'en-GB': {
     custom_theme_editor_title: 'Custom Theme',
@@ -102,6 +105,7 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
     theme_role_surface_desc: 'Tint of backgrounds and cards',
     theme_editor_delete_confirm: 'Delete this custom theme?',
     theme_editor_delete_confirm_body: 'Pages and widgets using it will fall back to the default theme.',
+    theme_system_desc_web: 'Follows the browser light/dark setting with the Web default palette',
   },
   ja: {
     custom_theme_editor_title: 'カスタムテーマ',
@@ -126,6 +130,7 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
     theme_role_surface_desc: 'Tint of backgrounds and cards',
     theme_editor_delete_confirm: 'このカスタムテーマを削除しますか?',
     theme_editor_delete_confirm_body: 'このテーマを使用しているページとウィジェットはデフォルトテーマに戻ります。',
+    theme_system_desc_web: 'ブラウザーの明暗設定に従い、Web のデフォルト配色を使用します',
   },
   es: {
     custom_theme_editor_title: 'Tema personalizado',
@@ -150,5 +155,6 @@ export const themeExtra: Record<Lang, Record<string, string>> = {
     theme_role_surface_desc: 'Tinte de fondos y tarjetas',
     theme_editor_delete_confirm: '¿Eliminar este tema personalizado?',
     theme_editor_delete_confirm_body: 'Las páginas y widgets que lo usen volverán al tema predeterminado.',
+    theme_system_desc_web: 'Sigue la configuración clara u oscura del navegador con la paleta predeterminada de la Web',
   },
 }

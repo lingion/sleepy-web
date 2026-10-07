@@ -100,9 +100,16 @@ describe('语言折叠卡 (Android 2026-09-21: 折叠头只显当前语言值 1:
     expect(screen.queryByText('English')).toBeNull()
     await usePrefsStore.getState().update({ lang: 'zh-CN' })
   })
-})
+  it('shows widget-only behavior and marks widget/high-refresh browser limitations', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByText('小组件设置'))
+    expect(screen.getByText(/Web 不提供 Android 桌面小组件/)).toBeTruthy()
+    expect(screen.getByText(/课程配色和分隔线设置仅为迁移保留/)).toBeTruthy()
+    expect(screen.getByText(/最近有课日设置仍会影响/)).toBeTruthy()
+    fireEvent.click(screen.getByText('高刷新率'))
+    expect(screen.getByText(/浏览器刷新率由设备和系统控制/)).toBeTruthy()
+  })
 
-describe('课表显示组 (GeneralSettingsScreen.kt 1:1)', () => {
   it('显示星期: 行名取 @day_names, 不允许全部取消', async () => {
     await usePrefsStore.getState().update({ visibleDays: [1] })
     renderPage()
@@ -110,8 +117,13 @@ describe('课表显示组 (GeneralSettingsScreen.kt 1:1)', () => {
     expect(screen.getByText('周一')).toBeTruthy()
     expect(screen.getByText('周日')).toBeTruthy()
     fireEvent.click(screen.getByText('周一'))
-    fireEvent.click(screen.getByText('周三'))
-    await waitFor(() => expect(usePrefsStore.getState().prefs.visibleDays).toEqual([1, 3]))
+    await waitFor(() => expect(usePrefsStore.getState().prefs.visibleDays).toEqual([1]))
+    fireEvent.click(screen.getByText('周日'))
+    await waitFor(() => expect(usePrefsStore.getState().prefs.visibleDays).toEqual([1, 7]))
+    fireEvent.click(screen.getByText('周一'))
+    await waitFor(() => expect(usePrefsStore.getState().prefs.visibleDays).toEqual([7]))
+    fireEvent.click(screen.getByText('周日'))
+    await waitFor(() => expect(usePrefsStore.getState().prefs.visibleDays).toEqual([7]))
   })
 
   it('两栏开 → 分栏标准两行单选 (DisplayModeOption)', async () => {

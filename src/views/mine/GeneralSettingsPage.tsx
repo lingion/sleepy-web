@@ -15,7 +15,7 @@ import { TimePickerField } from '../../components/DateTimePickers'
 import type { Prefs } from '../../data/types'
 import { exportBackup, importBackup, backupFileName, EXPORTABLE_MODULES } from '../../domain/migration/backupExecutor'
 import {
-  SettingsScaffold, SectionHeader, FlatCard, ToggleRow, HDiv, Switch, SettingsCard, DisplayModeOption, ExpandVisibility,
+  SettingsScaffold, SectionHeader, FlatCard, ToggleRow, HDiv, Switch, SettingsCard, DisplayModeOption, ExpandVisibility, onActivateKey,
 } from './shared'
 
 const EXPANDED_KEY = 'sleepy_gss_expanded'
@@ -216,12 +216,21 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
           return (
             <div key={day}>
               <div
-                onClick={() => setVisibleDay(day, !checked)}
+                role="button"
+                tabIndex={0}
+                aria-pressed={checked}
+                data-settings-card-action
+                onClick={(event) => {
+                  if (!(event.target instanceof Element) || !event.target.closest('button')) setVisibleDay(day, !checked)
+                }}
+                onKeyDown={(event) => {
+                  if (event.target === event.currentTarget) onActivateKey(event, () => setVisibleDay(day, !checked))
+                }}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 4px', cursor: 'pointer' }}
               >
                 <span className="m3-body-large" style={{ color: 'var(--md-on-surface)' }}>{dayNames[day - 1] ?? ''}</span>
-                {/* 点击冒泡到行 → 行内统一取反, 开关自身不重复写 */}
-                <Switch checked={checked} onChange={() => {}} />
+                {/* Switch 用受控 onChange, 点击不冒泡触发外层行二次取反 */}
+                <Switch checked={checked} onChange={(on) => setVisibleDay(day, on)} />
               </div>
               {day !== 7 && <HDiv />}
             </div>
@@ -249,6 +258,7 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
       <SectionHeader title={t('appearance_section_widget')} />
 
       <SettingsCard title={t('settings_widget')} expanded={expanded.has('widget')} onToggle={() => toggleSection('widget')}>
+        <div className="m3-body-small" style={{ paddingBottom: 8, color: 'var(--md-on-surface-variant)' }}>{t('web_widget_settings_unavailable')}</div>
         <ToggleRow
           label={t('settings_widget_colorless')}
           subtitle={t('settings_widget_colorless_sub')}
@@ -285,9 +295,10 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
         onSelect={(i) => void update({ startView: i === 0 ? 'full' : 'cards' })}
       />
 
-      {/* web no-op: 浏览器刷新率由系统/显示器控制, 无等价 API — 保留 1:1 形态 */}
+      {/* Browser refresh rate is controlled by the device/OS; the saved value is for preference migration only. */}
       <SingleToggleCard
         title={t('settings_high_refresh')}
+        subtitle={t('web_high_refresh_unavailable')}
         checked={prefs.highRefresh}
         onChange={(v) => void update({ highRefresh: v })}
       />
@@ -453,6 +464,7 @@ function LanguageCard({ lang, onChange }: { lang: Prefs['lang']; onChange: (code
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
+        data-settings-card-action
         onClick={() => setExpanded(!expanded)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -492,10 +504,13 @@ function LanguageCard({ lang, onChange }: { lang: Prefs['lang']; onChange: (code
 }
 
 /** 单行开关卡 — Switch heightIn(max=32) 锁回本体高, 与折叠卡收起态等高 */
-function SingleToggleCard({ title, checked, onChange }: { title: string; checked: boolean; onChange: (v: boolean) => void }) {
+function SingleToggleCard({ title, subtitle, checked, onChange }: { title: string; subtitle?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 16, background: 'var(--md-surface-container)' }}>
-      <span className="m3-title-small" style={{ flex: 1, minWidth: 0, fontWeight: 600, color: 'var(--md-on-surface)' }}>{title}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="m3-title-small" style={{ fontWeight: 600, color: 'var(--md-on-surface)' }}>{title}</div>
+        {subtitle && <div className="m3-body-small" style={{ marginTop: 2, color: 'var(--md-on-surface-variant)' }}>{subtitle}</div>}
+      </div>
       <Switch checked={checked} onChange={onChange} compact />
     </div>
   )

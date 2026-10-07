@@ -4,7 +4,7 @@
  * 仅呈现 (ExpandVisibility 只持有动画态); 各页通过 props 传入数据与回调。
  */
 
-import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowBack, IconCheck, IconExpandMore } from '../../components/icons'
 import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
@@ -56,18 +56,23 @@ export function onActivateKey(e: KeyboardEvent, action: () => void) {
 /**
  * SettingsCard 折叠卡 — r16 surfaceContainer, 内边距 16, 整卡可点切换; 标题 titleSmall SemiBold onSurface
  * + ExpandMore 20 onSurfaceVariant 随展开转 180°; 内容 AnimatedVisibility, 与标题行间距 4 + Spacer 4。
- * 平台差异: Android 内容区未被子项消费的点击也会收起卡片, web 内容区点击不冒泡到卡片。
+ * 平台差异: Android 内容区未被子项消费的点击也会收起卡片; web 静态内容同样冒泡, 交互控件自身点击不触发卡片。
  */
 export function SettingsCard({ title, expanded, onToggle, children }: { title: string; expanded: boolean; onToggle: () => void; children: ReactNode }) {
   return (
     <div
-      onClick={onToggle}
+      onClick={(event) => {
+        const target = event.target
+        if (target instanceof Element && target.closest('a, button, input, select, textarea, [role="button"], [role="switch"], [role="radio"], [role="checkbox"], [data-settings-card-action]')) return
+        onToggle()
+      }}
       style={{ padding: 16, borderRadius: 16, background: 'var(--md-surface-container)', color: 'var(--md-on-surface)', cursor: 'pointer' }}
     >
       <div
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
+        onClick={onToggle}
         onKeyDown={(e) => onActivateKey(e, onToggle)}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
       >
@@ -82,7 +87,7 @@ export function SettingsCard({ title, expanded, onToggle, children }: { title: s
         </span>
       </div>
       <ExpandVisibility visible={expanded}>
-        <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', paddingTop: 8, cursor: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', paddingTop: 8, cursor: 'auto' }}>
           {children}
         </div>
       </ExpandVisibility>
@@ -196,7 +201,7 @@ export function FlatCard({
 }
 
 export function SliderRow({
-  label, value, min, max, step, formatValue, onChange, onCommit,
+  label, value, min, max, step, formatValue, formatLabel, ariaLabel, onChange, onCommit, showValue = true, labelColor = 'var(--md-on-surface)',
 }: {
   label: string
   value: number
@@ -204,32 +209,38 @@ export function SliderRow({
   max: number
   step: number
   formatValue?: (value: number) => string
-  onChange: (value: number) => void
+  formatLabel?: (value: number) => string
+  ariaLabel?: string
+  onChange?: (value: number) => void
   onCommit?: (value: number) => void
+  showValue?: boolean
+  labelColor?: string
 }) {
   const [draft, setDraft] = useState(value)
   useLayoutEffect(() => setDraft(value), [value])
   const commit = (next: number) => {
     setDraft(next)
-    onChange(next)
     onCommit?.(next)
   }
+  const displayValue = formatValue ? formatValue(draft) : draft
+  const displayLabel = formatLabel ? formatLabel(draft) : showValue ? `${label}  ${displayValue}` : label
+  const progress = max === min ? 0 : ((draft - min) / (max - min)) * 100
   return (
-    <label style={{ display: 'block', padding: '8px 4px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-        <span className="m3-body-large">{label}</span>
-        <span className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>{formatValue ? formatValue(draft) : draft}</span>
-      </div>
+    <label style={{ display: 'block' }}>
+      <div className="m3-body-medium" style={{ color: labelColor }}>{displayLabel}</div>
       <input
+        className="m3-slider"
         type="range"
         min={min}
         max={max}
         step={step}
         value={draft}
+        aria-label={ariaLabel ?? label}
+        aria-valuetext={String(formatValue ? formatValue(draft) : displayValue)}
         onChange={(event) => {
           const next = Number(event.currentTarget.value)
           setDraft(next)
-          onChange(next)
+          onChange?.(next)
         }}
         onPointerUp={(event) => commit(Number(event.currentTarget.value))}
         onKeyUp={(event) => {
@@ -237,10 +248,7 @@ export function SliderRow({
             commit(Number(event.currentTarget.value))
           }
         }}
-        style={{
-          width: '100%', height: 40, margin: 0, accentColor: 'var(--md-primary)',
-          cursor: 'pointer',
-        }}
+        style={{ '--slider-progress': `${progress}%` } as CSSProperties}
       />
     </label>
   )

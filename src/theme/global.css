@@ -135,6 +135,68 @@ body {
   background: var(--md-surface-container);
 }
 
+/* Compose Material 3 Slider (range input fallback): 4dp track, primary active segment,
+   secondary-container inactive segment, 20dp thumb and 48dp interaction area. */
+.m3-slider {
+  display: block;
+  width: 100%;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-x;
+}
+.m3-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--md-primary) 0%,
+    var(--md-primary) var(--slider-progress),
+    var(--md-secondary-container) var(--slider-progress),
+    var(--md-secondary-container) 100%
+  );
+}
+.m3-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--md-secondary-container);
+}
+.m3-slider::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--md-primary);
+}
+.m3-slider::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--md-primary);
+  box-shadow: 0 0 0 4px var(--md-surface-container);
+}
+.m3-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--md-primary);
+  box-shadow: 0 0 0 4px var(--md-surface-container);
+}
+.m3-slider:focus-visible {
+  outline: none;
+}
+.m3-slider:focus-visible::-webkit-slider-thumb,
+.m3-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--md-primary) 16%, transparent);
+}
+
 /* 滚动条弱化 */
 ::-webkit-scrollbar {
   width: 6px;

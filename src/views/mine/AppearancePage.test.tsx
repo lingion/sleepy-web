@@ -99,12 +99,22 @@ describe('外观深浅 + 节次表头', () => {
     render(<AppearancePage onBack={() => {}} />)
     const cur = usePrefsStore.getState().prefs.themeMode
     expect(cur).toBe('system')
-    const dark = screen.getByText('深色')
+    const dark = screen.getByRole('button', { name: '深色' })
     fireEvent.click(dark)
     await waitFor(() => expect(usePrefsStore.getState().prefs.themeMode).toBe('dark'))
+    const container = dark.parentElement as HTMLElement
+    expect(container.style.padding).toBe('4px')
+    expect(dark.style.height).toBe('44px')
     expect(dark.getAttribute('aria-pressed')).toBe('true')
   })
 
+  it('跟随系统说明 Web 能力且不宣称 Android 动态取色', () => {
+    render(<AppearancePage onBack={() => {}} />)
+    const description = screen.getByText('跟随浏览器系统明暗模式，使用 Web 默认色板')
+    expect(description).toBeTruthy()
+    expect(description.textContent).not.toContain('Material You')
+    expect(description.textContent).not.toContain('Android')
+  })
   it('节次表头: 段头 + 同名导航行, 点击进入', () => {
     const onOpen = vi.fn()
     render(<AppearancePage onBack={() => {}} onOpenPeriodHeader={onOpen} />)

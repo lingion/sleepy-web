@@ -101,25 +101,25 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader }
             if (mode !== prefs.themeMode) void update({ themeMode: mode })
           }
           return (
-            <div
+            <button
               key={mode}
-              role="button"
-              tabIndex={0}
+              type="button"
+              aria-label={label}
               aria-pressed={sel}
               onClick={select}
-              onKeyDown={(e) => onActivateKey(e, select)}
               className="m3-label-large"
               style={{
-                flex: 1, minWidth: 0, padding: '12px 0', borderRadius: 12,
+                flex: 1, minWidth: 0, height: 44, padding: 0, border: 'none', borderRadius: 12,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
                 background: sel ? 'var(--md-primary)' : 'var(--md-surface-container-high)',
                 color: sel ? 'var(--md-on-primary)' : 'var(--md-on-surface-variant)',
+                fontFamily: 'inherit',
                 fontWeight: sel ? 600 : 500,
                 cursor: 'pointer',
               }}
             >
               {label}
-            </div>
+            </button>
           )
         })}
       </div>
@@ -172,7 +172,7 @@ function SystemThemeCard({ selected, onClick }: { selected: boolean; onClick: ()
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="m3-title-medium" style={{ color: 'var(--md-on-surface)' }}>{t('theme_system')}</div>
           <div style={{ height: 2 }} />
-          <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('theme_system_desc')}</div>
+          <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('theme_system_desc_web')}</div>
         </div>
         {selected && <CheckIcon size={24} label={t('selected')} />}
       </div>
