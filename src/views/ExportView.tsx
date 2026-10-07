@@ -177,7 +177,6 @@ export function ExportView({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={() => setPickerOpen(true)}
-        className="m3-card"
         style={{
           background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)',
           borderRadius: 16,
@@ -207,7 +206,6 @@ export function ExportView({ onBack }: { onBack: () => void }) {
       {/* 格式选项 — 选中作息表只剩原生+JSON 两项 (ExportScreen.kt:191-194 用户 2026-09-16);
           选中课表完整四项 */}
       <div
-        className="m3-card"
         style={{ padding: 0, overflow: 'hidden', borderRadius: 16, background: 'var(--md-surface-container)' }}
       >
         {selectedPeriodTable != null ? (
@@ -637,8 +635,7 @@ function Picker({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="m3-card"
-        style={{ width: '100%', maxWidth: 480, borderRadius: '16px 16px 0 0', padding: 16 }}
+        style={{ width: '100%', maxWidth: 480, borderRadius: '16px 16px 0 0', padding: 16, background: 'var(--md-surface)', color: 'var(--md-on-surface)' }}
       >
         <div style={{ fontSize: 16, lineHeight: '24px', fontWeight: 500, color: 'var(--md-on-surface)', marginBottom: 12 }}>
           {t('export_pick_table', '选择要导出的课表')}

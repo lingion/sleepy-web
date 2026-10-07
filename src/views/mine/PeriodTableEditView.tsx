@@ -34,7 +34,9 @@ import { SettingsScaffold } from './shared'
 import {
   IconCheck, IconContentCopy, IconDelete, IconShare,
 } from '../../components/icons'
+import { AlertDialog } from '../../components/AlertDialog'
 import { DialogActionButtons } from '../../components/DialogActionButtons'
+import { FilledTextField } from '../../components/FilledTextField'
 import {
   exportPeriodTableShareText, exportPeriodTableJson,
 } from '../../domain/import/sleepyNativeExporter'
@@ -164,23 +166,17 @@ export function PeriodTableEditView({
   }
 
   return (
-    <SettingsScaffold title={t('period_tables_title')} onBack={handleBack}>
+    <SettingsScaffold title={t('period_tables_title')} onBack={handleBack} gap={14}>
       <TopBar
         onShare={() => setShowShareSheet(true)}
         onCopy={handleCopy}
       />
       {/* 名称 */}
-      <div className="m3-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
-          {t('period_table_name_label')}
-        </span>
-        <input
+      <div style={{ padding: 16, borderRadius: 28, background: 'var(--md-surface-container)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <FilledTextField
+          label={t('period_table_name_label')}
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{
-            background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)',
-            border: '1px solid var(--md-outline)', borderRadius: 8, padding: '8px 10px', fontSize: 14,
-          }}
+          onChange={setName}
         />
       </div>
       {/* 节次时间表 — Android PeriodTableEditScreen.kt:116 禁作息表间取入, 无第三 Tab */}
@@ -265,17 +261,11 @@ export function PeriodTableEditView({
         <ConfirmDialog
           title={t('period_table_copy_dialog_title')}
           body={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <input
-                value={copyName}
-                onChange={(e) => setCopyName(e.target.value)}
-                autoFocus
-                style={{
-                  background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)',
-                  border: '1px solid var(--md-outline)', borderRadius: 8, padding: '8px 10px', fontSize: 14,
-                }}
-              />
-            </div>
+            <FilledTextField
+              label={t('period_table_name_label')}
+              value={copyName}
+              onChange={setCopyName}
+            />
           }
           confirmText={t('ok')}
           confirmDisabled={copyName.trim() === ''}
@@ -332,38 +322,25 @@ function PreviewConfirmDialog({
 }) {
   const { t } = useTranslation()
   return (
-    <div
-      onClick={onDismiss}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-      }}
-    >
-      <div
-        role="dialog" aria-modal="true" className="m3-card"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 10, padding: 20, maxHeight: '80vh', overflow: 'auto' }}
-      >
-        <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('period_table_save_preview_title')}</h2>
-        <p className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>
-          {t('period_table_preview_summary', { v1: boundCount, v2: changedCourses.length, v3: unchangedCount })}
-        </p>
-        {changedCourses.slice(0, 8).map((ch, i) => {
-          const tag = ch.changedNodes.length === 1
-            ? t('course_node_format', { v1: String(ch.changedNodes[0]) })
-            : `${ch.changedNodes[0]}-${ch.changedNodes[ch.changedNodes.length - 1]}`
-          return (
-            <div key={i} className="m3-body-small" style={{ color: 'var(--md-on-surface)' }}>
-              {ch.courseName}({tag}): {ch.oldTime ?? '?'} → {ch.newTime ?? '?'}
+      <AlertDialog title={t('period_table_save_preview_title')} onDismiss={onDismiss}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div>{t('period_table_preview_summary', { v1: boundCount, v2: changedCourses.length, v3: unchangedCount })}</div>
+          {changedCourses.slice(0, 8).map((ch, i) => {
+            const tag = ch.changedNodes.length === 1
+              ? t('course_node_format', { v1: String(ch.changedNodes[0]) })
+              : `${ch.changedNodes[0]}-${ch.changedNodes[ch.changedNodes.length - 1]}`
+            return (
+              <div key={i} className="m3-body-small" style={{ color: 'var(--md-on-surface)' }}>
+                {ch.courseName}({tag}): {ch.oldTime ?? '?'} → {ch.newTime ?? '?'}
+              </div>
+            )
+          })}
+          {changedCourses.length > 8 && (
+            <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+              {t('period_table_preview_more', { v1: changedCourses.length - 8 })}
             </div>
-          )
-        })}
-        {changedCourses.length > 8 && (
-          <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
-            {t('period_table_preview_more', { v1: changedCourses.length - 8 })}
-          </div>
-        )}
-        <div style={{ marginTop: 4 }}>
+          )}
+          <div style={{ height: 12 }} />
           <DialogActionButtons
             confirmText={t('period_table_preview_confirm')}
             onConfirm={onConfirm}
@@ -371,8 +348,7 @@ function PreviewConfirmDialog({
             onDismiss={onDismiss}
           />
         </div>
-      </div>
-    </div>
+      </AlertDialog>
   )
 }
 
@@ -392,19 +368,8 @@ function ConfirmDialog({
   const { t } = useTranslation()
   const dis = dismissText === null ? null : (dismissText ?? t('cancel'))
   return (
-    <div
-      onClick={onDismiss}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-      }}
-    >
-      <div
-        role="dialog" aria-modal="true" className="m3-card"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
-      >
-        <h2 className="m3-title-medium" style={{ margin: 0 }}>{title}</h2>
+    <AlertDialog title={title} onDismiss={onDismiss}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {body}
         <DialogActionButtons
           confirmText={confirmText}
@@ -414,7 +379,7 @@ function ConfirmDialog({
           confirmEnabled={confirmDisabled !== true}
         />
       </div>
-    </div>
+    </AlertDialog>
   )
 }
 
@@ -429,9 +394,9 @@ function ShareSheet({ onSelect, onDismiss }: { onSelect: (kind: 'native' | 'json
       }}
     >
       <div
-        role="dialog" aria-modal="true" className="m3-card"
+        role="dialog" aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 480, width: '100%', display: 'flex', flexDirection: 'column', gap: 8, padding: 12, marginBottom: 16 }}
+        style={{ maxWidth: 480, width: '100%', display: 'flex', flexDirection: 'column', gap: 8, padding: 12, marginBottom: 16, borderRadius: 28, background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)' }}
       >
         <h3 className="m3-title-medium" style={{ margin: '4px 8px' }}>{t('period_table_share_sheet_title')}</h3>
         <button

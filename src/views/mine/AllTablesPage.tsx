@@ -57,9 +57,8 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
             onClick={() => {
               if (!isCurrent) void setDefault(tb.id)
             }}
-            className="m3-card"
             style={{
-              display: 'flex', alignItems: 'center', gap: 12, padding: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 12, padding: 14, cursor: 'pointer', borderRadius: 16,
               background: isCurrent ? 'var(--md-primary-container)' : 'var(--md-surface-container)',
             }}
           >
@@ -69,12 +68,12 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
               <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--md-outline-variant)', flexShrink: 0 }} />
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="m3-title-small" style={{ fontWeight: 600 }}>{tb.name}</div>
-              <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+              <div className="m3-title-small" style={{ fontWeight: 600, color: isCurrent ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)' }}>{tb.name}</div>
+              <div className="m3-body-small" style={{ color: isCurrent ? 'color-mix(in srgb, var(--md-on-primary-container) 70%, transparent)' : 'var(--md-on-surface-variant)' }}>
                 {isCurrent ? formatWeekLine(tb) : startDateLine(tb)}
               </div>
               {tb.createdAt > 0 && (
-                <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
+                <div className="m3-body-small" style={{ color: isCurrent ? 'color-mix(in srgb, var(--md-on-primary-container) 70%, transparent)' : 'var(--md-on-surface-variant)' }}>
                   {formatCreatedAt(tb.createdAt)}
                 </div>
               )}
@@ -101,10 +100,9 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
           // 待保存新建 (MainActivity:311-317): 建空表不切选中 → EditTable, 不保存返回即丢弃
           void beginNewTable().then((id) => { push('editTable'); setEditingId(id) })
         }}
-        className="m3-card"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          padding: 14, cursor: 'pointer', border: 'none', width: '100%',
+          height: 48, borderRadius: 16, cursor: 'pointer', border: 'none', width: '100%',
           background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
         }}
       >

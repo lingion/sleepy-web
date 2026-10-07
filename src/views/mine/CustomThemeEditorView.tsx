@@ -10,6 +10,10 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AlertDialog } from '../../components/AlertDialog'
+import { DialogActionButtons } from '../../components/DialogActionButtons'
+import { FilledTextField } from '../../components/FilledTextField'
+import { IconAutoAwesome, IconDelete, IconPalette, IconTune } from '../../components/icons'
 import { SettingsScaffold } from './shared'
 import { usePrefsStore } from '../../state/prefsStore'
 import {
@@ -131,7 +135,7 @@ export function CustomThemeEditorView({
   }
 
   return (
-    <SettingsScaffold title={editing ? t('theme_custom_edit') : t('theme_new')} onBack={onBack}>
+    <SettingsScaffold title={editing ? t('theme_custom_edit') : t('theme_new')} onBack={onBack} gap={12}>
       {/* 隐藏取色器 — 原生 color input 承接四角色 + 主色生成整套 */}
       <input
         ref={colorInputRef}
@@ -142,16 +146,10 @@ export function CustomThemeEditorView({
       />
 
       {/* ── 命名 ── */}
-      <input
+      <FilledTextField
+        label={t('theme_custom_name_label')}
         value={draft.name}
-        onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-        placeholder={t('theme_custom_name_label')}
-        aria-label={t('theme_custom_name_label')}
-        style={{
-          width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 12,
-          border: 'none', background: 'var(--md-surface-container)', color: 'var(--md-on-surface)',
-          font: 'inherit', outline: 'none',
-        }}
+        onChange={(name) => setDraft((d) => ({ ...d, name }))}
       />
 
       {/* ── 实时预览: 迷你课表样例(顶栏条 + 胶囊 + 卡片), 用草稿派生 scheme 渲染 ── */}
@@ -159,9 +157,9 @@ export function CustomThemeEditorView({
       <DraftPreview scheme={scheme} />
 
       {/* ── 三动作区 ── */}
-      <ActionEntry icon="✦" title={t('theme_editor_random')} desc={t('theme_editor_random_desc')} onClick={randomDraft} />
-      <ActionEntry icon="◐" title={t('theme_editor_from_seed')} desc={t('theme_editor_from_seed_desc')} onClick={() => openPicker(ROLE_SEED_PRIMARY)} />
-      <ActionEntry icon="⚙" title={t('theme_editor_manual')} desc={t('theme_editor_manual_desc')} onClick={() => setManualExpanded((v) => !v)} />
+      <ActionEntry icon={<IconAutoAwesome size={24} />} title={t('theme_editor_random')} desc={t('theme_editor_random_desc')} onClick={randomDraft} />
+      <ActionEntry icon={<IconPalette size={24} />} title={t('theme_editor_from_seed')} desc={t('theme_editor_from_seed_desc')} onClick={() => openPicker(ROLE_SEED_PRIMARY)} />
+      <ActionEntry icon={<IconTune size={24} />} title={t('theme_editor_manual')} desc={t('theme_editor_manual_desc')} onClick={() => setManualExpanded((v) => !v)} />
 
       {/* ── 逐角色手选(展开后四个角色行) ── */}
       {manualExpanded && (
@@ -177,8 +175,9 @@ export function CustomThemeEditorView({
       <button
         onClick={onSave}
         style={{
-          width: '100%', padding: '16px 0', borderRadius: 24, border: 'none', cursor: 'pointer',
+          width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
           background: 'var(--md-primary)', color: 'var(--md-on-primary)', font: 'inherit', fontWeight: 600, fontSize: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
         {t('save')}
@@ -189,59 +188,48 @@ export function CustomThemeEditorView({
         <button
           onClick={() => setShowDeleteConfirm(true)}
           style={{
-            width: '100%', padding: '12px 0', borderRadius: 20, border: 'none', cursor: 'pointer',
+            width: '100%', height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
             background: 'var(--md-error-container)', color: 'var(--md-on-error-container)', font: 'inherit', fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
         >
-          🗑 {t('delete')}
+          <IconDelete size={18} /> {t('delete')}
         </button>
       )}
 
       {/* ── 删除确认 ── */}
       {showDeleteConfirm && (
-        <div
-          onClick={() => setShowDeleteConfirm(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.4)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'var(--md-surface-container-high)', borderRadius: 24, padding: 24,
-              maxWidth: 320, width: '100%',
-            }}
-          >
-            <div className="m3-title-medium" style={{ color: 'var(--md-on-surface)' }}>{t('theme_editor_delete_confirm')}</div>
-            <div className="m3-body-medium" style={{ marginTop: 8, color: 'var(--md-on-surface-variant)' }}>{t('theme_editor_delete_confirm_body')}</div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
-              <button onClick={() => setShowDeleteConfirm(false)} style={dialogBtn('var(--md-primary)')}>{t('cancel')}</button>
-              <button onClick={onDelete} style={dialogBtn('var(--md-error)')}>{t('delete')}</button>
-            </div>
+        <AlertDialog title={t('theme_editor_delete_confirm')} onDismiss={() => setShowDeleteConfirm(false)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>{t('theme_editor_delete_confirm_body')}</div>
+            <DialogActionButtons
+              confirmText={t('delete')}
+              destructive
+              onConfirm={onDelete}
+              dismissText={t('cancel')}
+              onDismiss={() => setShowDeleteConfirm(false)}
+            />
           </div>
-        </div>
+        </AlertDialog>
       )}
     </SettingsScaffold>
   )
 }
 
-function dialogBtn(color: string): React.CSSProperties {
-  return { background: 'none', border: 'none', color, font: 'inherit', fontWeight: 600, fontSize: 15, padding: '8px 12px', cursor: 'pointer' }
-}
-
 /** 动作入口卡 — 图标 + 标题 + 说明, 整卡可点 (ActionEntry 同构) */
-function ActionEntry({ icon, title, desc, onClick }: { icon: string; title: string; desc: string; onClick: () => void }) {
+function ActionEntry({ icon, title, desc, onClick }: { icon: JSX.Element; title: string; desc: string; onClick: () => void }) {
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className="m3-card"
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       style={{
         borderRadius: 16, background: 'var(--md-surface-container)',
         display: 'flex', alignItems: 'center', gap: 12, padding: 16, cursor: 'pointer',
       }}
     >
-      <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: 'var(--md-primary)', flexShrink: 0 }}>{icon}</div>
+      <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--md-primary)', flexShrink: 0 }}>{icon}</div>
       <div style={{ flex: 1 }}>
         <div className="m3-title-small" style={{ color: 'var(--md-on-surface)' }}>{title}</div>
         <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{desc}</div>
@@ -254,7 +242,10 @@ function ActionEntry({ icon, title, desc, onClick }: { icon: string; title: stri
 function RoleRow({ title, desc, swatch, onClick }: { title: string; desc: string; swatch: string; onClick: () => void }) {
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       style={{
         display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
         borderRadius: 12, background: 'var(--md-surface-container)', cursor: 'pointer',

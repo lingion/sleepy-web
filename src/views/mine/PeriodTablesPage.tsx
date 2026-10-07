@@ -15,7 +15,9 @@ import {
 } from '../../data/repository'
 import { DEFAULT_TIME_JSON } from '../../domain/timeTable'
 import { SettingsScaffold } from './shared'
+import { AlertDialog } from '../../components/AlertDialog'
 import { DialogActionButtons } from '../../components/DialogActionButtons'
+import { FilledTextField } from '../../components/FilledTextField'
 import {
   IconAdd, IconContentCopy, IconEdit,
 } from '../../components/icons'
@@ -103,7 +105,7 @@ function PeriodTablesList({
 }) {
   const { t } = useTranslation()
   return (
-    <SettingsScaffold title={t('period_tables_title')} onBack={onBack}>
+    <SettingsScaffold title={t('period_tables_title')} onBack={onBack} gap={10}>
       {/* 每行独立 surfaceContainer extraLarge(28) 卡, spacedBy(10) — Android LazyColumn 同款 */}
       {periodTables.map((pt) => {
         const bound = tables.filter((tb) => tb.periodTableId === pt.id).length
@@ -183,44 +185,16 @@ function CopyDialog({
   const candidate = localName.trim()
   const nameTaken = candidate !== '' && isTableNameTaken(candidate, courseNames, periodNames)
   return (
-    <div
-      onClick={onBack}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-      }}
-    >
-      <div
-        role="dialog" aria-modal="true" className="m3-card"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
-      >
-        <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('period_table_copy_dialog_title')}</h2>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
-            {t('period_table_name_label')}
-          </span>
-          <input
-            value={localName}
-            onChange={(e) => setLocalName(e.target.value)}
-            autoFocus
-            style={{
-              background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)',
-              border: `1px solid ${nameTaken ? 'var(--md-error)' : 'var(--md-outline)'}`,
-              borderRadius: 8, padding: '8px 10px', fontSize: 14,
-            }}
-          />
-          {nameTaken && (
-            <span className="m3-body-small" style={{ color: 'var(--md-error)' }}>
-              {t('period_table_name_taken')}
-            </span>
-          )}
-        </label>
+    <AlertDialog title={t('period_table_copy_dialog_title')} onDismiss={onBack}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div>
+          <FilledTextField label={t('period_table_name_label')} value={localName} onChange={setLocalName} isError={nameTaken} />
+          {nameTaken && <div className="m3-body-small" style={{ color: 'var(--md-error)', padding: '4px 16px 0' }}>{t('period_table_name_taken')}</div>}
+        </div>
+        <div style={{ height: 12 }} />
         <DialogActionButtons
           confirmText={t('ok')}
           onConfirm={async () => {
-            // 二次查重在 copyPeriodTableAs 内; 命名弹窗确认才落库 (T8)
             const newId = await copyPeriodTableAs(source.id, candidate)
             if (newId > 0) onChange({ kind: 'list' })
           }}
@@ -229,7 +203,7 @@ function CopyDialog({
           confirmEnabled={candidate !== '' && !nameTaken}
         />
       </div>
-    </div>
+    </AlertDialog>
   )
 }
 

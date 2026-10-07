@@ -196,7 +196,7 @@ export function FlatCard({
 }
 
 export function SliderRow({
-  label, value, min, max, step, formatValue, onChange,
+  label, value, min, max, step, formatValue, onChange, onCommit,
 }: {
   label: string
   value: number
@@ -205,21 +205,42 @@ export function SliderRow({
   step: number
   formatValue?: (value: number) => string
   onChange: (value: number) => void
+  onCommit?: (value: number) => void
 }) {
+  const [draft, setDraft] = useState(value)
+  useLayoutEffect(() => setDraft(value), [value])
+  const commit = (next: number) => {
+    setDraft(next)
+    onChange(next)
+    onCommit?.(next)
+  }
   return (
     <label style={{ display: 'block', padding: '8px 4px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
         <span className="m3-body-large">{label}</span>
-        <span className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>{formatValue ? formatValue(value) : value}</span>
+        <span className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>{formatValue ? formatValue(draft) : draft}</span>
       </div>
       <input
         type="range"
         min={min}
         max={max}
         step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-        style={{ width: '100%', accentColor: 'var(--md-primary)' }}
+        value={draft}
+        onChange={(event) => {
+          const next = Number(event.currentTarget.value)
+          setDraft(next)
+          onChange(next)
+        }}
+        onPointerUp={(event) => commit(Number(event.currentTarget.value))}
+        onKeyUp={(event) => {
+          if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+            commit(Number(event.currentTarget.value))
+          }
+        }}
+        style={{
+          width: '100%', height: 40, margin: 0, accentColor: 'var(--md-primary)',
+          cursor: 'pointer',
+        }}
       />
     </label>
   )

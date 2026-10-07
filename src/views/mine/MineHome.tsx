@@ -72,7 +72,7 @@ export function MineHome({
       </p>
 
       {/* 统计卡 */}
-      <div className="m3-card" style={{ display: 'flex', padding: '18px 8px', justifyContent: 'space-evenly', alignItems: 'center' }}>
+      <div style={{ display: 'flex', padding: '18px 8px', justifyContent: 'space-evenly', alignItems: 'center', borderRadius: 16, background: 'var(--md-surface-container)' }}>
         {/* 可点统计格热区 — MineScreen.kt:189-199 clip(medium)+padding(h12,v4) */}
         <button type="button" onClick={onOpenAllTables} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit', padding: '4px 12px', borderRadius: 12 }}><StatItem value={String(tables.length)} label={t('mine_stat_tables')} /></button>
         <VDivider />
@@ -84,7 +84,7 @@ export function MineHome({
       <div style={{ height: 16 }} />
 
       {/* 设置入口列表 — SettingsItem 序列 1:1 (MineScreen.kt:115-125) */}
-      <div className="m3-card" style={{ padding: 0 }}>
+      <div style={{ padding: 0, borderRadius: 16, overflow: 'hidden', background: 'var(--md-surface-container)' }}>
         <SettingsItem icon={<IconEdit size={20} />} label={t('all_tables')} onClick={onOpenAllTables} />
         <HDiv inset={72} />
         {/* issue#40: 时间节次表入口 — 与课表管理并列 (MineScreen.kt:119 SettingsItem 同位) */}

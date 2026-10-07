@@ -61,7 +61,7 @@ export function TimeSlotSection({
   }, [mode, smartConfig])
 
   return (
-    <div className="m3-card" style={{ overflow: 'hidden' }}>
+    <div style={{ overflow: 'hidden', borderRadius: 28, background: 'var(--md-surface-container)' }}>
       <div
         role="button"
         tabIndex={0}

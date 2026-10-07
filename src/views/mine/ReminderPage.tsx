@@ -14,6 +14,8 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AlertDialog } from '../../components/AlertDialog'
+import { DialogActionButtons } from '../../components/DialogActionButtons'
 import { IconExpandMore, IconNotifications, IconSchedule, IconSchool } from '../../components/icons'
 import { SettingsScaffold, Switch } from './shared'
 import {
@@ -482,23 +484,8 @@ function TimePickerDialog({
 
   const valid = isHHmm(draft)
   return (
-    <div
-      className="m3-scrim-overlay"
-      onClick={onDismiss}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('reminder_pick_time')}
-        className="m3-card-shape-large"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: 320, width: '100%', display: 'flex', flexDirection: 'column', gap: 16, padding: 24,
-          background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)',
-        }}
-      >
-        <div className="m3-title-large">{t('reminder_pick_time')}</div>
+    <AlertDialog title={t('reminder_pick_time')} onDismiss={onDismiss}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input
           type="time"
           value={draft}
@@ -515,31 +502,15 @@ function TimePickerDialog({
             accentColor: 'var(--md-primary)',
           }}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <TextBtn onClick={onDismiss}>{t('action_cancel')}</TextBtn>
-          <TextBtn disabled={!valid} onClick={() => valid && onConfirm(draft)}>
-            {t('action_confirm')}
-          </TextBtn>
-        </div>
+        <div style={{ height: 12 }} />
+        <DialogActionButtons
+          confirmText={t('action_confirm')}
+          onConfirm={() => valid && onConfirm(draft)}
+          dismissText={t('action_cancel')}
+          onDismiss={onDismiss}
+          confirmEnabled={valid}
+        />
       </div>
-    </div>
-  )
-}
-
-/** TextButton — AlertDialog confirm/dismiss 位 (primary 文字, 禁用 38%) */
-function TextBtn({ disabled, onClick, children }: { disabled?: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        border: 'none', cursor: disabled ? 'default' : 'pointer', background: 'transparent',
-        color: 'var(--md-primary)', opacity: disabled ? 0.38 : 1,
-        fontSize: 14, fontWeight: 600, padding: '10px 16px', borderRadius: 12,
-      }}
-    >
-      {children}
-    </button>
+    </AlertDialog>
   )
 }

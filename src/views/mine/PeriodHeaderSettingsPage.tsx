@@ -22,11 +22,11 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
-  return <SettingsScaffold title={t('settings_period_header', '节次表头')} onBack={onBack}>
+  return <SettingsScaffold title={t('appearance_period_header')} onBack={onBack} gap={12}>
     <SectionHeader title={t('settings_period_header_preview', '预览')} />
     {/* 预览卡即样式选择器 (PeriodHeaderSettingsScreen.kt HeaderStylePreviews):
         选中 = primaryContainer 外卡 + onPrimaryContainer 标签 */}
-    <div className="m3-card" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: 12 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: 12, borderRadius: 12, background: 'var(--md-surface-container)' }}>
       {STYLES.map(([style, label]) => {
         const selected = prefs.periodHeaderStyle === style
         return (
