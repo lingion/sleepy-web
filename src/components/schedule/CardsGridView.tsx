@@ -75,9 +75,10 @@ export function CardsGridView(props: CardsGridViewProps) {
         autoHideEmptyEvening: prefs.gridAutoHideEmptyEvening,
         eveningStart: prefs.gridEveningStart,
         rowScale: prefs.gridPinchZoom ? prefs.gridRowScale : 1,
+        longBreakSpacing: prefs.gridLongBreakSpacing,
       },
     ),
-    [courses, timeJson, dayCount, containerWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale]
+    [courses, timeJson, dayCount, containerWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale, prefs.gridLongBreakSpacing]
   )
   const today = useMemo(() => new Date(), [])
   const updatePrefs = usePrefsStore((s) => s.update)
@@ -110,7 +111,7 @@ export function CardsGridView(props: CardsGridViewProps) {
     const inks = geo.slots
       .filter((s) => !s.isPlaceholder)
       .map((s) => estimateHeaderInk(periodHeaderLines(s, 'three_line', prefs.periodHeaderStyle, prefs.periodHeaderShowX)))
-    const cardW = 68 * prefs.gridScale
+    const cardW = geo.timeW
     const minRowH = geo.slots.length
       ? Math.min(...geo.slots.map((_, i) => rowHeightAt(geo.plan, i, geo.rowH) - geo.gapH))
       : 52 * prefs.gridScale
@@ -165,13 +166,14 @@ export function CardsGridView(props: CardsGridViewProps) {
 
         {/* 网格主体: 绝对定位 */}
         <div style={{ position: 'relative', height: geo.gridH }}>
+          {prefs.gridShowSeparators && <GridSeparators geo={geo} dayCount={dayCount} />}
           {/* 时间栏 */}
           {geo.slots.map((slot, i) => (
             <div
               key={`row-${i}`}
               style={{
                 position: 'absolute',
-                top: yOfRows(geo.plan, i, geo.rowH),
+                top: yOfRows(geo.plan, i, geo.rowH, geo.mealBreakAfterRows, geo.mealGapExtra),
                 height: rowHeightAt(geo.plan, i, geo.rowH) - geo.gapH,
                 left: 0,
                 right: 0,
@@ -182,6 +184,7 @@ export function CardsGridView(props: CardsGridViewProps) {
             >
               <SingleTimeHeadCell
                 slot={slot}
+                width={geo.timeW}
                 scale={prefs.gridScale}
                 cornerRatio={prefs.gridCornerRatio}
                 layout={prefs.periodHeaderLayout}
@@ -205,7 +208,7 @@ export function CardsGridView(props: CardsGridViewProps) {
                 ? timeToFractionalRows(anchor.startTime, anchor.endTime, geo.slots)
                 : null
             const anchorRow = anchorFrac ? anchorFrac[0] : Math.max(0, slotIndexOf(geo.slots, anchor.startNode))
-            const cardY = yOfRows(geo.plan, anchorRow, geo.rowH)
+            const cardY = yOfRows(geo.plan, anchorRow, geo.rowH, geo.mealBreakAfterRows, geo.mealGapExtra)
             const cardX = geo.timeW + geo.gapW + (geo.colW + geo.gapW) * dayIdx
             const key = conflictClusterKey(anchor)
             const laidOut = layoutCluster(
@@ -235,7 +238,7 @@ export function CardsGridView(props: CardsGridViewProps) {
                 containerWidth={geo.colW}
                 offsetY={cardY}
                 offsetX={cardX}
-                yOfRowsFn={(r) => yOfRows(geo.plan, r, geo.rowH)}
+                yOfRowsFn={(r) => yOfRows(geo.plan, r, geo.rowH, geo.mealBreakAfterRows, geo.mealGapExtra)}
               />
             )
           })}
@@ -277,10 +280,25 @@ export function CardsGridView(props: CardsGridViewProps) {
   )
 }
 
+function GridSeparators({ geo, dayCount }: { geo: ReturnType<typeof buildGridGeometry>; dayCount: number }) {
+  const vertical = Array.from({ length: dayCount + 1 }, (_, index) => geo.timeW + geo.gapW / 2 + index * (geo.colW + geo.gapW))
+  const horizontal = Array.from({ length: geo.slots.length + 1 }, (_, index) => yOfRows(geo.plan, index, geo.rowH, geo.mealBreakAfterRows, geo.mealGapExtra))
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', color: 'var(--md-outline-variant)', opacity: 0.42 }}>
+      {vertical.map((x) => <div key={`v-${x}`} style={{ position: 'absolute', top: 0, bottom: 0, left: x, borderLeft: '0.7px solid currentColor' }} />)}
+      {horizontal.map((y) => <div key={`h-${y}`} style={{ position: 'absolute', left: geo.timeW, right: 0, top: y, borderTop: '0.7px solid currentColor' }} />)}
+      {[...geo.mealBreakAfterRows].map((row) => {
+        const top = yOfRows(geo.plan, row + 1, geo.rowH, geo.mealBreakAfterRows, geo.mealGapExtra) - geo.mealGapExtra
+        return <div key={`b-${row}`} style={{ position: 'absolute', left: geo.timeW, right: 0, top, height: geo.mealGapExtra, borderTop: '0.7px solid currentColor' }} />
+      })}
+    </div>
+  )
+}
 // ---- 子组件 -----------------------------------------------------------
 
 function SingleTimeHeadCell({
   slot,
+  width,
   scale,
   cornerRatio,
   layout,
@@ -290,6 +308,7 @@ function SingleTimeHeadCell({
   font,
 }: {
   slot: { label: string; displayStart: string; displayEnd: string; nodeStart?: number; nodeEnd?: number; isPlaceholder?: boolean }
+  width: number
   scale: number
   cornerRatio: number
   layout: PeriodHeaderLayout
@@ -302,7 +321,7 @@ function SingleTimeHeadCell({
   const isPh = !!slot.isPlaceholder
   const hangingOffset = hanging * 10 * scale
   return (
-    <div style={{ width: 68 * scale, display: 'flex' }} data-period-header-hanging={hanging}>
+    <div style={{ width, display: 'flex' }} data-period-header-hanging={hanging}>
       <div
         style={{
           flex: 1,

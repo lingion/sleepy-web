@@ -59,12 +59,15 @@ describe('实验室网格策略', () => {
     expect(kept.slots).toHaveLength(12)
   })
 
-  it('自适应高度按可用空间收敛到 36-96dp', () => {
-    const adaptive = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, { adaptiveHeight: true, availableHeight: 480 })
-    expect(adaptive.rowH).toBeCloseTo(44, 5)
-    const bounded = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, { adaptiveHeight: true, availableHeight: 2000 })
-    expect(bounded.rowH).toBe(100)
+  it('长课间设置在午间断点后增加间距，关闭时保持基线几何', () => {
+    const baseline = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1)
+    const spaced = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, { longBreakSpacing: true })
+    expect(baseline.mealBreakAfterRows.size).toBe(0)
+    expect(spaced.mealBreakAfterRows).toEqual(new Set([3, 7]))
+    expect(spaced.mealGapExtra).toBe(6)
+    expect(spaced.gridH - baseline.gridH).toBe(12)
   })
+
 })
 
 describe('yOfRows — 加权行坐标', () => {

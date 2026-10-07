@@ -543,13 +543,15 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           </div>
 
           {/* SegmentedSwitcher — 周视图/网格 (ScheduleScreen.kt:196-204, 容器 surfaceContainer) */}
-          <div style={{ padding: '8px 16px' }}>
-            <SegmentedSwitcher
-              options={[t('view_full', { defaultValue: '周视图' }), t('view_cards', { defaultValue: '网格' })]}
-              selected={display === 'full' ? 0 : 1}
-              onSelect={(i) => setViewMode(i === 0 ? 'full' : 'cards')}
-            />
-          </div>
+          {prefs.showViewSwitcher && (
+            <div style={{ padding: '8px 16px' }}>
+              <SegmentedSwitcher
+                options={[t('view_full', { defaultValue: '周视图' }), t('view_cards', { defaultValue: '网格' })]}
+                selected={display === 'full' ? 0 : 1}
+                onSelect={(i) => setViewMode(i === 0 ? 'full' : 'cards')}
+              />
+            </div>
+          )}
 
         </>
       )}
