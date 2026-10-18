@@ -18,7 +18,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
 import { holidaySetsForYear, useHolidayStore, getHolidayTransfers } from '../state/holidayStore'
-import { decideGrey } from '../domain/holiday/ranges'
+import { holidayGreyDaysForWeek, type HolidayYearData } from '../domain/holiday/ranges'
 import { applyDaySwap, effectiveDayOfWeek } from '../domain/holiday/transfers'
 import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
 import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
@@ -70,41 +70,7 @@ export function actualWeekOf(startDate: string): number {
 // (仅周末灰显, 与 Android 离线兜底同语义)。用户范围化覆盖段 (HolidayRangeOps) 经
 // holidayStore 合并 (mergeSegments→toSets), 三开关走 decideGrey — 与 Android 全同构。
 
-/** 某年节假日数据 — ISO 日期集合 (合并用户覆盖后的生效集合) */
-export interface HolidayYearData {
-  holidays: Set<string>
-  workdays: Set<string>
-}
-
-/** 三开关 (settings_holiday_holiday/weekend/workday) */
-export interface GreyToggles {
-  greyHoliday: boolean
-  greyWeekend: boolean
-  ignoreWorkday: boolean
-}
-
-/** 纯函数 — 某周灰显天集合 (1=周一..7=周日); 无年数据时按空集合走 decideGrey */
-export function holidayGreyDaysForWeek(
-  startDate: string,
-  week: number,
-  yearData: Map<number, HolidayYearData>,
-  toggles: GreyToggles
-): Set<number> {
-  const out = new Set<number>()
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return out
-  for (let day = 1; day <= 7; day++) {
-    const d = dateOfWeek(startDate, week, day)
-    if (!d) continue
-    const data = yearData.get(d.getFullYear())
-    const iso = isoDate(d)
-    if (
-      decideGrey(iso, data?.holidays ?? new Set(), data?.workdays ?? new Set(), toggles.greyHoliday, toggles.greyWeekend, toggles.ignoreWorkday)
-    ) {
-      out.add(day)
-    }
-  }
-  return out
-}
+/** 某年节假日数据与三开关类型已迁至 domain/holiday/ranges (ref #139: 周灰显纯函数随迁可测)。 */
 
 function isoDate(d: Date): string {
   const p = (x: number) => String(x).padStart(2, '0')
@@ -248,6 +214,11 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   const defaultTableId = defaultTable?.id ?? null
   // transferRevision 仅作重读信号: 调休页写 localStorage 后递增
   const holidayTransfers = useMemo(() => getHolidayTransfers(defaultTableId), [defaultTableId, transferRevision])
+  // ref #139 (Android b92efaf6): 自定义补班日 = 调休映射的 targetDate, 与网络法定补班日同等豁免地位
+  const customWorkdayDates = useMemo(
+    () => new Set(holidayTransfers.map((t) => t.targetDate)),
+    [holidayTransfers]
+  )
   // 三开关 (HolidayManager.shouldGrey 读 AppPrefs 三键同构)
   const greyToggles = useMemo(
     () => ({
@@ -258,14 +229,14 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     [prefs.holidayGreyHoliday, prefs.holidayGreyWeekend, prefs.holidayIgnoreWorkday]
   )
   const greyDays = useMemo(
-    () => holidayGreyDaysForWeek(defaultTable?.startDate ?? '', currentWeek, holidayData, greyToggles),
-    [defaultTable?.startDate, currentWeek, holidayData, greyToggles]
+    () => holidayGreyDaysForWeek(defaultTable?.startDate ?? '', currentWeek, holidayData, greyToggles, customWorkdayDates),
+    [defaultTable?.startDate, currentWeek, holidayData, greyToggles, customWorkdayDates]
   )
   const greyDaysByWeek = useMemo(() => {
     const map = new Map<number, Set<number>>()
-    for (const w of trackWeeks) map.set(w, holidayGreyDaysForWeek(defaultTable?.startDate ?? '', w, holidayData, greyToggles))
+    for (const w of trackWeeks) map.set(w, holidayGreyDaysForWeek(defaultTable?.startDate ?? '', w, holidayData, greyToggles, customWorkdayDates))
     return map
-  }, [defaultTable?.startDate, trackWeeks, holidayData, greyToggles])
+  }, [defaultTable?.startDate, trackWeeks, holidayData, greyToggles, customWorkdayDates])
 
   // 轨道内每周课程 (ScheduleScreen.kt:236-241 每页独立 inWeek 过滤 + normalizeNode)
   const coursesByWeek = useMemo(() => {
