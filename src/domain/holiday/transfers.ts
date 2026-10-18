@@ -17,6 +17,33 @@ export function effectiveDayOfWeek(date: string, transfers: HolidayTransferEntry
   return weekdayOf(hit.targetDate)
 }
 
+/**
+ * 渲染期 daySwap 应用层 (HolidayTransferOps.applyDaySwap, da553ed6 1:1, ref #145):
+ * 修复前只搬不删 —— 补班日那列原课未屏蔽, 与调过去的课叠加显示。
+ *
+ * daySwap 形如 {sourceDow → targetDow}:
+ * - sourceDow 的课改写到 targetDow (单趟 copy, 与安卓同语义)
+ * - targetDow 上原本属于它的课 (day ∈ values 且 day ∉ keys) 被屏蔽。
+ *   day 同时在 keys = 它自己也要调走 → 不屏蔽, 让位给改写链。
+ *
+ * daySwap 为空 → 原样返回 (零成本快路径, 调用侧无须分支)。
+ * 泛型只要求 { day } — Course/测试桩都可直接过。
+ */
+export function applyDaySwap<T extends { day: number }>(
+  courses: T[],
+  daySwap: Map<number, number>,
+): T[] {
+  if (daySwap.size === 0) return courses
+  const targetDays = new Set(daySwap.values())
+  const sourceDays = new Set(daySwap.keys())
+  return courses
+    .filter((c) => !(targetDays.has(c.day) && !sourceDays.has(c.day)))
+    .map((c) => {
+      const mapped = daySwap.get(c.day)
+      return mapped == null || mapped === c.day ? c : { ...c, day: mapped }
+    })
+}
+
 export function withTargetExclusivity(
   existing: HolidayTransferEntry[],
   next: HolidayTransferEntry,

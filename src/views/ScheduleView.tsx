@@ -19,7 +19,7 @@ import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
 import { holidaySetsForYear, useHolidayStore, getHolidayTransfers } from '../state/holidayStore'
 import { decideGrey } from '../domain/holiday/ranges'
-import { effectiveDayOfWeek } from '../domain/holiday/transfers'
+import { applyDaySwap, effectiveDayOfWeek } from '../domain/holiday/transfers'
 import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
 import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
 import { useScheduleSessionStore } from '../state/scheduleSessionStore'
@@ -274,12 +274,16 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     const tj = defaultTable.timeJson
     for (const w of trackWeeks) {
       const courses = (allCourses ?? []).filter((c) => inWeek(c, w)).map((c) => (tj ? normalizeNode(c, tj) : c))
-      map.set(w, courses.map((course) => {
-        const date = dateOfWeek(defaultTable.startDate, w, course.day)
-        if (!date) return course
-        const mappedDay = effectiveDayOfWeek(isoDate(date), holidayTransfers)
-        return mappedDay === course.day ? course : { ...course, day: mappedDay }
-      }))
+      // issue#44 调休改写: 本周各日期命中调休 → 网格列改按目标星期渲染 (渲染期替身, 不写库)。
+      // issue#145: daySwap 整体交给 applyDaySwap —— 补班日那列原课同时屏蔽, 不与调过来的课叠加。
+      const daySwap = new Map<number, number>()
+      for (let natural = 1; natural <= 7; natural++) {
+        const date = dateOfWeek(defaultTable.startDate, w, natural)
+        if (!date) continue
+        const display = effectiveDayOfWeek(isoDate(date), holidayTransfers)
+        if (display !== natural) daySwap.set(natural, display)
+      }
+      map.set(w, applyDaySwap(courses, daySwap))
     }
     return map
   }, [allCourses, defaultTable, trackWeeks, holidayTransfers])
