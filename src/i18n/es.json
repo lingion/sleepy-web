@@ -405,6 +405,8 @@
   "about_license_title": "Declaración de código abierto",
   "about_source": "Código fuente",
   "about_source_url": "github.com/lingion/sleepy",
+  "about_privacy": "Política de privacidad",
+  "about_privacy_url": "sleepy.qdp.qzz.io/privacy",
   "about_feedback": "Comentarios y sugerencias",
   "about_feedback_detail": "Reporta errores o comparte ideas mediante un Issue de GitHub, o contacta al autor por correo",
   "about_feedback_github": "Issue de GitHub",

@@ -122,6 +122,8 @@ export const IconSchedule = outlineSvg('M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99
 // ── 导出页 (ExportScreen.kt) ──────────────────────────────────────────
 export const IconCode = outlineSvg('M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z')
 
+export const IconShield = outlineSvg('M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm6 9.09c0 4.26-2.96 8.29-6 9.41-3.04-1.12-6-5.15-6-9.41V6.31l6-2.12 6 2.12v4.78z')
+
 // ── 导入页 (ImportSheet.kt ImportMethodRow 图标) ──────────────────────
 export const IconQrCode2 = outlineSvg('M15 21h-2v-2h2v2zm-2-7h-2v5h2v-5zm8-2h-2v4h2v-4zm-2-2h-2v2h2v-2zM7 12H5v2h2v-2zm-2-2H3v2h2v-2zm7-5h2V3h-2v2zm-7.5-.5v3h3v-3h-3zM9 9H3V3h6v6zm-4.5 7.5v3h3v-3h-3zM9 21H3v-6h6v6zm7.5-16.5v3h3v-3h-3zM21 9h-6V3h6v6zm-2 10v-3h-4v2h2v3h4v-2h-2zm-2-7h-4v2h4v-2zm-4-2H7v2h2v2h2v-2h2v-2zm1-1V7h-2V5h-2v4h4zM6.75 5.25h-1.5v1.5h1.5v-1.5zm0 12h-1.5v1.5h1.5v-1.5zm12-12h-1.5v1.5h1.5v-1.5z')
 

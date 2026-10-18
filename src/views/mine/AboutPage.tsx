@@ -1,6 +1,6 @@
 /**
  * AboutPage — 关于 (AboutScreen.kt 1:1)。
- * 顺序: 更新 banner → 应用名/版本 → 版本 → 获取更新 → 作者 → 开源地址 → 反馈 → QQ 群 → 开源声明 → 自动检查更新。
+ * 顺序: 更新 banner → 应用名/版本 → 版本 → 获取更新 → 作者 → 开源地址 → 隐私政策 → 反馈 → QQ 群 → 开源声明 → 自动检查更新。
  * 有新版且未关闭时内容区底色 primary@5% + 顶部 banner (按版本 dismiss)。
  * web 差异: 无 APK 自装 → 更新弹窗「下载」= 打开 Releases 页; QQ 拉起链只剩浏览器加群页;
  * 尾部 ABI 下载卡为 web 独有 (浏览器端没有已安装的 APK, 需要给出安装包入口)。
@@ -10,7 +10,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconBugReport, IconChevronRight, IconClose, IconCode, IconContentCopy, IconDownload, IconEmail,
-  IconGroups, IconNewReleases, IconOpenInNew, IconPerson,
+  IconGroups, IconNewReleases, IconOpenInNew, IconPerson, IconShield,
 } from '../../components/icons'
 import { SettingsScaffold, Switch } from './shared'
 import { ALL_ABIS, apkDownloadUrl, detectAbi, type Abi } from '../../domain/abi'
@@ -24,6 +24,8 @@ import { UpdateChangelogDialog, type UpdateDialogState } from './UpdateChangelog
 import pkg from '../../../package.json'
 
 const GITHUB_LATEST = 'https://github.com/lingion/sleepy/releases/latest'
+// 隐私政策页: 与 public/privacy.html 同源; /privacy.html 会被 SPA 规则 307 到 /privacy, 直接用最终地址
+const PRIVACY_URL = 'https://sleepy.qdp.qzz.io/privacy'
 const SNACKBAR_SHORT_MS = 4000
 
 function openExternal(url: string) {
@@ -184,6 +186,18 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
               }
               detailClass="m3-body-medium"
               trailing={<IconBtn onClick={() => openExternal('https://github.com/lingion/sleepy')}><IconOpenInNew size={20} /></IconBtn>}
+            />
+          </InfoCard>
+
+          <InfoCard>
+            <CardRow
+              icon={<IconShield size={24} />}
+              title={t('about_privacy')}
+              detail={
+                <span style={{ color: 'var(--md-primary)', textDecoration: 'underline' }}>{t('about_privacy_url')}</span>
+              }
+              detailClass="m3-body-medium"
+              trailing={<IconBtn onClick={() => openExternal(PRIVACY_URL)}><IconOpenInNew size={20} /></IconBtn>}
             />
           </InfoCard>
 
