@@ -7,7 +7,7 @@
  * 红绿验证: 去掉 FullWeekView.tsx 中任一 `·${shortDate(date)}` 拼接 → 对应断言全红。
  */
 
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { FullWeekView, DetailDayCard } from './FullWeekView'
 import { initI18n } from '../../i18n'
@@ -102,13 +102,20 @@ describe('FullWeekView 日期显示 — WeekStrip 摘要 + DetailDayCard 详情'
 
   it('showDate=true → 详情卡标题出现 周三·10/14 (· 今天 后缀共存)', () => {
     setPrefs({ showDate: true })
-    const { container } = render(
-      <FullWeekView courses={[COURSE]} timeJson={TIME_JSON} startDate={START} currentWeek={1} />
-    )
-    const todayCard = Array.from(container.querySelectorAll('.m3-title-small')).find(
-      (el) => el.textContent === '周三·10/14· 今天'
-    )
-    expect(todayCard).not.toBeUndefined()
+    // 冻结系统时间到 2026-10-14 (周三): "今天"判定依赖 new Date(),不锁时钟则断言只在当天为周三时成立
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 14, 12, 0))
+    try {
+      const { container } = render(
+        <FullWeekView courses={[COURSE]} timeJson={TIME_JSON} startDate={START} currentWeek={1} />
+      )
+      const todayCard = Array.from(container.querySelectorAll('.m3-title-small')).find(
+        (el) => el.textContent === '周三·10/14· 今天'
+      )
+      expect(todayCard).not.toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('showDate=false → 日期整体隐藏, 只剩天名 (与网格视图同开关)', () => {
