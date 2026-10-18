@@ -405,6 +405,8 @@
   "about_license_title": "開源聲明",
   "about_source": "開源網址",
   "about_source_url": "github.com/lingion/sleepy",
+  "about_privacy": "隱私政策",
+  "about_privacy_url": "sleepy.qdp.qzz.io/privacy",
   "about_feedback": "回饋與建議",
   "about_feedback_detail": "透過 GitHub Issue 回報問題或提出想法，或以電子郵件聯絡作者",
   "about_feedback_github": "GitHub Issue",
