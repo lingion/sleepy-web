@@ -76,6 +76,11 @@ export interface Table {
   smartConfigJson: string
   /** 默认课表标志 (Room 存 int 0/1) */
   isDefault: 0 | 1
+  /**
+   * 本表参与提醒开关 (Android TimeTableEntity.reminderEnabled, ref #143)。
+   * Room INTEGER NOT NULL DEFAULT 1 → 可选字段: 缺列旧行 = 开 (undefined !== 0 判定), 升级零行为变化。
+   */
+  reminderEnabled?: 0 | 1
   /** 学期开始周一 (yyyy-MM-dd), 空串=未设置 */
   startDate: string
   /** 每周节点数 (默认 12) */

@@ -51,6 +51,8 @@
   "edit_table_start_date": "Semester Start Date",
   "edit_table_start_date_hint": "e.g. 2026-02-24",
   "edit_table_max_week": "Total Weeks",
+  "edit_table_reminder_enable": "Reminders for this table",
+  "edit_table_reminder_desc": "When off, this table stops sending pre-class reminders, daily summaries and fluid cloud",
   "edit_table_time_slots": "Class Times",
   "edit_table_delete": "Delete Schedule",
   "edit_table_save": "Save Settings",

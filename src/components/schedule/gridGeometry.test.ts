@@ -35,15 +35,17 @@ function mkCourse(partial: Partial<Course>): Course {
 const geo = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1)
 
 describe('buildGridGeometry — 布局常量', () => {
-  it('scale=1 时 headH=52 timeW=68 rowH=56', () => {
+  it('scale=1 时 headH=52 timeW=74.2 (legacy dash 轴几何 #102) rowH=56', () => {
     expect(geo.headH).toBe(52)
-    expect(geo.timeW).toBe(68)
+    // ref #102: 老式列宽 = dash 轴几何 (轴左延伸 + 轴右延伸 + pad×2), 不再硬钉 68。
+    // DEFAULT_TIME_JSON arabic: 轴 = max(label/2, start+dash/2) = 34.1 → 34.1+34.1+6 = 74.2
+    expect(geo.timeW).toBeCloseTo(74.2, 4)
     expect(geo.rowH).toBe(GRID.slotH + GRID.gapH)
     expect(geo.rowH).toBe(56)
   })
 
   it('colW = (宽 - timeW - gap*(dayCount+1)) / dayCount', () => {
-    expect(geo.colW).toBeCloseTo((1000 - 68 - 5 * 8) / 7, 5)
+    expect(geo.colW).toBeCloseTo((1000 - geo.timeW - 5 * 8) / 7, 5)
   })
 
   it('12 节表 gridH = 12 * 56', () => {
@@ -115,14 +117,22 @@ describe('三行表头列宽 — 悬挂几何', () => {
     expect(left.timeW).toBe(right.timeW)
   })
 
-  it('keeps legacy geometry at the fixed baseline', () => {
+  it('legacy 列宽按 dash 轴几何, 不随 hanging/showX 变化 (ref #102)', () => {
     const legacy = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, {
       periodHeaderLayout: 'legacy',
       periodHeaderStyle: 'arabic',
       periodHeaderHanging: 1,
       periodHeaderShowX: true,
     })
-    expect(legacy.timeW).toBe(68)
+    // showX=true 时单节标签变 "第N节" 更宽 → 轴左延伸可能变大, 但 hanging 无关
+    expect(legacy.timeW).toBeGreaterThanOrEqual(geo.timeW)
+    const left = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, {
+      periodHeaderLayout: 'legacy',
+      periodHeaderStyle: 'arabic',
+      periodHeaderHanging: -1,
+      periodHeaderShowX: false,
+    })
+    expect(left.timeW).toBeCloseTo(geo.timeW, 6)
   })
 })
 
@@ -137,14 +147,14 @@ describe('slotIndexOf', () => {
 describe('singleCardGeom — 非簇单卡', () => {
   it('第 1 天 1-2 节: x=timeW+gap, y=0, h=2*rowH-gap', () => {
     const g = singleCardGeom(mkCourse({ day: 1, startNode: 1, step: 2 }), geo, 0, true)!
-    expect(g.x).toBeCloseTo(68 + 5, 5)
+    expect(g.x).toBeCloseTo(geo.timeW + 5, 5)
     expect(g.y).toBe(0)
     expect(g.h).toBeCloseTo(2 * 56 - 4, 5)
   })
 
   it('dayIdx 偏移: 第 3 天 (idx=2) x 递增', () => {
     const g = singleCardGeom(mkCourse({ day: 3, startNode: 1, step: 1 }), geo, 2, true)!
-    expect(g.x).toBeCloseTo(68 + 5 + (geo.colW + 5) * 2, 5)
+    expect(g.x).toBeCloseTo(geo.timeW + 5 + (geo.colW + 5) * 2, 5)
   })
 
   it('startNode 不在 timeJson → null (数据脏过滤)', () => {

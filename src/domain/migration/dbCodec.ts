@@ -41,6 +41,8 @@ export interface TimeTableRow {
   timeJson: string
   color: string
   isDefault: boolean
+  /** ref #143 每表提醒开关。Android v1.0.61 备份无此字段 → 解码 `=== false` 判定, 旧包默认开 */
+  reminderEnabled: boolean
   smartConfigJson: string
   createdAt: number
   periodTableId: number | null
@@ -99,7 +101,7 @@ export function tableToRow(t: Table): TimeTableRow {
   return {
     id: t.id, name: t.name, startDate: t.startDate, maxWeek: t.maxWeek,
     nodesPerDay: t.nodeCount, timeJson: t.timeJson, color: t.color ?? DEFAULT_TABLE_COLOR,
-    isDefault: t.isDefault === 1, smartConfigJson: t.smartConfigJson ?? '',
+    isDefault: t.isDefault === 1, reminderEnabled: t.reminderEnabled !== 0, smartConfigJson: t.smartConfigJson ?? '',
     createdAt: t.createdAt, periodTableId: t.periodTableId ?? null,
     preBindSnapshotJson: t.preBindSnapshotJson ?? '',
   }
@@ -110,6 +112,7 @@ export function rowToTable(r: TimeTableRow): Table {
     id: r.id, name: r.name, startDate: r.startDate, maxWeek: r.maxWeek ?? 20,
     nodeCount: r.nodesPerDay ?? 12, timeJson: r.timeJson,
     color: r.color ?? DEFAULT_TABLE_COLOR, isDefault: r.isDefault ? 1 : 0,
+    reminderEnabled: r.reminderEnabled === false ? 0 : 1, // 旧包缺字段 = 开 (Android DEFAULT 1 同语义)
     smartConfigJson: r.smartConfigJson ?? '', createdAt: r.createdAt,
     periodTableId: r.periodTableId ?? null, preBindSnapshotJson: r.preBindSnapshotJson ?? '',
   }

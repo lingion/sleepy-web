@@ -153,6 +153,57 @@ export function decideGrey(
   return false
 }
 
+/** 某年节假日数据 — ISO 日期集合 (合并用户覆盖后的生效集合) */
+export interface HolidayYearData {
+  holidays: Set<string>
+  workdays: Set<string>
+}
+
+/** 三开关 (settings_holiday_holiday/weekend/workday) */
+export interface GreyToggles {
+  greyHoliday: boolean
+  greyWeekend: boolean
+  ignoreWorkday: boolean
+}
+
+/** 周历坐标 → ISO 日期 (dateOfWeek 同式的纯 ISO 版; 非法输入 null) */
+export function weekDateIso(startDate: string, week: number, day: number): string | null {
+  if (!isIsoDate(startDate)) return null
+  const [y, m, d] = startDate.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  const mondayShift = (dt.getUTCDay() + 6) % 7
+  dt.setUTCDate(dt.getUTCDate() - mondayShift + (week - 1) * 7 + (day - 1))
+  const p = (x: number) => String(x).padStart(2, '0')
+  return `${dt.getUTCFullYear()}-${p(dt.getUTCMonth() + 1)}-${p(dt.getUTCDate())}`
+}
+
+/**
+ * 纯函数 — 某周灰显天集合 (1=周一..7=周日); 无年数据时按空集合走 decideGrey。
+ * ref #139 (Android b92efaf6 1:1): workdays = 网络法定补班日 + 用户自定义补班日
+ * (调休映射的 targetDate),ignoreWorkday 开关对两者同等生效。
+ */
+export function holidayGreyDaysForWeek(
+  startDate: string,
+  week: number,
+  yearData: Map<number, HolidayYearData>,
+  toggles: GreyToggles,
+  customWorkdays: Set<string> = new Set()
+): Set<number> {
+  const out = new Set<number>()
+  for (let day = 1; day <= 7; day++) {
+    const iso = weekDateIso(startDate, week, day)
+    if (!iso) continue
+    const data = yearData.get(Number(iso.slice(0, 4)))
+    const workdays = data ? new Set([...data.workdays, ...customWorkdays]) : customWorkdays
+    if (
+      decideGrey(iso, data?.holidays ?? new Set(), workdays, toggles.greyHoliday, toggles.greyWeekend, toggles.ignoreWorkday)
+    ) {
+      out.add(day)
+    }
+  }
+  return out
+}
+
 /** 用户段列表 → JSON 数组 (encodeOverrides) */
 export function encodeOverrides(overrides: HolidayRange[]): string {
   return JSON.stringify(

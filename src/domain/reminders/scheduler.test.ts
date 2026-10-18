@@ -76,6 +76,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** 当前 store prefs 快照 (fireBeforeClass 入参) */
+const p = (): ReminderPrefs => useReminderStore.getState().prefs
+
 describe('每日/明日摘要 (tick → fireSummary)', () => {
   it('今日摘要在 dailyTime 分钟点触发, 含首课信息; 同日重复 tick 只发一次', async () => {
     await seed()
@@ -138,7 +141,6 @@ describe('每日/明日摘要 (tick → fireSummary)', () => {
 })
 
 describe('课前提醒 (fireBeforeClass)', () => {
-  const p = (): ReminderPrefs => useReminderStore.getState().prefs
 
   it('开课时点前 minutes 分钟窗口内命中, 窗口外不发, 同课当日只发一次', async () => {
     await seed()
@@ -197,6 +199,131 @@ describe('课前提醒 (fireBeforeClass)', () => {
     await seed()
     setPrefs({ masterEnabled: true, beforeClassEnabled: true, beforeClassMinutes: 10, bannerEnabled: false, fluidEnabled: false })
     await tickAll(new Date(2026, 8, 2, 7, 50))
+    expect(posted).toHaveLength(0)
+  })
+})
+
+// ==================== 每表独立提醒开关 (ref #143, Android ef644665) ====================
+
+describe('每表独立提醒 (reminderEnabled, ref #143)', () => {
+  /** 副表: 周三(3) 大学物理 node2 08:55 (与主表高数 08:00 同日重叠) */
+  async function seedSecondTable(name: string, reminderEnabled: 0 | 1): Promise<number> {
+    const id = await insertTable({
+      name, startDate: '2026-09-01', maxWeek: 20, nodeCount: 12, reminderEnabled,
+      timeJson: JSON.stringify([
+        { node: 1, start: '08:00', end: '08:45' },
+        { node: 2, start: '08:55', end: '09:40' },
+      ]),
+      smartConfigJson: '', isDefault: 0, createdAt: 2000,
+    })
+    await insertCourse({
+      groupId: 'gx', tableId: id, courseName: '大学物理', teacher: '王五', room: 'B202',
+      note: '', alias: '', day: 3, startNode: 2, step: 2, startWeek: 1, endWeek: 16,
+      type: 0, color: '#FF000000', colorMode: 0, ownTime: false,
+      isIrregularNode: false, isIrregularTime: false, startTime: '', endTime: '',
+      credit: 0, level: 0,
+    })
+    return id
+  }
+
+  it('后台表(未选中)开启提醒 → 其课也进今日摘要', async () => {
+    await seed()
+    await seedSecondTable('副表', 1)
+    setPrefs({ masterEnabled: true, todayEnabled: true, dailyTime: '07:00' })
+    vi.setSystemTime(new Date(2026, 8, 2, 7, 0)) // 周三: 主表高数 + 副表物理
+
+    await tick()
+    // 两表同日有课 → 各发一条, 均带课表名前缀 (activeTables>1)
+    expect(posted).toHaveLength(2)
+    expect(posted[0].title).toContain('主表')
+    expect(posted[1].title).toContain('副表')
+    const bodies = posted.map((p) => p.body).join(' ')
+    expect(bodies).toContain('高等数学')
+    expect(bodies).toContain('大学物理')
+  })
+
+  it('表关闭提醒 → 整表跳过; 仅一张开启时不加前缀 (单表语义不变)', async () => {
+    await seed()
+    await seedSecondTable('副表', 0)
+    setPrefs({ masterEnabled: true, todayEnabled: true, dailyTime: '07:00' })
+    vi.setSystemTime(new Date(2026, 8, 2, 7, 0))
+
+    await tick()
+    expect(posted).toHaveLength(1)
+    expect(posted[0].title).not.toContain('·')
+    expect(posted[0].title).not.toContain('主表')
+    expect(posted[0].body).toContain('高等数学')
+    expect(posted[0].body).not.toContain('大学物理')
+  })
+
+  it('旧行缺 reminderEnabled 列 → 默认开启 (升级零行为变化, Android NOT NULL DEFAULT 1)', async () => {
+    await seed()
+    await db.timetables.update(1, { reminderEnabled: undefined } as never)
+    setPrefs({ masterEnabled: true, todayEnabled: true, dailyTime: '07:00' })
+    vi.setSystemTime(new Date(2026, 8, 2, 7, 0))
+    await tick()
+    expect(posted).toHaveLength(1)
+    expect(posted[0].body).toContain('高等数学')
+  })
+
+  it('全部表关闭 → 摘要整体静默 (enabledTables 空)', async () => {
+    await seed()
+    await db.timetables.update(1, { reminderEnabled: 0 })
+    setPrefs({ masterEnabled: true, todayEnabled: true, dailyTime: '07:00' })
+    vi.setSystemTime(new Date(2026, 8, 2, 7, 0))
+    await tick()
+    expect(posted).toHaveLength(0)
+  })
+
+  it('多表开启但仅一表有课 → 单条仍加前缀 (activeTables>1 判前缀, 非 posts)', async () => {
+    // 安卓语义: 前缀看 activeTables (过策略的开启表), 不看 posts。
+    // 两表都开启, 但目标日只有主表有课 (副表学期外) → active=2 → 加前缀。
+    await seed()
+    const secondId = await seedSecondTable('副表', 1)
+    await db.timetables.update(secondId, { startDate: '2027-02-01' }) // 目标日学期外
+    setPrefs({ masterEnabled: true, todayEnabled: true, dailyTime: '07:00' })
+    vi.setSystemTime(new Date(2026, 8, 2, 7, 0))
+
+    await tick()
+    expect(posted).toHaveLength(1)
+    expect(posted[0].title).toContain('主表 ·')
+  })
+
+  it('课前提醒跨表扫描: 后台表(非默认表)的课也命中', async () => {
+    await seed() // 主表周三 高数 node1 08:00 (notifyAt 07:50)
+    await seedSecondTable('副表', 1) // 副表周三 物理 node2 08:55 (notifyAt 08:45)
+    setPrefs({ masterEnabled: true, beforeClassEnabled: true, beforeClassMinutes: 10 })
+    // 08:45: 高数窗口 [07:50,07:51) 已过; 物理窗口 [08:45,08:46) 命中 → 后台表必须被扫到
+    await fireBeforeClass(new Date(2026, 8, 2, 8, 45), p())
+    expect(posted).toHaveLength(1)
+    expect(posted[0].body).toContain('大学物理')
+    expect(posted[0].title).toBe(i18next.t('notif_before_class_title')) // 课前不加表名前缀 (Android receiver 同)
+  })
+
+  it('课前提醒同分钟多表命中 → 取最早开始的一节', async () => {
+    await seed()
+    const id = await seedSecondTable('副表', 1)
+    // 副表再加一节 08:00 (node1) 与主表高数同刻 → 两节都在 [07:50,07:51) 命中
+    await insertCourse({
+      groupId: 'gy', tableId: id, courseName: '早课物理', teacher: '', room: '',
+      note: '', alias: '', day: 3, startNode: 1, step: 2, startWeek: 1, endWeek: 16,
+      type: 0, color: '#FF000000', colorMode: 0, ownTime: false,
+      isIrregularNode: false, isIrregularTime: false, startTime: '', endTime: '',
+      credit: 0, level: 0,
+    })
+    setPrefs({ masterEnabled: true, beforeClassEnabled: true, beforeClassMinutes: 10 })
+    await fireBeforeClass(new Date(2026, 8, 2, 7, 50), p())
+    expect(posted).toHaveLength(1)
+    // 同为 08:00 开始: 按表 id 序稳定取主表高数 (先扫先得, startAt 相同)
+    expect(posted[0].body).toContain('高等数学')
+  })
+
+  it('课前提醒: 关闭提醒的后台表不弹', async () => {
+    await seed()
+    await seedSecondTable('副表', 0) // 副表周三物理 08:55, 关掉提醒
+    setPrefs({ masterEnabled: true, beforeClassEnabled: true, beforeClassMinutes: 5 })
+    // 08:50 = 物理窗口 (08:50-08:55); 高数窗口(07:50-08:00)已过 → 只有副表命中 → 应 0 发
+    await fireBeforeClass(new Date(2026, 8, 2, 8, 50), p())
     expect(posted).toHaveLength(0)
   })
 })

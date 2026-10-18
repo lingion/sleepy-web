@@ -12,7 +12,7 @@ import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
 import { weekLaneRows } from '../../domain/conflictLayout'
 import { courseTimeParts } from '../../domain/timeTable'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
-import { dateOfWeek, isDateToday, localizedDay } from './CardsGridView'
+import { dateOfWeek, isDateToday, localizedDay, shortDate } from './CardsGridView'
 
 export interface FullWeekViewProps {
   courses: Course[]
@@ -72,6 +72,7 @@ export function FullWeekView({ courses, timeJson, startDate, currentWeek, greyDa
               day={day}
               courses={byDay.get(day) ?? []}
               isToday={isDateToday(dateOfWeek(startDate, currentWeek, day), today)}
+              date={dateOfWeek(startDate, currentWeek, day)}
               isGrey={greyDays.has(day)}
               useAlias={prefs.weekUseAlias}
               scale={scale}
@@ -85,6 +86,8 @@ export function FullWeekView({ courses, timeJson, startDate, currentWeek, greyDa
         byDay={byDay}
         sortedDays={sortedDays}
         todayDay={todayDay}
+        startDate={startDate}
+        currentWeek={currentWeek}
         timeJson={timeJson}
         greyDays={greyDays}
         onCourseClick={onCourseClick}
@@ -102,6 +105,7 @@ function DaySummaryCell({
   day,
   courses,
   isToday,
+  date,
   isGrey,
   useAlias,
   scale,
@@ -110,12 +114,14 @@ function DaySummaryCell({
   day: number
   courses: Course[]
   isToday: boolean
+  date: Date | null
   isGrey: boolean
   useAlias: boolean
   scale: number
   cornerRatio: number
 }) {
   const { t, i18n } = useTranslation()
+  const prefs = usePrefsStore((s) => s.prefs)
   const bg = isToday ? 'var(--md-primary-container)' : 'var(--md-surface-container)'
   const fg = isGrey
     ? 'color-mix(in srgb, var(--md-on-surface-variant) 60%, transparent)'
@@ -150,6 +156,7 @@ function DaySummaryCell({
         }}
       >
         {localizedDay(day, i18n.language)}
+        {prefs.showDate && date ? `·${shortDate(date)}` : ''}
       </span>
       <div style={{ height: 6 * scale }} />
       {courses.length > 0 && (
@@ -201,6 +208,8 @@ function DetailPanel({
   byDay,
   sortedDays,
   todayDay,
+  startDate,
+  currentWeek,
   timeJson,
   greyDays,
   onCourseClick,
@@ -211,6 +220,8 @@ function DetailPanel({
   byDay: Map<number, Course[]>
   sortedDays: number[]
   todayDay: number
+  startDate: string
+  currentWeek: number
   timeJson: string
   greyDays: Set<number>
   onCourseClick?: (c: Course) => void
@@ -252,6 +263,8 @@ function DetailPanel({
           days={split[0]}
           byDay={byDay}
           todayDay={todayDay}
+          startDate={startDate}
+          currentWeek={currentWeek}
           timeJson={timeJson}
           greyDays={greyDays}
           onCourseClick={onCourseClick}
@@ -265,6 +278,8 @@ function DetailPanel({
             days={split[1]}
             byDay={byDay}
             todayDay={todayDay}
+            startDate={startDate}
+            currentWeek={currentWeek}
             timeJson={timeJson}
             greyDays={greyDays}
             onCourseClick={onCourseClick}
@@ -296,6 +311,7 @@ function DetailPanel({
           day={day}
           courses={(byDay.get(day) ?? []).slice().sort((a, b) => a.startNode - b.startNode)}
           isToday={day === todayDay}
+          date={dateOfWeek(startDate, currentWeek, day)}
           timeJson={timeJson}
           isGrey={greyDays.has(day)}
           onCourseClick={onCourseClick}
@@ -313,6 +329,8 @@ function DayColumn({
   days,
   byDay,
   todayDay,
+  startDate,
+  currentWeek,
   timeJson,
   greyDays,
   onCourseClick,
@@ -323,6 +341,8 @@ function DayColumn({
   days: number[]
   byDay: Map<number, Course[]>
   todayDay: number
+  startDate: string
+  currentWeek: number
   timeJson: string
   greyDays: Set<number>
   onCourseClick?: (c: Course) => void
@@ -349,6 +369,7 @@ function DayColumn({
           day={day}
           courses={(byDay.get(day) ?? []).slice().sort((a, b) => a.startNode - b.startNode)}
           isToday={day === todayDay}
+          date={dateOfWeek(startDate, currentWeek, day)}
           timeJson={timeJson}
           isGrey={greyDays.has(day)}
           onCourseClick={onCourseClick}
@@ -366,6 +387,7 @@ export function DetailDayCard({
   day,
   courses,
   isToday,
+  date,
   isGrey = false,
   timeJson,
   onCourseClick,
@@ -376,6 +398,7 @@ export function DetailDayCard({
   day: number
   courses: Course[]
   isToday: boolean
+  date: Date | null
   isGrey?: boolean
   timeJson: string
   onCourseClick?: (c: Course) => void
@@ -406,6 +429,7 @@ export function DetailDayCard({
         }}
       >
         {localizedDay(day, i18n.language)}
+        {prefs.showDate && date ? `·${shortDate(date)}` : ''}
         {isToday ? t('today_suffix') : ''}
       </span>
 
@@ -417,10 +441,13 @@ export function DetailDayCard({
             color: isGrey
               ? 'color-mix(in srgb, var(--md-on-surface-variant) 60%, transparent)'
               : 'var(--md-on-surface-variant)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4 * scale,
           }}
         >
-          {localizedDay(day, i18n.language)}
-          {t('no_course_today')}
+          <span>{localizedDay(day, i18n.language)}{prefs.showDate && date ? `·${shortDate(date)}` : ''}</span>
+          <span>{t('no_course_today')}</span>
         </span>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 * scale }}>

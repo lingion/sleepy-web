@@ -4,14 +4,15 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  groupSlotsForEdit,
   buildCourseEntity,
-  validateCourseDraft,
   draftConflictDetails,
+  findTargetBlockIndex,
   formatDetail,
+  groupSlotsForEdit,
   initialMeetingBlock,
   parseHm,
   type MeetingBlockDraft,
+  validateCourseDraft
 } from './courseDraft'
 import type { Course } from '../data/types'
 
@@ -57,6 +58,85 @@ describe('groupSlotsForEdit — 编辑回填分组', () => {
       { room: 'A101', day: 1, startNode: 1, step: 2, startWeek: 9, endWeek: 16, type: 0, ownTime: false, startTime: '', endTime: '' },
     ] as unknown as Course[]
     expect(groupSlotsForEdit(courses)).toHaveLength(2)
+  })
+
+  // 用户报障对齐安卓 e5a0528c:「点周四的课跳到周五的时段块」— day 进分组 key 后跨星期不再合并
+  it('同节次同周次不同星期 → 2 组 (day 进 key, ref #144)', () => {
+    const courses = [
+      { room: 'A101', day: 1, startNode: 1, step: 2, startWeek: 1, endWeek: 16, type: 0, ownTime: false, startTime: '', endTime: '' },
+      { room: 'A101', day: 3, startNode: 1, step: 2, startWeek: 1, endWeek: 16, type: 0, ownTime: false, startTime: '', endTime: '' },
+    ] as unknown as Course[]
+    expect(groupSlotsForEdit(courses)).toHaveLength(2)
+  })
+
+  it('同节次同周次同星期 → 仍 1 组 (day 进 key 不误伤)', () => {
+    const courses = [
+      { room: 'A101', day: 1, startNode: 1, step: 2, startWeek: 1, endWeek: 16, type: 0, ownTime: false, startTime: '', endTime: '' },
+      { room: 'A101', day: 1, startNode: 1, step: 2, startWeek: 1, endWeek: 16, type: 0, ownTime: false, startTime: '', endTime: '' },
+    ] as unknown as Course[]
+    expect(groupSlotsForEdit(courses)).toHaveLength(1)
+  })
+})
+
+describe('findTargetBlockIndex — 编辑页跳转按主键命中 (ref #144)', () => {
+  const blk = (id: number, sourceIds: number[]): MeetingBlockDraft =>
+    ({ id, sourceIds } as unknown as MeetingBlockDraft)
+  const c = (id: number) => ({ id } as unknown as Course)
+
+  it('editingCourse null → -1 (新建模式不滚)', () => {
+    expect(findTargetBlockIndex([blk(1, [10]), blk(2, [20])], null)).toBe(-1)
+  })
+
+  it('id 命中任意位置的块', () => {
+    const blocks = [blk(1, [10, 11]), blk(2, [20]), blk(3, [30])]
+    expect(findTargetBlockIndex(blocks, c(10))).toBe(0)
+    expect(findTargetBlockIndex(blocks, c(20))).toBe(1)
+    expect(findTargetBlockIndex(blocks, c(30))).toBe(2)
+  })
+
+  it('id 不在任何块 → -1', () => {
+    expect(findTargetBlockIndex([blk(1, [10])], c(99))).toBe(-1)
+  })
+
+  it('跨 step 共享 (day, startNode) 歧义 → 按 id 命中正确块 (b77fc4d6 用户报障反例)', () => {
+    // A: 周一 1-2 节 (step=2) / B: 周一 1 节 (step=1) — day+startNode 相同, 旧模糊匹配会错
+    const blocks = [
+      { id: 1, days: [1], startNode: 1, sourceIds: [101] },
+      { id: 2, days: [1], startNode: 1, sourceIds: [102] },
+    ] as unknown as MeetingBlockDraft[]
+    expect(findTargetBlockIndex(blocks, c(102))).toBe(1)
+  })
+
+  it('缺 sourceIds 的块 (空组初始卡例外路径) 不误命中', () => {
+    const blocks = [{ id: 1, days: [1], startNode: 1 } as unknown as MeetingBlockDraft]
+    expect(findTargetBlockIndex(blocks, c(101))).toBe(-1)
+  })
+})
+
+describe('initialMeetingBlock(course) — 空 groupId 存量课回填自身 (ref #144)', () => {
+  it('无 course → 默认周一 1-2 节, sourceIds 空', () => {
+    const b = initialMeetingBlock(1, null)
+    expect(b.days).toEqual([1])
+    expect(b.startNode).toBe(1)
+    expect(b.sourceIds ?? []).toEqual([])
+  })
+
+  it('有 course → 按该行字段回填且 sourceIds=[course.id]', () => {
+    const course = {
+      id: 42, day: 4, startNode: 3, step: 1, ownTime: false, startTime: '', endTime: '',
+      startWeek: 2, endWeek: 10, type: 1, room: 'B301', teacher: '李四', note: 'n', color: '#FF00FF00', colorMode: 0,
+    } as unknown as Course
+    const b = initialMeetingBlock(1, course)
+    expect(b.days).toEqual([4])
+    expect(b.startNode).toBe(3)
+    expect(b.step).toBe(1)
+    expect(b.startTime).toBe('08:00') // 安卓 ifBlank 兜底
+    expect(b.startWeek).toBe(2)
+    expect(b.endWeek).toBe(10)
+    expect(b.weekType).toBe(1)
+    expect(b.room).toBe('B301')
+    expect(b.teacher).toBe('李四')
+    expect(b.sourceIds).toEqual([42])
   })
 })
 

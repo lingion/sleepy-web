@@ -129,8 +129,12 @@ export function estimatePeriodHeaderTextWidth(text: string, size: number): numbe
 
 /**
  * 表头字号自适应 — PeriodHeaderAdaptiveFont (PeriodHeaderLayoutModel.kt) 1:1。
- * 高度上限唯一驱动 (三行总高 ≈ label×2.6); 墨迹超宽时按比例回缩兜底;
- * 整列共用一个字号 — 由最宽 (最难装下) 的行决定 (用户 2026-09-29 令)。
+ * 高度上限唯一驱动: 渲染每行行盒高 = font × lineHeight(1.25),
+ * 三行 = 2.5×timeSize + 1.25×labelSize = 3.75×labelSize − 2.5 (time=label−1 代入)。
+ * → labelSize ≤ (cardHeight + 2.5) / 3.75, 三行行盒恰贴齐卡高永不重叠
+ *   (安卓 v1.0.59 定稿二, ref #96 #97; 旧估算 2.6 会使三行高出卡高 ~13%)。
+ * 卡高装不下 MIN 时按高度比例继续缩 — 硬钳必竖向溢出, 优先"无重叠"。
+ * 墨迹超宽时按比例回缩兜底; 整列共用一个字号 — 由最宽 (最难装下) 的行决定 (用户 2026-09-29 令)。
  */
 export interface AdaptiveFont {
   timeSize: number
@@ -141,7 +145,8 @@ export const ADAPTIVE_FONT_MAX_LABEL = 16
 export const ADAPTIVE_FONT_MAX_TIME = 14
 export const ADAPTIVE_FONT_MIN_LABEL = 11
 export const ADAPTIVE_FONT_MIN_TIME = 10
-const HEIGHT_TO_LABEL_RATIO = 2.6
+const HEIGHT_TO_LABEL_RATIO = 3.75
+const LINE_BOX_SPACING_CORRECTION = 2.5
 const BASE_LABEL = 12
 
 export function computeAdaptiveFont(
@@ -149,7 +154,8 @@ export function computeAdaptiveFont(
   cardHeight: number,
   inkWidth: number,
 ): AdaptiveFont {
-  const heightCap = Math.max(cardHeight, 1) / HEIGHT_TO_LABEL_RATIO
+  // 与安卓 PeriodHeaderLayoutModel.compute 同式: (cardHeight + 2.5) / 3.75
+  const heightCap = (Math.max(cardHeight, 1) + LINE_BOX_SPACING_CORRECTION) / HEIGHT_TO_LABEL_RATIO
   const labelSize = heightCap >= ADAPTIVE_FONT_MIN_LABEL
     ? Math.min(heightCap, ADAPTIVE_FONT_MAX_LABEL)
     : Math.max(heightCap, 0.1)
@@ -175,6 +181,111 @@ export function computeAdaptiveFont(
 export function columnAdaptiveFont(cardWidth: number, cardHeight: number, inks: number[]): AdaptiveFont {
   const ink = inks.length === 0 ? 0 : Math.max(...inks)
   return computeAdaptiveFont(cardWidth, cardHeight, ink)
+}
+
+/**
+ * 老式两行表头 (标签 / start-dash-end) 的 dash 共轴几何 —
+ * Android legacyDashColumnPx (PeriodHeaderLayoutModel.kt v1.0.61, ref #102) 1:1。
+ *   - 对齐轴 = 时间串中间 "-" 的**字形中心** (非盒左缘, 2026-10-04 设备实锤);
+ *   - 整列所有行的 dash 落同一 X, 标签同轴居中 — 不再逐卡 alignItems:center;
+ *   - 列宽 = 轴左最大延伸 + 轴右最大延伸 + pad×2 ("最宽的那一行, 余量也流出来")。
+ */
+export interface LegacyDashRowInk {
+  labelPx: number
+  timeLeftPx: number
+  dashPx: number
+  timeRightPx: number
+  /** 实测行高; 0 = 未测 → 垂直解按退化估值 */
+  labelHeightPx?: number
+  timeHeightPx?: number
+}
+
+export interface LegacyDashPlacement {
+  labelLeft: number
+  timeLeft: number
+}
+
+export interface LegacyDashColumn {
+  columnWidth: number
+  dashCenter: number
+  placements: LegacyDashPlacement[]
+}
+
+/** 网格列宽/共轴/垂直解三条链共用的行墨迹口径 — 与 legacyRowInk (安卓) 同源。 */
+export const LEGACY_BASE_LABEL = 12
+export const LEGACY_BASE_TIME = 11
+
+export function legacyRowInk(
+  slot: { label: string; displayStart: string; displayEnd: string; nodeStart?: number; nodeEnd?: number },
+  style: PeriodHeaderStyle,
+  showX: boolean,
+): LegacyDashRowInk {
+  const lines = periodHeaderLines(slot, 'legacy', style, showX)
+  return {
+    labelPx: estimatePeriodHeaderTextWidth(lines[0], LEGACY_BASE_LABEL),
+    timeLeftPx: estimatePeriodHeaderTextWidth(slot.displayStart, LEGACY_BASE_TIME),
+    dashPx: estimatePeriodHeaderTextWidth('-', LEGACY_BASE_TIME),
+    timeRightPx: estimatePeriodHeaderTextWidth(slot.displayEnd, LEGACY_BASE_TIME),
+  }
+}
+
+export function legacyDashColumn(rows: LegacyDashRowInk[], pad: number): LegacyDashColumn {
+  if (rows.length === 0) return { columnWidth: 0, dashCenter: 0, placements: [] }
+  const leftExtent = Math.max(...rows.map((r) => Math.max(r.labelPx / 2, r.timeLeftPx + r.dashPx / 2)))
+  const rightExtent = Math.max(...rows.map((r) => Math.max(r.labelPx / 2, r.dashPx / 2 + r.timeRightPx)))
+  const dashCenter = pad + leftExtent
+  const columnWidth = leftExtent + rightExtent + 2 * pad
+  return {
+    columnWidth,
+    dashCenter,
+    placements: rows.map((r) => ({
+      labelLeft: dashCenter - r.labelPx / 2,
+      timeLeft: dashCenter - r.timeLeftPx - r.dashPx / 2,
+    })),
+  }
+}
+
+/**
+ * 整列 union 包络垂直解 — Android legacyColumnVerticalFit (ref #102) 1:1。
+ *   - 两行墨迹是一个整体矩形, 卡片对整体做垂直居中 (不是每行各自居中);
+ *   - label 与 time 之间恒留 gap, 缩字不压行距; 卡不够时 gap 优先被吞, 吞完才缩字;
+ *   - 垂直永不重叠: 高度不够时两行同比例缩小, 缩字优先于重叠 (minScale 钳底)。
+ */
+export interface LegacyVerticalFit {
+  fontScale: number
+  labelTop: number
+  timeTop: number
+}
+
+export function legacyColumnVerticalFit(
+  rows: LegacyDashRowInk[],
+  cardContentHeight: number,
+  minScale = 0.6,
+  rowGap = 0,
+): LegacyVerticalFit {
+  if (rows.length === 0 || cardContentHeight <= 0) return { fontScale: 1, labelTop: 0, timeTop: 0 }
+  const labelH = Math.max(...rows.map((r) => (r.labelHeightPx && r.labelHeightPx > 0 ? r.labelHeightPx : r.labelPx)))
+  const timeH = Math.max(...rows.map((r) =>
+    (r.timeHeightPx && r.timeHeightPx > 0 ? r.timeHeightPx : r.timeLeftPx + r.dashPx + r.timeRightPx)))
+  const gap = Math.max(0, rowGap)
+  const union = labelH + timeH + gap
+  const slack = cardContentHeight - union
+  let scale: number
+  let effectiveGap: number
+  if (slack >= 0) {
+    scale = 1
+    effectiveGap = gap
+  } else if (slack > -gap) {
+    // 负余量小于原 gap → 吞 gap 至剩量, 不缩字
+    scale = 1
+    effectiveGap = gap + slack
+  } else {
+    // gap 吃完仍不够 → 按 (labelH + timeH) 缩字, gap 归零
+    scale = Math.min(1, Math.max(minScale, cardContentHeight / (labelH + timeH)))
+    effectiveGap = 0
+  }
+  const top = Math.max(0, (cardContentHeight - (labelH + timeH) * scale - effectiveGap) / 2)
+  return { fontScale: scale, labelTop: top, timeTop: top + labelH * scale + effectiveGap }
 }
 
 /** CSS 无文本测量 — 按字符类别估算基准 (12sp) 字号下的墨迹宽。

@@ -8,6 +8,7 @@ import { useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowBack, IconCheck, IconDelete } from '../components/icons'
 import { DialogActionButtons } from '../components/DialogActionButtons'
+import { Switch } from './mine/shared'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import type { Table } from '../data/types'
@@ -78,6 +79,8 @@ export function EditTableView({
   const [name, setName] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<string | null>(null)
   const [maxWeekText, setMaxWeekText] = useState<string | null>(null)
+  // ref #143 每表提醒开关 (缺列旧行 = 开, reminderEnabled !== 0 判定)
+  const [reminderEnabled, setReminderEnabled] = useState<boolean | null>(null)
   const [timeSlotsExpanded, setTimeSlotsExpanded] = useState(false)
   // 节次草稿 + 智慧节次配置提升到父层 — Android slotRows mutableStateListOf 同构:
   // 编辑器直接改草稿, 主保存按钮持久化草稿 (旧版主保存用原始 rows, 编辑会被静默丢弃)
@@ -129,6 +132,7 @@ export function EditTableView({
   if (table && name === null) setName(table.name)
   if (table && startDate === null) setStartDate(table.startDate)
   if (table && maxWeekText === null) setMaxWeekText(String(table.maxWeek))
+  if (table && reminderEnabled === null) setReminderEnabled(table.reminderEnabled !== 0)
   if (table && rowsDraft === null) {
     const initBindId = pendingBindInit ? pendingBind : (table.periodTableId ?? null)
     const initPeriod = initBindId != null ? allPeriodTables.find((pt) => pt.id === initBindId) : undefined
@@ -143,7 +147,7 @@ export function EditTableView({
     setPendingBindInit(true)
   }
 
-  if (!table || name === null || startDate === null || maxWeekText === null || rowsDraft === null || smartConfig === null) {
+  if (!table || name === null || startDate === null || maxWeekText === null || reminderEnabled === null || rowsDraft === null || smartConfig === null) {
     if (tables.length > 0 && !table) {
       return (
         <div style={{ padding: 24 }}>
@@ -200,6 +204,7 @@ export function EditTableView({
       timeJson: newTimeJson,
       smartConfigJson: smartJson,
       nodeCount: Math.max(1, newRows.length),
+      reminderEnabled: reminderEnabled ? 1 : 0,
     }
     // 甲案 §2.2 三选项闸门 (绑定保持不变 + 编辑区是共享作息表时):
     // ①改了作息+无策略 → 弹窗 (invariant ②; 选择后再改的策略已被 updateDraft
@@ -295,6 +300,14 @@ export function EditTableView({
           onChange={(v) => setMaxWeekText(v.replace(/\D/g, ''))}
           inputMode="numeric"
         />
+        {/* 每表独立提醒开关: 关闭后本表不发课前提醒/每日摘要/流体云(全局开关仍总控) — Android EditTableScreen 同位 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="m3-body-medium">{t('edit_table_reminder_enable')}</div>
+            <div className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('edit_table_reminder_desc')}</div>
+          </div>
+          <Switch checked={reminderEnabled} onChange={setReminderEnabled} />
+        </div>
       </div>
 
       {/* 节次时间表 (可折叠) — v1.0.56 T6 第三 Tab「作息表」= 换绑入口 */}

@@ -7,7 +7,7 @@
 import { useLayoutEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from '../../state/prefsStore'
-import { periodHeaderLines, type PeriodHeaderStyle } from '../../components/schedule/periodHeader'
+import { periodHeaderLines, legacyDashColumn, legacyColumnVerticalFit, type LegacyDashRowInk, type PeriodHeaderStyle } from '../../components/schedule/periodHeader'
 import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
 import { SettingsScaffold, ToggleRow, SliderRow, onActivateKey } from './shared'
 
@@ -71,9 +71,11 @@ function previewContentWidth(layout: 'legacy' | 'three_line', style: PeriodHeade
   }
 
   const dashWidth = measureTextWidth('-', TIME_SIZE)
-  const leftExtent = Math.max(labelWidth / 2, startWidth + dashWidth / 2)
-  const rightExtent = Math.max(labelWidth / 2, dashWidth / 2 + endWidth)
-    return Math.max(46, leftExtent + rightExtent + PREVIEW_PAD * 2)
+  // ref #102: 列宽 = dash 轴几何 — 与网格 legacyDashColumn 同一函数 (pad 即卡片内边距)。
+  return Math.max(46, legacyDashColumn(
+    [{ labelPx: labelWidth, timeLeftPx: startWidth, dashPx: dashWidth, timeRightPx: endWidth }],
+    PREVIEW_PAD,
+  ).columnWidth)
 }
 
 function previewFontSize(width: number) {
@@ -111,7 +113,11 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
           const hangingLabelLeft = -previewLabelWidth + ((hangingDraft + 1) / 2) * (timeWidth + previewLabelWidth)
           const inkLeft = Math.min(0, hangingLabelLeft)
           const legacyDashWidth = measureTextWidth('-', TIME_SIZE)
-          const legacyAxis = Math.max(labelWidth / 2, measureTextWidth(PREVIEW_SLOT.displayStart, TIME_SIZE) + legacyDashWidth / 2)
+          // ref #102: dash 字形中心共轴, 与网格 legacyAxis 同一函数 (pad=0, pad 只进列宽)。
+          const legacyAxis = legacyDashColumn(
+            [{ labelPx: labelWidth, timeLeftPx: startWidth, dashPx: legacyDashWidth, timeRightPx: endWidth }],
+            0,
+          ).dashCenter
           return (
             <div
               key={style}
@@ -147,18 +153,27 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
                       lineHeight: `${PREVIEW_FONT.time * 1.25}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)',
                     }}>{PREVIEW_SLOT.displayEnd}</div>
                   </div>
-                ) : (
-                  <div style={{ position: 'absolute', inset: PREVIEW_PAD }}>
-                    <div className="m3-label-small" style={{
-                      position: 'absolute', top: 4, left: legacyAxis - labelWidth / 2, fontSize: 12,
-                      fontWeight: 600, lineHeight: '15px', whiteSpace: 'nowrap', color: 'var(--md-on-surface)',
-                    }}>{measuredHeaderLabel}</div>
-                    <div className="m3-label-small" style={{
-                      position: 'absolute', top: 23, left: legacyAxis - measureTextWidth(PREVIEW_SLOT.displayStart, 11) - legacyDashWidth / 2,
-                      fontSize: 11, lineHeight: '14px', whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)',
-                    }}>{`${PREVIEW_SLOT.displayStart}-${PREVIEW_SLOT.displayEnd}`}</div>
-                  </div>
-                )}
+                ) : (() => {
+                  // ref #102 预览/网格同一几何: union 垂直解替代硬编码 top 4/23;
+                  // 行盒 14/13 与网格 legacy 渲染同源 (headerLabelStyle/headerTimeStyle)。
+                  const previewInk: LegacyDashRowInk = {
+                    labelPx: labelWidth, timeLeftPx: startWidth, dashPx: legacyDashWidth, timeRightPx: endWidth,
+                    labelHeightPx: 14, timeHeightPx: 13,
+                  }
+                  const fit = legacyColumnVerticalFit([previewInk], PREVIEW_HEIGHT - PREVIEW_PAD * 2, 0.6, 2)
+                  return (
+                    <div style={{ position: 'absolute', inset: PREVIEW_PAD }}>
+                      <div className="m3-label-small" style={{
+                        position: 'absolute', top: fit.labelTop, left: legacyAxis - labelWidth / 2, fontSize: 12 * fit.fontScale,
+                        fontWeight: 600, lineHeight: `${14 * fit.fontScale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface)',
+                      }}>{measuredHeaderLabel}</div>
+                      <div className="m3-label-small" style={{
+                        position: 'absolute', top: fit.timeTop, left: legacyAxis - startWidth - legacyDashWidth / 2,
+                        fontSize: 11 * fit.fontScale, lineHeight: `${13 * fit.fontScale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)',
+                      }}>{`${PREVIEW_SLOT.displayStart}-${PREVIEW_SLOT.displayEnd}`}</div>
+                    </div>
+                  )
+                })()}
               </div>
               <span
                 className="m3-label-small"

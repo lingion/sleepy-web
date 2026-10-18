@@ -8,6 +8,8 @@ import type { RenderSlotPlan, TimeSlot } from '../../domain/timeTable'
 import { buildRenderSlotPlan, parseHM, timeToFractionalRows } from '../../domain/timeTable'
 import {
   estimatePeriodHeaderTextWidth,
+  legacyDashColumn,
+  legacyRowInk,
   periodHeaderHangingPlacement,
   periodHeaderLines,
   type PeriodHeaderStyle,
@@ -114,10 +116,17 @@ function resolveTimeColumnWidth(
     periodHeaderShowX?: boolean
   },
 ): number {
-  if (options.periodHeaderLayout !== 'three_line') return GRID.timeW
   const style = options.periodHeaderStyle ?? 'arabic'
-  const hanging = options.periodHeaderHanging ?? 0
   const showX = options.periodHeaderShowX ?? false
+  if (options.periodHeaderLayout !== 'three_line') {
+    // 用户令 (老式表头同三行式统一, ref #102): 列宽 = dash 轴几何
+    // (所有行 dash 同一 X, 列宽含最宽行两侧余量), 不再硬钉 68。
+    const rows = slots
+      .filter((slot) => !slot.isPlaceholder)
+      .map((slot) => legacyRowInk(slot, style, showX))
+    return Math.max(46, legacyDashColumn(rows, 3).columnWidth)
+  }
+  const hanging = options.periodHeaderHanging ?? 0
   const widths = slots
     .filter((slot) => !slot.isPlaceholder)
     .map((slot) => {

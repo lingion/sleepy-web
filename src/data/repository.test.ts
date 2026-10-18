@@ -131,6 +131,25 @@ describe('课程 CRUD (capture 6-14)', () => {
     expect(await getGroupCourses(tableId, 'grp1')).toHaveLength(2)
   })
 
+  it('getGroupCourses: 空 groupId 返回空 (ref #144 防呆)', async () => {
+    await insertCourse(mkCourse({ tableId, groupId: '', courseName: 'A' }))
+    await insertCourse(mkCourse({ tableId, groupId: '', courseName: 'B' }))
+    await insertCourse(mkCourse({ tableId, groupId: 'grp1', courseName: 'C' }))
+    expect(await getGroupCourses(tableId, '')).toEqual([])
+    expect(await getGroupCourses(tableId, 'grp1')).toHaveLength(1)
+  })
+
+  it('deleteCourseGroup: 空 groupId 拒删, 存量空组课不动 (Android 防呆 1:1, ref #144)', async () => {
+    await insertCourse(mkCourse({ tableId, groupId: '', courseName: 'A' }))
+    await insertCourse(mkCourse({ tableId, groupId: '', courseName: 'B' }))
+    const gid = await insertCourse(mkCourse({ tableId, groupId: 'grp1' }))
+    await deleteCourseGroup(tableId, '')
+    expect(await getCourses(tableId)).toHaveLength(3)
+    await deleteCourseGroup(tableId, 'grp1')
+    expect(await getCourses(tableId)).toHaveLength(2)
+    expect(gid).toBeGreaterThan(0)
+  })
+
   it('updateCourse', async () => {
     const id = await insertCourse(mkCourse({ tableId, teacher: '张三' }))
     const c = await db.courses.get(id)

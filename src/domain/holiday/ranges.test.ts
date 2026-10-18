@@ -13,13 +13,17 @@ import {
   decodeOverrides,
   decideGrey,
   encodeOverrides,
+  holidayGreyDaysForWeek,
   isIsoDate,
   isWeekendIso,
   mergeSegments,
   sourceKeyOf,
   toSets,
+  weekDateIso,
+  type GreyToggles,
   type HolidayEntry,
   type HolidayRange,
+  type HolidayYearData,
 } from './ranges'
 
 const e = (date: string, name: string, type = TYPE_PUBLIC_HOLIDAY): HolidayEntry => ({ date, name, type })
@@ -173,5 +177,64 @@ describe('sourceKeyOf', () => {
   it('型分流', () => {
     expect(sourceKeyOf(TYPE_TRANSFER_WORKDAY, '2026-01-01')).toBe('workday:2026-01-01')
     expect(sourceKeyOf(TYPE_PUBLIC_HOLIDAY, '2026-01-01')).toBe('holiday:2026-01-01')
+  })
+})
+
+describe('holidayGreyDaysForWeek — 自定义补班日豁免灰显 (ref #139, Android b92efaf6)', () => {
+  const togglesOn: GreyToggles = { greyHoliday: true, greyWeekend: true, ignoreWorkday: true }
+  // 2026-10-05 = 周一 → week 1: day6=10-10(周六), day7=10-11(周日)
+
+  it('仅自定义调休映射(无网络数据)的 targetDate 不再灰显', () => {
+    const out = holidayGreyDaysForWeek('2026-10-05', 1, new Map(), togglesOn, new Set(['2026-10-10']))
+    expect([...out].sort()).toEqual([7])
+  })
+
+  it('ignoreWorkday 关时补班日仍灰 (安卓语义: 豁免仅随开关生效)', () => {
+    const out = holidayGreyDaysForWeek('2026-10-05', 1, new Map(), { ...togglesOn, ignoreWorkday: false }, new Set(['2026-10-10']))
+    expect([...out].sort()).toEqual([6, 7])
+  })
+
+  it('无 customWorkdays 时与既有行为一致: 周末全灰', () => {
+    const out = holidayGreyDaysForWeek('2026-10-05', 1, new Map(), togglesOn)
+    expect([...out].sort()).toEqual([6, 7])
+  })
+
+  it('网络法定补班日与自定义 targetDate 并集同时豁免', () => {
+    const yearData = new Map<number, HolidayYearData>([[2026, { holidays: new Set(), workdays: new Set(['2026-10-11']) }]])
+    const out = holidayGreyDaysForWeek('2026-10-05', 1, yearData, togglesOn, new Set(['2026-10-10']))
+    expect(out.size).toBe(0)
+  })
+
+  it('不变量: 凡映射为上课的目标日永不灰显 (随机转移集性质测)', () => {
+    let s = 20261018
+    const rnd = () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648
+    const startDate = '2026-01-05' // 周一
+    // 周历坐标表: iso → {w,d}
+    const pos = new Map<string, { w: number; d: number }>()
+    for (let w = 1; w <= 52; w++) {
+      for (let d = 1; d <= 7; d++) {
+        const iso = weekDateIso(startDate, w, d)
+        if (iso) pos.set(iso, { w, d })
+      }
+    }
+    for (let trial = 0; trial < 30; trial++) {
+      const custom = new Set<string>()
+      for (let k = 0; k < 4; k++) {
+        const w = 1 + Math.floor(rnd() * 52)
+        const d = 1 + Math.floor(rnd() * 7)
+        const iso = weekDateIso(startDate, w, d)
+        if (iso) custom.add(iso)
+      }
+      const greyByWeek = new Map<number, Set<number>>()
+      for (const iso of custom) {
+        const p = pos.get(iso)!
+        let g = greyByWeek.get(p.w)
+        if (!g) {
+          g = holidayGreyDaysForWeek(startDate, p.w, new Map(), togglesOn, custom)
+          greyByWeek.set(p.w, g)
+        }
+        expect(g.has(p.d)).toBe(false)
+      }
+    }
   })
 })
