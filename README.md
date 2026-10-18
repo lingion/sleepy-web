@@ -22,7 +22,8 @@
   <a href="https://sleepy.qdp.qzz.io">在线体验</a> ·
   <a href="https://github.com/lingion/sleepy">Android 主项目</a> ·
   <a href="https://github.com/lingion/sleepy-web/issues">问题反馈</a> ·
-  <a href="LICENSE">GPL-3.0</a>
+  <a href="LICENSE">GPL-3.0</a> ·
+  <a href="sponsor.md">赞助</a>
 </p>
 
 ---
