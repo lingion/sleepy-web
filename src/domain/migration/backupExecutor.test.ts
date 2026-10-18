@@ -245,3 +245,52 @@ describe('prefs 键映射 (Android 互通)', () => {
     expect(prefs.conflictDefaultTop).toEqual({ '1:1:2': 7 })
   })
 })
+
+describe('reminderEnabled 备份保真 (ref #143)', () => {
+  it('OVERWRITE 往返: 关闭提醒的表导入后仍为 0, 开启表仍为 1', async () => {
+    await seed() // 主表缺省 = 开
+    await db.timetables.update(1, { reminderEnabled: 0 })
+    const { bytes } = await exportBackup(['database'])
+
+    await db.delete()
+    await db.open()
+    await importBackup(bytes, 'OVERWRITE')
+    const tables = await db.timetables.toArray()
+    expect(tables).toHaveLength(1)
+    expect(tables[0].reminderEnabled).toBe(0)
+  })
+
+  it('MERGE 追加: 新表携带备份中的开关值', async () => {
+    const localId = await seed()
+    await db.timetables.update(localId, { reminderEnabled: 0 })
+    const { bytes } = await exportBackup(['database'])
+
+    await insertTable({
+      name: '本地表', startDate: '', maxWeek: 20, nodeCount: 12,
+      timeJson: '[]', smartConfigJson: '', isDefault: 0, createdAt: 3000,
+    })
+    await importBackup(bytes, 'MERGE')
+    const tables = await db.timetables.toArray()
+    const imported = tables.find((t) => t.name === '主表' && t.id !== localId)!
+    expect(imported.reminderEnabled).toBe(0)
+  })
+
+  it('Android v1.0.61 旧包无 reminderEnabled 字段 → 导入默认开 (升级零行为变化)', async () => {
+    await seed()
+    const { bytes } = await exportBackup(['database'])
+    // 手工剥字段, 模拟 Android 侧备份 (TimeTableRow 无此列)
+    const entries = readZipEntries(bytes)
+    const dbJson = JSON.parse(entries['modules/database.json'])
+    for (const row of dbJson.timeTables) delete row.reminderEnabled
+    const legacyZip = writeZip([
+      ['manifest.json', entries['manifest.json']],
+      ['modules/database.json', JSON.stringify(dbJson)],
+    ])
+    await db.delete()
+    await db.open()
+    await importBackup(legacyZip, 'OVERWRITE')
+    const tables = await db.timetables.toArray()
+    expect(tables).toHaveLength(1)
+    expect(tables[0].reminderEnabled).toBe(1)
+  })
+})

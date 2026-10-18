@@ -62,71 +62,114 @@ export async function tick(): Promise<void> {
 
 // ==================== 每日/明日摘要 ====================
 
+/**
+ * 多表摘要 (Android ef644665 1:1): 遍历所有 reminderEnabled 表, 每表(有课)一条摘要;
+ * 前缀「表名 ·」的判据是开启表数 >1 (activeTables.size>1, 非条数); 全表无课 → 单条 no_course
+ * (不加前缀); 开启表数 0 → 整体静默。web 无假期策略层 → active = enabled。
+ * 台账/Tag: 单表沿用 legacy key/tag (升级不重复弹), 多表每表独立 `${key}#${tableId}`。
+ */
 export async function fireSummary(targetDay: Date, isTomorrow: boolean): Promise<void> {
   const key = isTomorrow ? 'daily-tomorrow' : 'daily-today'
   const dayIso = toIsoDay(new Date())
-  if (alreadyFired(key, dayIso)) return
-  const table = await currentTable()
-  const courses = table ? await coursesOn(table, targetDay) : []
-  courses.sort((a, b) => a.startNode - b.startNode)
+  const tables = await reminderTables()
+  if (tables.length === 0) return
 
   const dayOfMonth = targetDay.getDate()
-  let title: string
-  let body: string
-  if (courses.length === 0) {
-    title = i18next.t(isTomorrow ? 'notif_tomorrow_title_no_course' : 'notif_daily_title_no_course', { v1: dayOfMonth })
-    body = i18next.t(isTomorrow ? 'notif_tomorrow_text_no_course' : 'notif_daily_text_no_course')
-  } else {
-    title = i18next.t(isTomorrow ? 'notif_tomorrow_title' : 'notif_daily_title', { v1: dayOfMonth, v2: courses.length })
+  const posts: Array<{ table: Table; courses: Course[] }> = []
+  for (const table of tables) {
+    const courses = await coursesOn(table, targetDay)
+    courses.sort((a, b) => a.startNode - b.startNode)
+    if (courses.length > 0) posts.push({ table, courses })
+  }
+  const prefix = tables.length > 1
+
+  if (posts.length === 0) {
+    if (alreadyFired(key, dayIso)) return
+    markFired(key, dayIso)
+    postNotify({
+      tag: `sleepy-${key}-${dayIso}`,
+      title: i18next.t(isTomorrow ? 'notif_tomorrow_title_no_course' : 'notif_daily_title_no_course', { v1: dayOfMonth }),
+      body: i18next.t(isTomorrow ? 'notif_tomorrow_text_no_course' : 'notif_daily_text_no_course'),
+    })
+    return
+  }
+
+  for (const { table, courses } of posts) {
+    // 单表单条 = legacy 台账键 (与 v1.0.57 行为连续); 多表 → 每表独立去重
+    const ledgerKey = posts.length === 1 && tables.length === 1 ? key : `${key}#${table.id}`
+    if (alreadyFired(ledgerKey, dayIso)) continue
+    markFired(ledgerKey, dayIso)
     const first = courses[0]
-    body = i18next.t('notif_daily_text_first', {
+    let title = i18next.t(isTomorrow ? 'notif_tomorrow_title' : 'notif_daily_title', { v1: dayOfMonth, v2: courses.length })
+    let body = i18next.t('notif_daily_text_first', {
       v1: displayName(first),
-      v2: table ? courseStartStr(table, first) : '',
+      v2: courseStartStr(table, first),
       v3: first.room || i18next.t('notif_room_unknown'),
     })
+    if (prefix) {
+      title = `${table.name} · ${title}`
+      body = `${table.name} · ${body}`
+    }
+    const tag = tables.length === 1 && posts.length === 1 ? `sleepy-${key}-${dayIso}` : `sleepy-${key}-${dayIso}-${table.id}`
+    postNotify({ tag, title, body })
   }
-  markFired(key, dayIso)
-  postNotify({ tag: `sleepy-${key}-${dayIso}`, title, body })
 }
 
 // ==================== 课前提醒 ====================
 
 /**
  * 每分钟窗口检测 (Android "每节课单独 alarm" 的轮询等价):
- * now ∈ [classStart − minutes, classStart − minutes + 60s) 即命中, 只报第一节命中课。
+ * now ∈ [classStart − minutes, classStart − minutes + 60s) 即命中。
+ * ref #143: 扫描所有开启表 (Android BeforeClassNotifyReceiver 只查 owner 表开关 →
+ * reminderTables 过滤即等价; resync 收集全部开启表槽位 → web 每次现扫)。
+ * 同刻多表命中 → 取最早开始的一节 (Android 各 alarm 独立, web 轮询只能选一)。
  */
 export async function fireBeforeClass(now: Date, p: ReminderPrefs): Promise<void> {
-  const table = await currentTable()
-  if (!table) return
-  const courses = await coursesOn(table, now)
-  if (courses.length === 0) return
+  const tables = await reminderTables()
   const dayIso = toIsoDay(now)
   const nowMs = now.getTime()
-  for (const c of courses) {
-    const startStr = courseStartStr(table, c)
-    const startAt = timeOnDay(nowMs, startStr)
-    if (startAt == null) continue
-    const notifyAt = startAt - p.beforeClassMinutes * 60_000
-    if (nowMs < notifyAt || nowMs >= notifyAt + 60_000) continue
-    const key = `before-class-${c.id}-${dayIso}-${startStr}`
+  const hits: Array<{ table: Table; course: Course; startStr: string; startAt: number }> = []
+  for (const table of tables) {
+    const courses = await coursesOn(table, now)
+    for (const c of courses) {
+      const startStr = courseStartStr(table, c)
+      const startAt = timeOnDay(nowMs, startStr)
+      if (startAt == null) continue
+      const notifyAt = startAt - p.beforeClassMinutes * 60_000
+      if (nowMs < notifyAt || nowMs >= notifyAt + 60_000) continue
+      hits.push({ table, course: c, startStr, startAt })
+    }
+  }
+  hits.sort((a, b) => a.startAt - b.startAt || a.table.id - b.table.id || a.course.startNode - b.course.startNode)
+  for (const hit of hits) {
+    const c = hit.course
+    const key = `before-class-${c.id}-${dayIso}-${hit.startStr}`
     if (alreadyFired(key, dayIso)) continue
     markFired(key, dayIso)
     const name = displayName(c)
     const room = c.room || i18next.t('notif_room_unknown')
     const title = p.fluidEnabled && !p.bannerEnabled ? name : i18next.t('notif_before_class_title')
     const body = c.teacher.trim() === ''
-      ? i18next.t('notif_before_class_text', { v1: name, v2: startStr, v3: room })
-      : i18next.t('notif_before_class_text_with_teacher', { v1: name, v2: startStr, v3: room, v4: c.teacher })
+      ? i18next.t('notif_before_class_text', { v1: name, v2: hit.startStr, v3: room })
+      : i18next.t('notif_before_class_text_with_teacher', { v1: name, v2: hit.startStr, v3: room, v4: c.teacher })
     postNotify({ tag: `sleepy-${key}`, title, body })
-    return // 同分钟多课命中只报第一节 — Android 每课独立 alarm, web 轮询取最小 startNode
+    return // 命中一节即止 — 其余留待各自窗口 (每课独立台账键)
   }
 }
 
 // ==================== 课程/时间解析 ====================
 
-/** WidgetTableResolver.resolveCurrentTable 的 web 对位 = 默认课表 */
+/** WidgetTableResolver.resolveCurrentTable 的 web 对位 = 默认课表 (预览通路 Android 仍单表, 保留) */
 export async function currentTable(): Promise<Table | null> {
   return (await db.timetables.where('isDefault').equals(1).first()) ?? null
+}
+
+/** resolveReminderTables 1:1 (ref #143): getAllTables().filter{reminderEnabled}; 缺列旧行=开 */
+export async function reminderTables(): Promise<Table[]> {
+  const all = await db.timetables.toArray()
+  return all
+    .filter((t) => t.reminderEnabled !== 0)
+    .sort((a, b) => a.id - b.id)
 }
 
 /** 今日(或明日)在学期的课, 已按 normalizeNode 归一 (TodayView.todayCourses 同链路)。

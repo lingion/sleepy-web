@@ -51,6 +51,13 @@ export class SleepyDatabase extends Dexie {
         if (t.preBindSnapshotJson === undefined) t.preBindSnapshotJson = ''
       })
     })
+    // Room v10→v11 (ref #143): timetables 回填 reminderEnabled=1 — 升级零行为变化
+    // (Android 纯 ALTER TABLE ADD COLUMN DEFAULT 1; web 老行缺列读路径亦回退开, 双保险)
+    this.version(4).stores({}).upgrade(async (tx) => {
+      await tx.table('timetables').toCollection().modify((t: TimetableEntity) => {
+        if (t.reminderEnabled === undefined) t.reminderEnabled = 1
+      })
+    })
   }
 }
 
