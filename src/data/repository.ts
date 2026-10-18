@@ -37,6 +37,8 @@ export async function getCourse(id: number): Promise<Course | undefined> {
 }
 
 export async function getGroupCourses(tableId: number, groupId: string): Promise<Course[]> {
+  // ref #144 防呆: 空 groupId 不是组 — 返回空, 禁止把整表存量空组课当"这一组"回填编辑页
+  if (groupId === '') return []
   return db.courses.where('tableId').equals(tableId).and((c) => c.groupId === groupId).toArray()
 }
 
@@ -510,13 +512,21 @@ export async function updateCourse(course: Course): Promise<void> {
   await db.courses.put(course)
 }
 
-/** 11. updateCourseGroup — 整组覆盖 (编辑页保存路径) */
+/** 11. updateCourseGroup — 整组覆盖 (编辑页保存路径)。
+ *  ref #144 防呆 (Android ScheduleRepository 1:1): 空 groupId 禁止走组替换 —
+ *  否则 DELETE WHERE groupId='' 把该表全部空组课一起删掉; 退化为逐条插入。 */
 export async function updateCourseGroup(
   tableId: number,
   groupId: string,
   newCourses: Omit<Course, 'id'>[]
 ): Promise<void> {
   await undoManager.capture('updateCourseGroup')
+  if (groupId === '') {
+    let next = await nextCourseId()
+    await db.courses.bulkPut(newCourses.map((c) => ({ ...c, id: next++, tableId, groupId })))
+    await pruneDefaultTopPrefs()
+    return
+  }
   await db.transaction('rw', db.courses, async () => {
     await db.courses
       .where('tableId')
@@ -541,8 +551,10 @@ export async function deleteCourse(id: number): Promise<void> {
   }
 }
 
-/** 13. deleteCourseGroup */
+/** 13. deleteCourseGroup — ref #144 防呆 (Android ScheduleRepository 1:1):
+ *  空 groupId 拒删, 否则 DELETE WHERE groupId='' 把整表存量空组课全带走 */
 export async function deleteCourseGroup(tableId: number, groupId: string): Promise<void> {
+  if (groupId === '') return
   await undoManager.capture('deleteCourseGroup')
   await db.courses
     .where('tableId')

@@ -11,6 +11,9 @@ import { parseTimeSlotRows, timeToNode, maxStandardNode, effectiveCourseTime } f
 /** 一张课时卡 (MeetingBlockDraft) — 每个上课时段独立编辑 teacher/room/note/color */
 export interface MeetingBlockDraft {
   id: number
+  /** ref #144 编辑跳转: 该卡覆盖的 CourseEntity 主键集 (回填切组时填入; 新建卡空)。
+   *  安卓 MeetingBlockDraft.sourceIds = emptyList() 默认值 1:1 */
+  sourceIds?: number[]
   days: number[]
   /** 标准节次 (isIrregularNode=false 时生效) */
   startNode: number
@@ -69,11 +72,13 @@ export function parseHm(value: string): number | null {
   return h * 60 + min
 }
 
-/** 编辑回填分组 — groupSlotsForEdit: 周次/单双周/地点/老师 全参与 key */
+/** 编辑回填分组 — groupSlotsForEdit: day/周次/单双周/地点/老师 全参与 key。
+ *  ref #144 v4 (安卓 e5a0528c): day 进 key — 「点周四的课跳到周五的时段块」根因,
+ *  同节次不同星期必须分开。 */
 export function groupSlotsForEdit(courses: Course[]): Course[][] {
   const groups = new Map<string, Course[]>()
   for (const c of courses) {
-    const key = `${c.ownTime}|${c.startNode}|${c.step}|${c.startTime}|${c.endTime}|${c.startWeek}|${c.endWeek}|${c.type}|${c.room}|${c.teacher}`
+    const key = `${c.day}|${c.ownTime}|${c.startNode}|${c.step}|${c.startTime}|${c.endTime}|${c.startWeek}|${c.endWeek}|${c.type}|${c.room}|${c.teacher}`
     const list = groups.get(key) ?? []
     list.push(c)
     groups.set(key, list)
@@ -81,10 +86,45 @@ export function groupSlotsForEdit(courses: Course[]): Course[][] {
   return [...groups.values()]
 }
 
-/** initialMeetingBlock — 新建首卡默认 (周一 1-2 节 08:00-09:40) */
-export function initialMeetingBlock(id = 1): MeetingBlockDraft {
+/** 编辑页跳转目标卡下标 — findTargetBlockIndex 1:1 (ref #144, 安卓 b77fc4d6 v2):
+ *  editingCourse.id 命中 block.sourceIds 任意元素即该块。
+ *  v1 的 day+startNode 模糊匹配在跨组歧义下错 (两组可共享 (day, startNode)),
+ *  主键 PK 唯一 → 必命中正确块; 未命中返回 -1 (调用方 >=0 才滚)。 */
+export function findTargetBlockIndex(blocks: MeetingBlockDraft[], editingCourse: Course | null): number {
+  if (!editingCourse) return -1
+  return blocks.findIndex((b) => (b.sourceIds ?? []).includes(editingCourse.id))
+}
+
+/** initialMeetingBlock — 新建首卡默认 (周一 1-2 节 08:00-09:40);
+ *  ref #144 编辑模式传入 editingCourse → 按该行字段回填 (空 groupId 存量课也先有
+ *  可跳转的自身卡, sourceIds=[course.id]; 组加载成功后整列表替换)。安卓 :874 1:1。 */
+export function initialMeetingBlock(id = 1, course: Course | null = null): MeetingBlockDraft {
+  if (course) {
+    return {
+      id,
+      sourceIds: [course.id],
+      days: [course.day],
+      startNode: course.startNode,
+      step: course.step,
+      isIrregularTime: course.ownTime,
+      startTime: course.startTime || '08:00', // 安卓 ifBlank 兜底
+      endTime: course.endTime || '09:40',
+      isIrregularNode: false,
+      selectedEdgeNode: 0,
+      startWeek: course.startWeek,
+      endWeek: course.endWeek,
+      weekType: course.type,
+      room: course.room,
+      teacher: course.teacher,
+      note: course.note,
+      color: course.color,
+      colorMode: course.colorMode,
+      clamped: false,
+    }
+  }
   return {
     id,
+    sourceIds: [],
     days: [1],
     startNode: 1,
     step: 2,

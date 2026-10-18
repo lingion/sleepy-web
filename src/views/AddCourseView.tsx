@@ -5,7 +5,7 @@
  * 保存: 新建=组共享新 groupId; 编辑=applyDiff 行级 diff 不波及他组 (issue#22)。
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconArrowBack,
@@ -34,6 +34,7 @@ import { localizedDay } from '../components/schedule/CardsGridView'
 import { SegmentedSwitcher } from '../components/SegmentedSwitcher'
 import {
   groupSlotsForEdit,
+  findTargetBlockIndex,
   initialMeetingBlock,
   buildCourseEntity,
   validateCourseDraft,
@@ -94,17 +95,24 @@ export function AddCourseView({
   const [endWeek, setEndWeek] = useState(editingCourse?.endWeek ?? 16)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
   const [pendingConflictDetails, setPendingConflictDetails] = useState<string[]>([])
-  const [meetingBlocks, setMeetingBlocks] = useState<MeetingBlockDraft[]>(() => {
-    if (!editingCourse) return [initialMeetingBlock(1)]
-    return [initialMeetingBlock(1)] // 编辑模式在 syncBlocks 中回填
-  })
+  // ref #144 (安卓 :255): 编辑模式初始卡按 editingCourse 自身回填 —
+  // 空 groupId 存量课组回填为空 (防呆), 该初始卡即最终形态且 sourceIds 命中主键 →
+  // 跳转照样落位; 组加载成功则整列表替换为多卡。
+  const [meetingBlocks, setMeetingBlocks] = useState<MeetingBlockDraft[]>([
+    initialMeetingBlock(1, editingCourse ?? null),
+  ])
   const [blocksSynced, setBlocksSynced] = useState(!editingCourse)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // 用户点开课程胶囊 → 编辑页自动落到那颗胶囊所在时段卡 (ref #144, 安卓 LaunchedEffect :326)
+  const blockRefs = useRef(new Map<number, HTMLDivElement>())
+  const scrolledStage = useRef<string | null>(null)
 
   // 编辑模式: 同 groupId 全部课按时段特征分组回填多卡 (issue#22)
   if (editingCourse && !blocksSynced && defaultTable) {
     void (async () => {
-      const group = await getGroupCourses(defaultTable.id, editingCourse.groupId)
+      // ref #144: 空 groupId 不是组 — 跳过组回填 (安卓 :268 eg.groupId.isNotBlank() 同构)
+      const group = editingCourse.groupId === '' ? [] : await getGroupCourses(defaultTable.id, editingCourse.groupId)
       if (group.length > 0) {
         const slots = groupSlotsForEdit(group)
         const edgeNodes = new Set(
@@ -116,6 +124,7 @@ export function AddCourseView({
           const isEdge = edgeNodes.has(first.startNode)
           const b: MeetingBlockDraft = {
             id: bid++,
+            sourceIds: slotCourses.map((c) => c.id),
             days: [...new Set(slotCourses.map((c) => c.day))].sort((a, b) => a - b),
             startNode: first.startNode,
             step: first.step,
@@ -141,6 +150,20 @@ export function AddCourseView({
       setBlocksSynced(true)
     })()
   }
+
+  // ref #144 跳转 (安卓 :326 LaunchedEffect(editingCourse?.id, meetingBlocks.size)):
+  // 阶段 = 最终回填态 (synced) 或初始自身卡 (空组直开)。同课程同形态只滚一次 —
+  // 用户手动上翻后编辑卡属性 (size 变化) 不再劫持视口。PK 命中 sourceIds 才滚。
+  useEffect(() => {
+    if (!isEditing || !blocksSynced) return
+    const stage = editingCourse!.groupId === '' ? 'init' : 'group'
+    if (scrolledStage.current === `${editingCourse!.id}:${stage}`) return
+    const idx = findTargetBlockIndex(meetingBlocks, editingCourse ?? null)
+    if (idx < 0) return
+    scrolledStage.current = `${editingCourse!.id}:${stage}`
+    blockRefs.current.get(meetingBlocks[idx].id)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing, blocksSynced, meetingBlocks.length, editingCourse?.id])
 
   const canSave = courseName.trim() !== '' && meetingBlocks.length > 0
 
@@ -343,8 +366,15 @@ export function AddCourseView({
       </div>
 
       {meetingBlocks.map((block, index) => (
-        <MeetingBlockCard
+        <div
           key={block.id}
+          ref={(el) => {
+            // ref #144: 记录卡 DOM 节点供跳转 scrollIntoView
+            if (el) blockRefs.current.set(block.id, el)
+            else blockRefs.current.delete(block.id)
+          }}
+        >
+        <MeetingBlockCard
           title={t('slot_n', { v1: index + 1 })}
           block={block}
           canRemove={meetingBlocks.length > 1}
@@ -391,6 +421,7 @@ export function AddCourseView({
             }
           }}
         />
+        </div>
       ))}
 
       <button
