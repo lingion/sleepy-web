@@ -6,6 +6,7 @@ import {
   computeAdaptiveFont,
   columnAdaptiveFont,
   estimateHeaderInk,
+  ADAPTIVE_FONT_MIN_LABEL,
   periodHeaderHangingPlacement,
   clampPeriodHeaderHanging,
 } from './periodHeader'
@@ -14,10 +15,24 @@ describe('adaptive header font (Android 3e4a4dfe parity)', () => {
   it('tall card → capped at 16/14 label/time', () => {
     expect(computeAdaptiveFont(68, 60, 0)).toEqual({ timeSize: 14, labelSize: 16 })
   })
-  it('short card shrinks by height (label = height/2.6, time = label-1)', () => {
+  it('short card shrinks by height (label = (height+2.5)/3.75, time = label-1)', () => {
+    // 安卓 v1.0.59 定稿: 三行行盒总高 = 3.75×labelSize − 2.5, 精确反比非估算 2.6
     const f = computeAdaptiveFont(68, 30, 0)
-    expect(f.labelSize).toBeCloseTo(30 / 2.6, 5)
-    expect(f.timeSize).toBeCloseTo(30 / 2.6 - 1, 5)
+    expect(f.labelSize).toBeCloseTo((30 + 2.5) / 3.75, 5)
+    expect(f.timeSize).toBeCloseTo((30 + 2.5) / 3.75 - 1, 5)
+  })
+  it('below MIN_LABEL shrinks proportionally instead of clamping (no vertical overflow)', () => {
+    // 卡高装不下 11 时 (heightCap=(cardH+2.5)/3.75 < 11) 按高度继续缩, 硬钳必竖向溢出
+    const f = computeAdaptiveFont(68, 26, 0) // cap = 28.5/3.75 = 7.6 < 11
+    expect(f.labelSize).toBeCloseTo((26 + 2.5) / 3.75, 5)
+    expect(f.labelSize).toBeLessThan(ADAPTIVE_FONT_MIN_LABEL)
+  })
+  it('three line boxes fit card height exactly at cap', () => {
+    // 行盒高 = font × 1.25, 三行 = 2.5×timeSize + 1.25×labelSize = 3.75×labelSize − 2.5 ≤ cardHeight
+    const cardHeight = 52
+    const f = computeAdaptiveFont(68, cardHeight, 0)
+    const total = 2.5 * f.timeSize + 1.25 * f.labelSize
+    expect(total).toBeLessThanOrEqual(cardHeight + 1e-9)
   })
   it('ink overflow shrinks proportionally (projected by label/BASE)', () => {
     // cap=23→label16; ink=200→proj=200*16/12=266.7; scale=68/266.7=0.255

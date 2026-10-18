@@ -129,8 +129,12 @@ export function estimatePeriodHeaderTextWidth(text: string, size: number): numbe
 
 /**
  * 表头字号自适应 — PeriodHeaderAdaptiveFont (PeriodHeaderLayoutModel.kt) 1:1。
- * 高度上限唯一驱动 (三行总高 ≈ label×2.6); 墨迹超宽时按比例回缩兜底;
- * 整列共用一个字号 — 由最宽 (最难装下) 的行决定 (用户 2026-09-29 令)。
+ * 高度上限唯一驱动: 渲染每行行盒高 = font × lineHeight(1.25),
+ * 三行 = 2.5×timeSize + 1.25×labelSize = 3.75×labelSize − 2.5 (time=label−1 代入)。
+ * → labelSize ≤ (cardHeight + 2.5) / 3.75, 三行行盒恰贴齐卡高永不重叠
+ *   (安卓 v1.0.59 定稿二, ref #96 #97; 旧估算 2.6 会使三行高出卡高 ~13%)。
+ * 卡高装不下 MIN 时按高度比例继续缩 — 硬钳必竖向溢出, 优先"无重叠"。
+ * 墨迹超宽时按比例回缩兜底; 整列共用一个字号 — 由最宽 (最难装下) 的行决定 (用户 2026-09-29 令)。
  */
 export interface AdaptiveFont {
   timeSize: number
@@ -141,7 +145,8 @@ export const ADAPTIVE_FONT_MAX_LABEL = 16
 export const ADAPTIVE_FONT_MAX_TIME = 14
 export const ADAPTIVE_FONT_MIN_LABEL = 11
 export const ADAPTIVE_FONT_MIN_TIME = 10
-const HEIGHT_TO_LABEL_RATIO = 2.6
+const HEIGHT_TO_LABEL_RATIO = 3.75
+const LINE_BOX_SPACING_CORRECTION = 2.5
 const BASE_LABEL = 12
 
 export function computeAdaptiveFont(
@@ -149,7 +154,8 @@ export function computeAdaptiveFont(
   cardHeight: number,
   inkWidth: number,
 ): AdaptiveFont {
-  const heightCap = Math.max(cardHeight, 1) / HEIGHT_TO_LABEL_RATIO
+  // 与安卓 PeriodHeaderLayoutModel.compute 同式: (cardHeight + 2.5) / 3.75
+  const heightCap = (Math.max(cardHeight, 1) + LINE_BOX_SPACING_CORRECTION) / HEIGHT_TO_LABEL_RATIO
   const labelSize = heightCap >= ADAPTIVE_FONT_MIN_LABEL
     ? Math.min(heightCap, ADAPTIVE_FONT_MAX_LABEL)
     : Math.max(heightCap, 0.1)
