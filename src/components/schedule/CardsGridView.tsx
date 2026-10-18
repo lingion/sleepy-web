@@ -16,6 +16,9 @@ import {
   columnAdaptiveFont,
   estimateHeaderInk,
   estimatePeriodHeaderTextWidth,
+  legacyColumnVerticalFit,
+  legacyDashColumn,
+  legacyRowInk,
   periodHeaderHangingPlacement,
   periodHeaderColumnPlacements,
   periodHeaderLines,
@@ -143,6 +146,16 @@ export function CardsGridView(props: CardsGridViewProps) {
     return periodHeaderColumnPlacements(rows, prefs.periodHeaderHanging)
   }, [geo.slots, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX])
 
+  // 用户令 2026-10-03 (ref #102): legacy 列级 dash 轴 — 全列所有行同一轴,
+  // 与 gridGeometry 列宽同一几何 (legacyDashColumn, pad 已在列宽里, 轴不含 pad)。
+  const legacyAxis = useMemo(() => {
+    if (prefs.periodHeaderLayout !== 'legacy') return null
+    const rows = geo.slots
+      .filter((slot) => !slot.isPlaceholder)
+      .map((slot) => legacyRowInk(slot, prefs.periodHeaderStyle, prefs.periodHeaderShowX))
+    return legacyDashColumn(rows, 0).dashCenter * prefs.gridScale
+  }, [geo.slots, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderShowX])
+
   // 簇: 时间域聚簇 (2026-09-09 假冲突修复同源)
   const clusters = useMemo(() => findClusters(courses, timeJson), [courses, timeJson])
   const clusteredIds = useMemo(() => new Set(clusters.flatMap((c) => c.courses.map((x) => x.id))), [clusters])
@@ -210,6 +223,7 @@ export function CardsGridView(props: CardsGridViewProps) {
               <SingleTimeHeadCell
                 slot={slot}
                 width={geo.timeW}
+                height={rowHeightAt(geo.plan, i, geo.rowH) - geo.gapH}
                 scale={prefs.gridScale}
                 cornerRatio={prefs.gridCornerRatio}
                 layout={prefs.periodHeaderLayout}
@@ -218,6 +232,7 @@ export function CardsGridView(props: CardsGridViewProps) {
                 showX={prefs.periodHeaderShowX}
                 font={headerFont}
                 placement={headerPlacements?.[geo.slots.slice(0, i).filter((item) => !item.isPlaceholder).length]}
+                legacyAxis={legacyAxis ?? undefined}
               />
             </div>
           ))}
@@ -325,6 +340,7 @@ function GridSeparators({ geo, dayCount }: { geo: ReturnType<typeof buildGridGeo
 function SingleTimeHeadCell({
   slot,
   width,
+  height,
   scale,
   cornerRatio,
   layout,
@@ -333,9 +349,12 @@ function SingleTimeHeadCell({
   showX,
   font,
   placement: placementOverride,
+  legacyAxis,
 }: {
   slot: { label: string; displayStart: string; displayEnd: string; nodeStart?: number; nodeEnd?: number; isPlaceholder?: boolean }
   width: number
+  /** legacy union 垂直解的卡高 (行高 − gapH); 缺省 = 表头行高 */
+  height?: number
   scale: number
   cornerRatio: number
   layout: PeriodHeaderLayout
@@ -349,6 +368,8 @@ function SingleTimeHeadCell({
     labelLeft: number
     contentWidth: number
   }
+  /** 列级共享 dash 轴 (网格全列同一轴, ref #102); 未传 (单卡) 走行内退化 */
+  legacyAxis?: number
 }) {
   const isPh = !!slot.isPlaceholder
   const lines = periodHeaderLines(slot, layout, style, showX)
@@ -396,23 +417,54 @@ function SingleTimeHeadCell({
     )
   }
   if (layout === 'legacy') {
+    // Legacy 两行 (ref #102, Android PeriodHeaderCellContent legacy 分支 1:1):
+    //   ① dash 字形中心坐共享轴 (轴 = 网格列级 legacyAxis, 与列宽同一几何);
+    //   ② 两行墨迹是一个整体矩形 — 垂直按 legacyColumnVerticalFit union 解定位,
+    //      不是每行各自 flex 居中 (旧实现高不够时两行挤叠的根因);
+    //   ③ gap 优先被吞, 吞完才缩字 — 缩字优先于重叠 (minScale 钳底)。
+    const ink = legacyRowInk(slot, style, showX)
+    const scaled = {
+      labelPx: ink.labelPx * scale,
+      timeLeftPx: ink.timeLeftPx * scale,
+      dashPx: ink.dashPx * scale,
+      timeRightPx: ink.timeRightPx * scale,
+      // 行盒高 = 安卓 headerLabelStyle/headerTimeStyle 的 14/13 sp×scale
+      labelHeightPx: 14 * scale,
+      timeHeightPx: 13 * scale,
+    }
+    // 单卡回退轴 (预览): 本行自己的 dash 字形中心; 网格传列级共享轴
+    const axis = legacyAxis ?? Math.max(scaled.labelPx / 2, scaled.timeLeftPx + scaled.dashPx / 2)
+    const pad = 3 * scale
+    const contentHeight = Math.max(1, (height ?? 52 * scale) - 2 * pad)
+    const fit = legacyColumnVerticalFit([scaled], contentHeight, 0.6, 2 * scale)
+    const fs = fit.fontScale
     return (
-      <div style={{ width, display: 'flex' }} data-period-header-hanging={hanging}>
+      <div style={{ width, display: 'flex' }}>
         <div
           style={{
+            position: 'relative',
             flex: 1,
+            minWidth: 0,
+            height: '100%',
             borderRadius: 8 * scale * Math.min(1, cornerRatio),
             background: isPh ? 'color-mix(in srgb, var(--md-surface-container-low) 50%, transparent)' : 'var(--md-surface-container-low)',
-            padding: 3 * scale,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 * scale,
+            padding: pad,
+            boxSizing: 'border-box',
             overflow: 'hidden',
           }}
         >
-          {!isPh && lines.map((line, index) => {
-            const isLabel = index === 0
-            const size = (font != null ? (isLabel ? font.labelSize : font.timeSize) : isLabel ? 10 : 9) * scale
-            return <span key={line} className="m3-label-small" style={{ fontWeight: isLabel ? 600 : undefined, fontSize: size, lineHeight: `${(isLabel ? size * 1.4 : size * 1.25)}px`, color: isLabel ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)' }}>{line}</span>
-          })}
+          {!isPh && <>
+            <span
+              data-period-header-line="label"
+              className="m3-label-small"
+              style={{ position: 'absolute', top: pad + fit.labelTop, left: pad + axis - scaled.labelPx / 2, fontSize: 12 * scale * fs, fontWeight: 600, lineHeight: `${14 * scale * fs}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface)' }}
+            >{lines[0]}</span>
+            <span
+              data-period-header-line="time"
+              className="m3-label-small"
+              style={{ position: 'absolute', top: pad + fit.timeTop, left: pad + axis - scaled.timeLeftPx - scaled.dashPx / 2, fontSize: 11 * scale * fs, lineHeight: `${13 * scale * fs}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)' }}
+            >{`${slot.displayStart}-${slot.displayEnd}`}</span>
+          </>}
         </div>
       </div>
     )
