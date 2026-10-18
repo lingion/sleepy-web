@@ -157,6 +157,55 @@ export function conflictMarkRectFrac(
   return { x: 0, y: 0, width: 0, height: 0 }
 }
 
+/**
+ * assignLanes (ConflictLayoutEngine.kt 012fbb69 1:1, ref #142): 并排栏位贪心分配。
+ * 按起始升序 (同起点跨度大者先), 每课放进第一个右端不越过它起点的既有栏 (0.001
+ * 容差), 否则新开一栏。真实时间互不相交的课共享同栏; 返回 id → 栏号 (0 起)。
+ */
+export function assignLanes(intervals: { id: number; startFrac: number; spanFrac: number }[]): Map<number, number> {
+  const laneEnds: number[] = []
+  const out = new Map<number, number>()
+  for (const iv of [...intervals].sort(
+    (a, b) => a.startFrac - b.startFrac || b.spanFrac - a.spanFrac,
+  )) {
+    const lane = laneEnds.findIndex((end) => end <= iv.startFrac + 0.001)
+    if (lane >= 0) {
+      laneEnds[lane] = iv.startFrac + iv.spanFrac
+      out.set(iv.id, lane)
+    } else {
+      laneEnds.push(iv.startFrac + iv.spanFrac)
+      out.set(iv.id, laneEnds.length - 1)
+    }
+  }
+  return out
+}
+
+/** 栏位布局方案: laneCount=1 时全宽单栏 */
+export interface LanePlan {
+  laneOf: Map<number, number>
+  laneCount: number
+}
+
+/**
+ * clusterLanePlan (ConflictCard.kt laneMode 1:1): 触发闸 = 簇内含 ownTime 小数行
+ * 成员 (Android drawList.any { fracRowsOf[it] != null })。纯节点冲突簇返回 null,
+ * 保持 stack/fold/rail 层叠设计。
+ */
+export function clusterLanePlan(
+  laidOut: LaidOutCourse[],
+  geomOf: Map<number, ClusterRowGeom>,
+  fracIds: Set<number>,
+): LanePlan | null {
+  if (!laidOut.some((l) => fracIds.has(l.course.id))) return null
+  const laneOf = assignLanes(
+    laidOut.flatMap((l) => {
+      const g = geomOf.get(l.course.id)
+      return g ? [{ id: l.course.id, startFrac: g.startFrac, spanFrac: g.spanFrac }] : []
+    }),
+  )
+  return { laneOf, laneCount: Math.max(0, ...laneOf.values()) + 1 }
+}
+
 // ---- 比较器 -----------------------------------------------------------
 
 /** 主课判定序: step 降 > startNode 升 > id 升 */

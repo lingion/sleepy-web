@@ -159,4 +159,30 @@ describe('重叠簇逐卡行定位 (ref #146 #147)', () => {
     expect(parseFloat(ownEl!.style.top)).toBeCloseTo((30 / 45) * ROW_H, 2)
     expect(parseFloat(ownEl!.style.height)).toBeCloseTo((1.7777778 - 0.6666667) * ROW_H - GAP_H, 1)
   })
+
+  it('laneMode (ref #142): ownTime 重叠簇并排分栏, 两卡各占 1/2 栏宽全部可见', () => {
+    const normal = mkCourse({ id: 104, courseName: '常规丁', day: 3, startNode: 1, step: 2 })
+    const own = mkCourse({
+      id: 103, courseName: '非常规丙', day: 3, startNode: 1, step: 2,
+      ownTime: true, isIrregularTime: true, startTime: '08:30', endTime: '09:30',
+    })
+    const { cardOf, container } = renderCluster('rail', [normal, own])
+    const lanesBox = container.querySelector('[data-grid-cluster-lanes]')
+    expect(lanesBox).not.toBeNull() // laneMode 分支标记
+    const normalEl = cardOf(normal.id)!
+    const ownEl = cardOf(own.id)!
+    // 分栏后两卡同屏可见: 旧层叠语义下 ownTime 短课 hidden → 真卡收窄/沉底;
+    // 新语义两卡各占 laneW = colW/2, x 分别为 0 与 laneW
+    const wN = parseFloat(normalEl.style.width)
+    const wO = parseFloat(ownEl.style.width)
+    expect(wN).toBeCloseTo(wO, 3)
+    const xN = parseFloat(normalEl.style.left)
+    const xO = parseFloat(ownEl.style.left)
+    expect(Math.abs(xN - xO)).toBeCloseTo(wN, 3) // 栏距 = 栏宽 → 恰 2 栏不重叠
+  })
+
+  it('纯节点冲突簇不触发 laneMode (无 data-grid-cluster-lanes)', () => {
+    const { container } = renderCluster('stack') // shortA + longB 均常规
+    expect(container.querySelector('[data-grid-cluster-lanes]')).toBeNull()
+  })
 })

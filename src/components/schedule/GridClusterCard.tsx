@@ -17,6 +17,7 @@ import {
   clusterYOffset,
   conflictCardRectFrac,
   conflictMarkRectFrac,
+  clusterLanePlan,
   hiddenLayerCount,
   overrideAwareLayerOrder,
   applyLayerRotation,
@@ -132,6 +133,53 @@ export function GridClusterCard(props: GridClusterCardProps) {
     return isGrey ? rgbaCss(bg, 0.6) : bg
   }
 
+  function cardRect(l: LaidOutCourse, isTop: boolean) {
+    return conflictCardRectFrac(geomOf(l.course.id), isTop, form, colW, rowH, gapH, minStartRow, inset, spanDpOf)
+  }
+
+  // laneMode (ConflictCard.kt 012fbb69, ref #142): 含 ownTime 小数行成员的簇 →
+  // 并排分栏全部同时可见, 不层叠。「多出来的课程覆盖在课表之上」报障的根治分支。
+  const lanePlan = clusterLanePlan(
+    laidOut,
+    geoms,
+    new Set(laidOut.filter((l) => l.course.ownTime && l.course.startTime && l.course.endTime).map((l) => l.course.id)),
+  )
+  if (lanePlan && lanePlan.laneCount >= 2) {
+    const laneW = colW / lanePlan.laneCount
+    return (
+      <div data-grid-cluster style={{ position: 'absolute', left: offsetX, top: offsetY, width: colW }}>
+        <div data-grid-cluster-lanes style={{ position: 'absolute', left: 0, top: yOffset, width: colW, height: clusterH }}>
+          {laidOut.map((l) => {
+            const lane = lanePlan.laneOf.get(l.course.id) ?? 0
+            const r = conflictCardRectFrac(geomOf(l.course.id), false, 'NONE', laneW, rowH, gapH, minStartRow, inset, spanDpOf)
+            const borderColor = conflictBorderColor(parseHex(courseColorOf(l.course)) ?? [0, 0, 0])
+            return (
+              <div
+                key={l.course.id}
+                data-grid-cluster-card={l.course.id}
+                style={{ position: 'absolute', top: r.y, left: laneW * lane, width: laneW, height: r.height }}
+              >
+                <CourseOverlayCard
+                  course={l.course}
+                  groupRows={cluster.courses}
+                  isGrey={isGrey}
+                  scale={1}
+                  cornerRatio={1}
+                  onClick={() => onCourseClick?.(l.course)}
+                  x={0}
+                  y={0}
+                  w={laneW}
+                  h={r.height}
+                  border={`1px solid ${rgbToHex(borderColor)}`}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div data-grid-cluster style={{ position: 'absolute', left: offsetX, top: offsetY, width: colW }}>
       {/* 簇内容 Box: 锚点 Box 经 yOffset 回退到 minStartRow (Android .offset(y = clusterYOffset)) */}
@@ -209,10 +257,6 @@ export function GridClusterCard(props: GridClusterCardProps) {
       </div>
     </div>
   )
-
-  function cardRect(l: LaidOutCourse, isTop: boolean) {
-    return conflictCardRectFrac(geomOf(l.course.id), isTop, form, colW, rowH, gapH, minStartRow, inset, spanDpOf)
-  }
 }
 
 /** hex → rgba(css) — isGrey 灰显 (SleepyTheme.Alpha.inactive=0.6, Android bg.copy(alpha)) */
