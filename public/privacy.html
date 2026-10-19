@@ -6,8 +6,12 @@
 <meta name="color-scheme" content="light dark">
 <title>Sleepy课程表 隐私政策</title>
 <style>
-  /* M3 default 预设 token (themes.ts THEME_PRESETS.default 同源), 亮暗随系统 —
-     静态页读不到 App 的 Dexie 偏好, 对齐到默认主题 + 系统深浅色是静态资产的边界 */
+  /* M3 结构性重构 (2026-10-19): 不再是「只换 token 的普通文档」——
+     布局=SettingsScaffold 同款 top app bar + 卡片列; 卡片=InfoCard 形态
+     (surfaceContainer/圆角16/内边距20/间隙12); 权限表=两行列表+发丝分隔线
+     (M3 不用带边框 HTML 表格); 字号=global.css m3 类型标尺全套。
+     token 源=themes.ts THEME_PRESETS.default, 亮暗随系统 —
+     静态页读不到 App 的 Dexie 偏好, 对齐默认主题+系统深浅色是静态资产的边界 */
   :root { color-scheme: light dark;
     --md-primary: #6750A4; --md-on-surface: #1D1B20; --md-on-surface-variant: #49454F;
     --md-background: #FEF7FF; --md-surface-container: #F3EDF7; --md-surface-container-high: #ECE6F0;
@@ -16,77 +20,208 @@
     --md-primary: #D0BCFF; --md-on-surface: #E6E0E9; --md-on-surface-variant: #CAC4D0;
     --md-background: #141218; --md-surface-container: #211F26; --md-surface-container-high: #2B2930;
     --md-outline-variant: #49454F; } }
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-         max-width: 720px; margin: 0 auto; padding: 24px 16px 64px;
-         color: var(--md-on-surface); line-height: 1.6; background: var(--md-background);
-         -webkit-font-smoothing: antialiased; }
-  h1 { font-size: 24px; line-height: 32px; font-weight: 400; margin-bottom: 4px; }
-  .meta { color: var(--md-on-surface-variant); font-size: 14px; margin-bottom: 28px; }
-  h2 { font-size: 16px; line-height: 24px; font-weight: 500; margin-top: 32px; border-left: 3px solid var(--md-primary); padding-left: 10px; }
-  table { border-collapse: collapse; width: 100%; font-size: 14px; }
-  th, td { border: 1px solid var(--md-outline-variant); padding: 8px 10px; text-align: left; vertical-align: top; }
-  th { background: var(--md-surface-container); font-weight: 500; white-space: nowrap; }
-  code { background: var(--md-surface-container-high); padding: 1px 6px; border-radius: 4px; font-size: 13px; }
-  a { color: var(--md-primary); }
-  .emphasis { font-weight: 600; }
-  ul { padding-left: 22px; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--md-background); color: var(--md-on-surface);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+
+  /* M3 类型标尺 — global.css .m3-* 同源 */
+  .title-large  { font-size: 22px; line-height: 28px; font-weight: 400; }
+  .title-medium { font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: .15px; }
+  .title-small  { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: .1px; }
+  .body-large   { font-size: 16px; line-height: 24px; font-weight: 400; letter-spacing: .5px; }
+  .body-medium  { font-size: 14px; line-height: 20px; font-weight: 400; letter-spacing: .25px; }
+  .body-small   { font-size: 12px; line-height: 16px; font-weight: 400; letter-spacing: .4px; }
+  .label-medium { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: .5px; }
+
+  /* Small Top App Bar (SettingsScaffold 头部 64px 同款; sticky) — 内层与内容列同宽居中对齐 */
+  .app-bar { position: sticky; top: 0; z-index: 10; background: var(--md-background); }
+  .app-bar-inner { max-width: 680px; margin: 0 auto; display: flex; align-items: center; height: 64px; padding: 0 16px; gap: 16px; }
+  .app-bar svg { color: var(--md-primary); flex-shrink: 0; }
+  .app-bar .title-large { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  main { max-width: 680px; margin: 0 auto; padding: 0 16px 48px;
+    display: flex; flex-direction: column; gap: 12px; }
+
+  .meta { color: var(--md-on-surface-variant); margin: 4px 0 8px; }
+  .meta code { font-size: 12px; }
+
+  /* 卡片 — AboutPage InfoCard: r16 surfaceContainer padding 20 */
+  .card { background: var(--md-surface-container); border-radius: 16px; padding: 20px; }
+  .card > h2 { display: flex; align-items: center; gap: 12px; margin: 0; }
+  .card > h2 svg { color: var(--md-primary); flex-shrink: 0; }
+  .card > h2 + .body-large { margin: 12px 0 0; }
+  .card p { margin: 12px 0 0; }
+  .card p:first-of-type { margin-top: 12px; }
+
+  /* 列表 — M3 列表: 无符号 marker 用 primary 圆点, 行距 8 */
+  ul { margin: 12px 0 0; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  li:last-child { margin-bottom: 0; }
+  li::marker { color: var(--md-primary); }
+
+  /* 权限清单 — 两行列表项 + 发丝分隔线 (替代带边框表格; M3 表格仅用于数据密集场景) */
+  .perm-list { list-style: none; margin: 12px 0 0; padding: 0; }
+  .perm-list > li { display: flex; gap: 12px; padding: 16px 0; margin: 0; }
+  .perm-list > li + li { border-top: 1px solid var(--md-outline-variant); }
+  .perm-list svg { color: var(--md-primary); flex-shrink: 0; margin-top: 2px; }
+  .perm-list .perm { font-weight: 600; color: var(--md-on-surface); }
+  .perm-list .perm-detail { margin-top: 2px; color: var(--md-on-surface-variant); }
+  .perm-list .perm-note { margin-top: 4px; color: var(--md-on-surface-variant); }
+
+  .emphasis { font-weight: 600; color: var(--md-on-surface); }
+  code { background: var(--md-surface-container-high); padding: 2px 8px; border-radius: 8px; font-size: 13px; }
+  a { color: var(--md-primary); text-underline-offset: 2px; }
+  a:focus-visible, .app-bar a:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; border-radius: 4px; }
+  svg { display: block; }
 </style>
 </head>
 <body>
-<h1>Sleepy课程表 隐私政策</h1>
-<p class="meta">生效日期：2026 年 10 月 18 日<br>适用范围：Sleepy课程表 Android 应用（包名 <code>com.lingion.sleepy</code>）及其在线网页版</p>
 
-<h2>一、总则</h2>
-<p>Sleepy 是一款开源课程表应用。我们的隐私设计原则是：<span class="emphasis">不建立用户账号体系，不收集、不上传、不共享任何个人身份信息</span>。应用未集成任何第三方统计、推送、广告或崩溃上报 SDK。所有课表数据仅存储在你的设备本地。</p>
+<!-- Small Top App Bar: 24dp primary 图标 + title-large (SettingsScaffold 同构) -->
+<header class="app-bar">
+  <div class="app-bar-inner">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm6 9.09c0 4.26-2.96 8.29-6 9.41-3.04-1.12-6-5.15-6-9.41V6.31l6-2.12 6 2.12v4.78z"/></svg>
+    <h1 class="title-large">Sleepy课程表 隐私政策</h1>
+  </div>
+</header>
 
-<h2>二、我们不会收集的信息</h2>
-<ul>
-  <li>没有注册、登录或账号体系，我们不掌握你的姓名、手机号、邮箱或设备标识符；</li>
-  <li>不收集通讯录、短信、通话记录、照片库内容；</li>
-  <li>不植入任何数据采集 SDK，不存在后台数据上报服务；</li>
-  <li>课表、课程、成绩等内容永远只保存在设备本地数据库，不经过我们的服务器。</li>
-</ul>
+<main>
+  <p class="meta body-medium">生效日期：2026 年 10 月 18 日<br>
+  适用范围：Sleepy课程表 Android 应用（包名 <code>com.lingion.sleepy</code>）及其在线网页版</p>
 
-<h2>三、应用权限与用途逐项说明</h2>
-<table>
-  <tr><th>权限</th><th>用途</th><th>说明</th></tr>
-  <tr><td>网络访问</td><td>教务直连导入、节假日数据更新、版本更新检查</td><td>详见第五节联网行为清单</td></tr>
-  <tr><td>位置权限（大致/精确）</td><td>在「教务导入-学校选择」中按你所在城市推荐附近学校</td><td>仅读取设备本机已有的定位结果并在本地用于匹配城市，不上传；拒绝后不影响任何功能，可手动选择城市</td></tr>
-  <tr><td>日历（读取/写入）</td><td>将课表导出到系统日历；从系统日历导入日程</td><td>数据在本机应用间流转，不上传</td></tr>
-  <tr><td>存储/媒体读取</td><td>导入课表文件（ICS、CSV、备份文件等）</td><td>仅读取你主动选择的文件</td></tr>
-  <tr><td>通知</td><td>上课提醒、每日课程提醒</td><td>提醒内容完全由本地数据生成</td></tr>
-  <tr><td>精确闹钟/后台运行相关（后台锁、自启动、忽略电池优化、通知策略）</td><td>保证上课提醒准时送达</td><td>不用于任何数据采集或后台上传</td></tr>
-  <tr><td>安装应用（仅新版本引导）</td><td>检查到新版本后，引导你下载并安装更新包</td><td>下载行为需要你明确点击确认</td></tr>
-</table>
+  <section class="card" aria-labelledby="s1">
+    <h2 class="title-medium" id="s1">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+      一、总则
+    </h2>
+    <p class="body-large">Sleepy 是一款开源课程表应用。我们的隐私设计原则是：<span class="emphasis">不建立用户账号体系，不收集、不上传、不共享任何个人身份信息</span>。应用未集成任何第三方统计、推送、广告或崩溃上报 SDK。所有课表数据仅存储在你的设备本地。</p>
+  </section>
 
-<h2>四、教务导入功能特别说明</h2>
-<p>「教务直连导入」允许应用内输入你所在学校教务系统的账号与密码，以抓取课表。对此我们承诺：</p>
-<ul>
-  <li>账号口令仅在你设备内存与本机 WebView 会话中使用，<span class="emphasis">发送目标只有你选择的学校教务服务器</span>；</li>
-  <li>账号口令不写入常规长期存储、不参与课表备份导出、不发送给开发方或任何第三方服务器；</li>
-  <li>仅当你<span class="emphasis">主动触发「诊断采集」</span>（用于向开发者报告导入故障）时，会话快照会作为文件保存在本机应用私有目录，可一键清除，卸载即销毁；该文件不会被应用自动发送。</li>
-  <li>抓取到的课表仅保存在本机数据库。</li>
-</ul>
+  <section class="card" aria-labelledby="s2">
+    <h2 class="title-medium" id="s2">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm6 9.09c0 4.26-2.96 8.29-6 9.41-3.04-1.12-6-5.15-6-9.41V6.31l6-2.12 6 2.12v4.78z"/></svg>
+      二、我们不会收集的信息
+    </h2>
+    <ul class="body-large">
+      <li>没有注册、登录或账号体系，我们不掌握你的姓名、手机号、邮箱或设备标识符；</li>
+      <li>不收集通讯录、短信、通话记录、照片库内容；</li>
+      <li>不植入任何数据采集 SDK，不存在后台数据上报服务；</li>
+      <li>课表、课程、成绩等内容永远只保存在设备本地数据库，不经过我们的服务器。</li>
+    </ul>
+  </section>
 
-<h2>五、联网行为清单（完整、可复核）</h2>
-<ul>
-  <li>你主动使用的教务导入：访问对应学校的教务系统域名；</li>
-  <li>节假日/调休数据：公开 CDN <code>unpkg.com</code> 的开源节假日数据（仅日期数据，不含任何设备信息）；</li>
-  <li>版本更新检查：公开 <code>github.com</code> 仓库的发布页（仅版本号比对，不携带个人信息）；</li>
-  <li>「加入 QQ 群」等社区入口：拉起外部应用或打开官方群页面，由腾讯平台按其政策处理，与本应用无关。</li>
-</ul>
+  <section class="card" aria-labelledby="s3">
+    <h2 class="title-medium" id="s3">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.09-.16-.26-.25-.44-.25-.06 0-.12.01-.17.03l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.06-.02-.12-.03-.18-.03-.17 0-.34.09-.43.25l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.09.16.26.25.44.25.06 0-.12.01-.17.03l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.06.02.12.03.18.03.17 0 .34.09-.43-.25l-2-3.46c-.12-.22-.07-.49.12-.64l2.11-1.65c.04-.32.05-.52.05-.73 0-.21-.02-.43-.05-.73zM12 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+      三、应用权限与用途逐项说明
+    </h2>
+    <ul class="perm-list">
+      <li>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 7h-4v2h4c1.65 0 3 1.35 3 3s-1.35 3-3 3h-4v2h4c2.76 0 5-2.24 5-5s-2.24-5-5-5zm-6 8H7c-1.65 0-3-1.35-3-3s1.35-3 3-3h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-2zm-3-4h8v2H8z"/></svg>
+        <div><div class="perm body-large">网络访问</div>
+        <div class="perm-detail body-medium">教务直连导入、节假日数据更新、版本更新检查</div>
+        <div class="perm-note body-small">详见第五节联网行为清单</div></div>
+      </li>
+      <li>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7m0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+        <div><div class="perm body-large">位置权限（大致/精确）</div>
+        <div class="perm-detail body-medium">在「教务导入-学校选择」中按你所在城市推荐附近学校</div>
+        <div class="perm-note body-small">仅读取设备本机已有的定位结果并在本地用于匹配城市，不上传；拒绝后不影响任何功能，可手动选择城市</div></div>
+      </li>
+      <li>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19,4h-1V2h-2v2H8V2H6v2H5C3.89,4,3.01,4.9,3.01,6L3,20c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V6C21,4.9,20.1,4,19,4z M19,20 H5V10h14V20z M19,8H5V6h14V8z M9,14H7v-2h2V14z M13,14h-2v-2h2V14z M17,14h-2v-2h2V14z M9,18H7v-2h2V18z M13,18h-2v-2h2V18z M17,18 h-2v-2h2V18z"/></svg>
+        <div><div class="perm body-large">日历（读取/写入）</div>
+        <div class="perm-detail body-medium">将课表导出到系统日历；从系统日历导入日程</div>
+        <div class="perm-note body-small">数据在本机应用间流转，不上传</div></div>
+      </li>
+      <li>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18,15v3H6v-3H4v3c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2v-3H18z M7,9l1.41,1.41L11,7.83V16h2V7.83l2.59,2.58L17,9l-5-5L7,9z"/></svg>
+        <div><div class="perm body-large">存储/媒体读取</div>
+        <div class="perm-detail body-medium">导入课表文件（ICS、CSV、备份文件等）</div>
+        <div class="perm-note body-small">仅读取你主动选择的文件</div></div>
+      </li>
+      <li>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+        <div><div class="perm body-large">通知</div>
+        <div class="perm-detail body-medium">上课提醒、每日课程提醒</div>
+        <div class="perm-note body-small">提醒内容完全由本地数据生成</div></div>
+      </li>
+      <li>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+        <div><div class="perm body-large">精确闹钟/后台运行相关（后台锁、自启动、忽略电池优化、通知策略）</div>
+        <div class="perm-detail body-medium">保证上课提醒准时送达</div>
+        <div class="perm-note body-small">不用于任何数据采集或后台上传</div></div>
+      </li>
+      <li>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19,9h-4V3H9v6H5l7,7L19,9z M5,18v2h14v-2H5z"/></svg>
+        <div><div class="perm body-large">安装应用（仅新版本引导）</div>
+        <div class="perm-detail body-medium">检查到新版本后，引导你下载并安装更新包</div>
+        <div class="perm-note body-small">下载行为需要你明确点击确认</div></div>
+      </li>
+    </ul>
+  </section>
 
-<h2>六、数据存储与删除</h2>
-<p>全部数据（课表、偏好、主题、导入配置）存储于设备本地数据库。删除方式：在应用内删除课表或数据，或卸载应用、清除应用数据，即刻全部删除，无任何服务端副本可供恢复。</p>
+  <section class="card" aria-labelledby="s4">
+    <h2 class="title-medium" id="s4">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+      四、教务导入功能特别说明
+    </h2>
+    <p class="body-large">「教务直连导入」允许应用内输入你所在学校教务系统的账号与密码，以抓取课表。对此我们承诺：</p>
+    <ul class="body-large">
+      <li>账号口令仅在你设备内存与本机 WebView 会话中使用，<span class="emphasis">发送目标只有你选择的学校教务服务器</span>；</li>
+      <li>账号口令不写入常规长期存储、不参与课表备份导出、不发送给开发方或任何第三方服务器；</li>
+      <li>仅当你<span class="emphasis">主动触发「诊断采集」</span>（用于向开发者报告导入故障）时，会话快照会作为文件保存在本机应用私有目录，可一键清除，卸载即销毁；该文件不会被应用自动发送。</li>
+      <li>抓取到的课表仅保存在本机数据库。</li>
+    </ul>
+  </section>
 
-<h2>七、未成年人保护</h2>
-<p>本应用不收集任何用户个人信息，适用于在校学生（含未成年人）。教务账号的使用应遵守你所在学校的规定，并建议在监护人知情下操作。</p>
+  <section class="card" aria-labelledby="s5">
+    <h2 class="title-medium" id="s5">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      五、联网行为清单（完整、可复核）
+    </h2>
+    <ul class="body-large">
+      <li>你主动使用的教务导入：访问对应学校的教务系统域名；</li>
+      <li>节假日/调休数据：公开 CDN <code>unpkg.com</code> 的开源节假日数据（仅日期数据，不含任何设备信息）；</li>
+      <li>版本更新检查：公开 <code>github.com</code> 仓库的发布页（仅版本号比对，不携带个人信息）；</li>
+      <li>「加入 QQ 群」等社区入口：拉起外部应用或打开官方群页面，由腾讯平台按其政策处理，与本应用无关。</li>
+    </ul>
+  </section>
 
-<h2>八、政策变更</h2>
-<p>若应用的数据处理行为发生变化，我们将更新本页面并在应用发布说明中同步告知。不会在未经通知的情况下实质性削弱本政策承诺。</p>
+  <section class="card" aria-labelledby="s6">
+    <h2 class="title-medium" id="s6">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z"/></svg>
+      六、数据存储与删除
+    </h2>
+    <p class="body-large">全部数据（课表、偏好、主题、导入配置）存储于设备本地数据库。删除方式：在应用内删除课表或数据，或卸载应用、清除应用数据，即刻全部删除，无任何服务端副本可供恢复。</p>
+  </section>
 
-<h2>九、联系我们</h2>
-<p>本应用为开源项目，源码公开可审计：<a href="https://github.com/lingion/sleepy">https://github.com/lingion/sleepy</a>。对本政策有任何疑问，可通过仓库 Issue 或开发者社区 QQ 群（1063407652）联系我们。</p>
+  <section class="card" aria-labelledby="s7">
+    <h2 class="title-medium" id="s7">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2m0 10c2.7 0 5.8 1.29 6 2H6c.23-.72 3.31-2 6-2m0-12C9.79 4 8 5.79 8 8s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 10c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      七、未成年人保护
+    </h2>
+    <p class="body-large">本应用不收集任何用户个人信息，适用于在校学生（含未成年人）。教务账号的使用应遵守你所在学校的规定，并建议在监护人知情下操作。</p>
+  </section>
+
+  <section class="card" aria-labelledby="s8">
+    <h2 class="title-medium" id="s8">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 12l-2.44-2.78.34-3.68-3.61-.82-1.89-3.19L12 3 8.6 1.53 6.71 4.72 3.1 5.54l.34 3.68L1 12l2.44 2.78-.34 3.69 3.61.82 1.89 3.19L12 21l3.4 1.47 1.89-3.19 3.61-.82-.34-3.68L23 12zm-10 5h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      八、政策变更
+    </h2>
+    <p class="body-large">若应用的数据处理行为发生变化，我们将更新本页面并在应用发布说明中同步告知。不会在未经通知的情况下实质性削弱本政策承诺。</p>
+  </section>
+
+  <section class="card" aria-labelledby="s9">
+    <h2 class="title-medium" id="s9">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+      九、联系我们
+    </h2>
+    <p class="body-large">本应用为开源项目，源码公开可审计：<a href="https://github.com/lingion/sleepy">https://github.com/lingion/sleepy</a>。对本政策有任何疑问，可通过仓库 Issue 或开发者社区 QQ 群（1063407652）联系我们。</p>
+  </section>
+</main>
 
 </body>
 </html>
