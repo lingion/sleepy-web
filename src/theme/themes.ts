@@ -230,6 +230,33 @@ export function applyTheme(themeKey: string, isDark: boolean): void {
   if (meta) meta.setAttribute('content', scheme.background)
 }
 
+/**
+ * courseNeutralTokens — 课程卡「统一底色」(colorless) 中性底 + 文字色单一事实来源。
+ *
+ * Android 权威源: 统一底色开关的 neutralColor = colors.secondaryContainer
+ * (TodayScreen.kt:424 / CourseTableView.kt:859,1521 / ConflictCard.kt:531;
+ * WeekGridWidgetProvider.kt:222 于 2026-09-28 用户令同源改为主题淡调 secondaryContainer)。
+ * textColorOn 的 onSurface 亦取 colors.onSurface。
+ *
+ * web 曾各自内联 surfaceVariant / surface-container-lowest (2026-09-28 之前的旧值),
+ * 导致开启「App 内课程胶囊统一底色」后 web 呈灰色/纯白而 App 呈主题淡彩 — 本函数收敛。
+ * 优先读 applyTheme 写入 documentElement 的 --md-* 变量 (跟随 5 预设+自定义主题),
+ * 变量缺失(SSR/未挂载)时回落 default 预设同名 token。
+ */
+export function courseNeutralTokens(isDark: boolean): { neutral: string; onSurface: string } {
+  const fallback = isDark ? THEME_PRESETS.default.dark : THEME_PRESETS.default.light
+  let neutral = fallback.secondaryContainer
+  let onSurface = fallback.onSurface
+  if (typeof document !== 'undefined') {
+    const cs = getComputedStyle(document.documentElement)
+    const nv = cs.getPropertyValue('--md-secondary-container').trim()
+    if (nv) neutral = nv
+    const ov = cs.getPropertyValue('--md-on-surface').trim()
+    if (ov) onSurface = ov
+  }
+  return { neutral, onSurface }
+}
+
 /** Alpha 常量 — Theme.kt Alpha object 1:1 */
 export const ALPHA = {
   highContent: 0.8,

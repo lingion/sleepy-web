@@ -520,7 +520,7 @@
   "settings_widget": "Ajustes del widget",
   "settings_widget_colorless": "Colores uniformes de cursos en widgets",
   "settings_widget_colorless_sub": "Neutraliza solo los colores de fondo en widgets; no afecta a la app ni colores personalizados",
-  "settings_course_colorless": "Colores uniformes de cápsulas de cursos",
+  "settings_course_colorless": "Color uniforme de cápsulas en la app",
   "settings_course_colorless_sub": "Neutraliza solo los colores de las cápsulas en la app; no afecta a widgets ni colores personalizados",
   "settings_widget_separator": "Separador del widget semanal",
   "settings_holiday_holiday": "Atenuar festivos oficiales",

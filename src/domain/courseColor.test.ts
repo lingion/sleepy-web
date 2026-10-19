@@ -16,6 +16,7 @@ import {
   foldFlapColor,
   SENTINEL_COLOR,
 } from './courseColor'
+import { applyTheme, THEME_PRESETS, courseNeutralTokens } from '../theme/themes'
 import type { Course } from '../data/types'
 
 function mkCourse(partial: Partial<Course>): Course {
@@ -357,5 +358,34 @@ describe('foldFlapColor — FOLD 折角 flap 色 (ConflictCard.kt:142)', () => {
   it('比 base 暗 (翻面朝里的物理意象)', () => {
     const base: [number, number, number] = [200, 230, 255]
     expect(luminance(foldFlapColor(base))).toBeLessThan(luminance(base))
+  })
+})
+
+describe('courseNeutralTokens — 统一底色 neutral 单一事实来源 (对齐 Android colors.secondaryContainer)', () => {
+  // Android 权威源: TodayScreen.kt:424 / CourseTableView.kt:859,1521 / ConflictCard.kt:531
+  // 均传 colors.secondaryContainer; WeekGridWidgetProvider.kt:222 (2026-09-28 用户令) 同源。
+  // web 曾各自内联 surfaceVariant / surface-container-lowest — 即「统一底色和软件端对不上」根因。
+  it('未应用主题时 fallback = default 预设 secondaryContainer (非 surfaceVariant)', () => {
+    const { neutral } = courseNeutralTokens(false)
+    expect(neutral).toBe(THEME_PRESETS.default.light.secondaryContainer) // '#E8DEF8'
+    const dark = courseNeutralTokens(true)
+    expect(dark.neutral).toBe(THEME_PRESETS.default.dark.secondaryContainer) // '#4A4458'
+    // 漂移守卫: 绝不回退到旧错误 token surfaceVariant (#E7E0EC/#49454F)
+    expect(neutral).not.toBe(THEME_PRESETS.default.light.surfaceVariant)
+    expect(dark.neutral).not.toBe(THEME_PRESETS.default.dark.surfaceVariant)
+  })
+
+  it('applyTheme 后跟随当前生效主题的 secondaryContainer (浅色 spring / 暗色 ocean)', () => {
+    applyTheme('spring', false)
+    expect(courseNeutralTokens(false).neutral).toBe(THEME_PRESETS.spring.light.secondaryContainer) // '#D9E7CC'
+    applyTheme('ocean', true)
+    expect(courseNeutralTokens(true).neutral).toBe(THEME_PRESETS.ocean.dark.secondaryContainer) // '#3B4858'
+  })
+
+  it('onSurface 同源读取 (Android textColorOn 传 colors.onSurface)', () => {
+    applyTheme('spring', false)
+    expect(courseNeutralTokens(false).onSurface).toBe(THEME_PRESETS.spring.light.onSurface)
+    applyTheme('ocean', true)
+    expect(courseNeutralTokens(true).onSurface).toBe(THEME_PRESETS.ocean.dark.onSurface)
   })
 })

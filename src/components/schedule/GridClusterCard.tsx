@@ -11,7 +11,8 @@
 
 import type { Course } from '../../data/types'
 import type { ClusterRowGeom, ConflictRect, ConflictVariant, LaidOutCourse } from '../../domain/conflictLayout'
-import { usePrefsStore } from '../../state/prefsStore'
+import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
+import { courseNeutralTokens } from '../../theme/themes'
 import {
   clusterRowGeom,
   clusterYOffset,
@@ -126,8 +127,10 @@ export function GridClusterCard(props: GridClusterCardProps) {
 
   // 课色(描边/虚线/flap 取色, 含 isGrey 灰显, 与卡渲染取同一色) — ConflictCard.kt:526
   // courseColorOf 1:1: pickCourseColorWithGroupRows + isGrey→alpha 0.6 (SleepyTheme.Alpha.inactive)
-  const isDark = prefs.themeMode === 'dark'
-  const neutral = isDark ? '#49454F' : '#E7E0EC'
+  // 统一底色 neutral 单一事实来源 courseNeutralTokens — Android 权威源
+  // = colors.secondaryContainer (ConflictCard.kt:531); isDark 走 resolveIsDark 同 CourseTableView
+  const isDark = resolveIsDark(prefs)
+  const neutral = courseNeutralTokens(isDark).neutral
   const courseColorOf = (course: Course): string => {
     const bg = pickCourseColorWithGroupRows(course, cluster.courses, isDark, neutral, prefs.courseColorless)
     return isGrey ? rgbaCss(bg, 0.6) : bg
