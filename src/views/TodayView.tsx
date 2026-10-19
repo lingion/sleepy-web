@@ -11,6 +11,7 @@ import { IconSchedule } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore, resolveIsDark } from '../state/prefsStore'
+import { courseNeutralTokens } from '../theme/themes'
 import { weekLaneRows } from '../domain/conflictLayout'
 import { courseTimeString } from '../domain/timeTable'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../domain/courseColor'
@@ -334,20 +335,9 @@ export function TodayCourseCard({
   const prefs = usePrefsStore((s) => s.prefs)
   // themeMode='system' 分支 (TodayScreen.kt:315 isPaletteDark 随当前生效主题)
   const isDark = resolveIsDark(prefs)
-  // neutral/onSurface 取当前生效主题 token (TodayScreen.kt:316/:320 surfaceVariant/onSurface),
-  // 非 default 预设下与硬编码值漂移, 故运行时读 CSS 变量 (applyTheme 挂在 documentElement 上)
-  const tokens = useMemo(() => {
-    let neutral = isDark ? '#49454F' : '#E7E0EC'
-    let onSurface = isDark ? '#E6E0E9' : '#1D1B20'
-    if (typeof document !== 'undefined') {
-      const cs = getComputedStyle(document.documentElement)
-      const nv = cs.getPropertyValue('--md-surface-variant').trim()
-      if (nv) neutral = nv
-      const ov = cs.getPropertyValue('--md-on-surface').trim()
-      if (ov) onSurface = ov
-    }
-    return { neutral, onSurface }
-  }, [isDark, prefs.theme])
+  // neutral/onSurface 取当前生效主题 token — Android 权威源 = secondaryContainer/onSurface
+  // (TodayScreen.kt:424 colors.secondaryContainer); 单一事实来源 courseNeutralTokens, 勿再内联
+  const tokens = useMemo(() => courseNeutralTokens(isDark), [isDark, prefs.theme])
   const bg = pickCourseColorWithGroupRows(course, groupRows, isDark, tokens.neutral, prefs.courseColorless)
   const fgRgb = textColorOn(parseHex(bg) ?? [0, 0, 0], isDark, parseHex(tokens.onSurface) ?? [0, 0, 0])
   const fg = '#' + fgRgb.map((v) => v.toString(16).padStart(2, '0')).join('')

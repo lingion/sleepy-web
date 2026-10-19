@@ -6,7 +6,8 @@
 import { useMemo, useRef, type TouchEvent, type WheelEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Course } from '../../data/types'
-import { usePrefsStore } from '../../state/prefsStore'
+import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
+import { courseNeutralTokens } from '../../theme/themes'
 import { findClusters, conflictClusterKey, layoutCluster } from '../../domain/conflictLayout'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
 import { timeToFractionalRows } from '../../domain/timeTable'
@@ -498,11 +499,14 @@ export function CourseOverlayCard({
   border?: string
 }) {
   const prefs = usePrefsStore((s) => s.prefs)
-  const neutral = 'var(--md-surface-container-lowest)'
-  // CourseColorUtil.pickCourseColorComposeWithGroupRows 同源取色
-  const bg = pickCourseColorWithGroupRows(course, groupRows, prefs.themeMode === 'dark', neutral, prefs.courseColorless)
-  const onSurface = prefs.themeMode === 'dark' ? '#E6E0E9' : '#1D1B20'
-  const fg = textColorOnHex(bg, prefs.themeMode === 'dark', onSurface)
+  // CourseColorUtil.pickCourseColorComposeWithGroupRows 同源取色;
+  // 统一底色 neutral/onSurface 单一事实来源 courseNeutralTokens — Android 权威源
+  // = colors.secondaryContainer/onSurface (CourseTableView.kt:859,1521)。
+  // isDark 走 resolveIsDark (system 模式跟随系统, 与 Android isPaletteDark 同构)
+  const isDark = resolveIsDark(prefs)
+  const { neutral, onSurface } = useMemo(() => courseNeutralTokens(isDark), [isDark, prefs.theme])
+  const bg = pickCourseColorWithGroupRows(course, groupRows, isDark, neutral, prefs.courseColorless)
+  const fg = textColorOnHex(bg, isDark, onSurface)
   const subInfo = prefs.gridSubInfo
   // issue#26: 网格别名 — gridUseAlias 开且别名非空才显示别名
   const name = prefs.gridUseAlias && course.alias ? course.alias : course.courseName

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Course } from '../../data/types'
 import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
+import { courseNeutralTokens } from '../../theme/themes'
 import { weekLaneRows } from '../../domain/conflictLayout'
 import { courseTimeParts } from '../../domain/timeTable'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
@@ -567,21 +568,9 @@ export function LessonRow({
   const isDark = resolveIsDark(prefs)
   const effScale = scale * laneScale
   const name = useAlias && course.alias ? course.alias : course.courseName
-  // surfaceVariant 取自当前主题 (CourseTableView.kt:441-447 colors.surfaceVariant 同构)。
-  // parseHex 拒 CSS var 字符串 → fg 落 [0,0,0] 白字浅底不可读 (评审 P3), 故运行时
-  // getComputedStyle 解析真实 hex + 硬编码兜底 (与 TodayView.tsx:338-350 同一既定模式)
-  const tokens = useMemo(() => {
-    let neutral = isDark ? '#49454F' : '#E7E0EC'
-    let onSurface = isDark ? '#E6E0E9' : '#1D1B20'
-    if (typeof document !== 'undefined') {
-      const cs = getComputedStyle(document.documentElement)
-      const nv = cs.getPropertyValue('--md-surface-variant').trim()
-      if (nv) neutral = nv
-      const ov = cs.getPropertyValue('--md-on-surface').trim()
-      if (ov) onSurface = ov
-    }
-    return { neutral, onSurface }
-  }, [isDark, prefs.theme])
+  // neutral/onSurface 单一事实来源 courseNeutralTokens — Android 权威源 = secondaryContainer/onSurface
+  // (CourseTableView.kt:859 colors.secondaryContainer); 返回真实 hex 供 parseHex 消费 (评审 P3)
+  const tokens = useMemo(() => courseNeutralTokens(isDark), [isDark, prefs.theme])
   const bg = pickCourseColorWithGroupRows(course, groupRows, isDark, tokens.neutral, prefs.courseColorless)
   const fgHex = textColorOn(parseHex(bg) ?? [0, 0, 0], isDark, parseHex(tokens.onSurface) ?? [0, 0, 0])
   const fg = '#' + fgHex.map((v) => v.toString(16).padStart(2, '0')).join('')
