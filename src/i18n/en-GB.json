@@ -525,7 +525,7 @@
   "settings_widget": "Widget settings",
   "settings_widget_colorless": "Uniform widget course colors",
   "settings_widget_colorless_sub": "Neutralize only widget course colors; in-app and custom colors are not affected",
-  "settings_course_colorless": "Uniform course-pill colors",
+  "settings_course_colorless": "Uniform in-app course-pill colors",
   "settings_course_colorless_sub": "Neutralize only in-app course pill colors; widget and custom colors are not affected",
   "settings_widget_separator": "Week-widget separator",
   "settings_holiday_holiday": "Gray out public holidays",

@@ -293,7 +293,7 @@
   "settings_widget": "小组件设置",
   "settings_widget_colorless": "小组件统一课程底色",
   "settings_widget_colorless_sub": "仅将小组件课程底色统一为中性底色，不影响 App 内和自定义颜色课程",
-  "settings_course_colorless": "课程胶囊统一底色",
+  "settings_course_colorless": "App 内课程胶囊统一底色",
   "settings_course_colorless_sub": "仅将 App 内课程胶囊统一为中性底色，不影响小组件和自定义颜色课程",
   "settings_widget_separator": "周视图小组件分隔线",
   "settings_holiday_holiday": "法定节假日课程灰显",
