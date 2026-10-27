@@ -66,6 +66,7 @@ describe('品牌 SVG 与标签页引用', () => {
 
   it('index.html 标签页图标首选圆角 SVG(PNG 仅兜底)', () => {
     const html = readFileSync(asset('../index.html'), 'utf8')
-    expect(html).toMatch(/<link rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg" \/>/)
+    // ?v= 缓存破除查询串允许(iconCacheBust.test.ts 强制要求),此处只锁「SVG 优先」形态
+    expect(html).toMatch(/<link rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg(\?v=\d+)?" \/>/)
   })
 })
