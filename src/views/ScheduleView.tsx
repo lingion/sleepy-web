@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconChevronLeft, IconChevronRight,
-  IconAdd, IconIosShare, IconCheck, IconClose, SleepyLogo,
+  IconAdd, IconIosShare, IconCheck, IconClose, IconCalendarMonth,
 } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
@@ -382,11 +382,15 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           >
             {/* 左缘: 切换课表 + 撤回 (仅有可撤回快照时显示, ScheduleScreen.kt:417-428) */}
             <div style={{ position: 'absolute', left: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {readOnly ? <SleepyLogo size={26} /> : <NavCircleBtn
+              {readOnly ? (
+                <span style={{ display: 'flex', width: 32, height: 32, alignItems: 'center', justifyContent: 'center', color: 'var(--md-on-surface-variant)' }}>
+                  <IconCalendarMonth size={18} />
+                </span>
+              ) : <NavCircleBtn
                 title={t('schedule_switch_table', { defaultValue: '切换课表' })}
                 onClick={() => open('weekSwitcher', () => setShowSwitcher(true))}
               >
-                <SleepyLogo size={18} />
+                <IconCalendarMonth size={18} />
               </NavCircleBtn>}
               {!readOnly && (undoDepth > 0 || redoDepth > 0) && (
                 <UndoRedoCapsule

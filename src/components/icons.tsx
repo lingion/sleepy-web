@@ -15,18 +15,10 @@ interface IconProps {
   style?: CSSProperties
 }
 
-/** Canonical Sleepy brand mark. Keep one raster source across every branded surface. */
-export function SleepyLogo({ size = 40, style }: { size?: number; style?: CSSProperties }) {
-  return (
-    <img
-      src={`${typeof document !== 'undefined' && document.baseURI.includes('/sleepy-web/') ? '/sleepy-web/' : '/'}assets/sleepy-logo.png`}
-      width={size}
-      height={size}
-      alt="Sleepy"
-      style={{ display: 'block', objectFit: 'contain', ...style }}
-    />
-  )
-}
+/** Canonical Sleepy brand mark — 位图组件已移除 (2026-10-27 用户定案):
+ * 顶栏左缘对齐安卓 ScheduleScreen.kt:512 WeekNavButton(CalendarMonth), 用下方
+ * IconCalendarMonth 矢量; 位图 src 运行时拼接绝对路径, 在官网 /preview 反代
+ * 前缀下解析到 Pages 根 404, 线上呈挂断破图。favicon 仍由 index.html 静态引用。 */
 
 // ── 官方 Material Outlined 24px 图标 (google/material-design-icons outlined 变体)
 // 几何逐字节来自官方 SVG path 数据;fill=currentColor 描出轮廓,非 stroke 近似
