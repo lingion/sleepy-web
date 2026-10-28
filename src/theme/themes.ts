@@ -235,7 +235,7 @@ export function applyTheme(themeKey: string, isDark: boolean): void {
  *
  * Android 权威源: 统一底色开关的 neutralColor = colors.secondaryContainer
  * (TodayScreen.kt:424 / CourseTableView.kt:859,1521 / ConflictCard.kt:531;
- * WeekGridWidgetProvider.kt:222 于 2026-09-28 用户令同源改为主题淡调 secondaryContainer)。
+ * WeekGridWidgetProvider.kt:222 于 2026-09-28 定令同源改为主题淡调 secondaryContainer)。
  * textColorOn 的 onSurface 亦取 colors.onSurface。
  *
  * web 曾各自内联 surfaceVariant / surface-container-lowest (2026-09-28 之前的旧值),

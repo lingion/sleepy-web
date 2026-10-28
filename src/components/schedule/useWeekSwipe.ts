@@ -36,7 +36,7 @@ export const SWIPE_FLING_MIN_PX = 16
  * 方向锁判定斜率阈值 (px) — Android HorizontalPager 在 gesture arena 里
  * 过 touch slop (~8dp) 后按主轴方向认领手势的同构: 横移意图一旦确立,
  * pager 独占该手势 (preventDefault 阻止浏览器起原生纵滚 → 不再 pointercancel
- * 杀死翻页 = 用户反馈"周视图难滑"的根因); 纵移意图则让位给原生滚动。
+ * 杀死翻页 = 反馈"周视图难滑"的根因); 纵移意图则让位给原生滚动。
  */
 export const SWIPE_DIRECTION_LOCK_PX = 8
 /** 松手落定动画时长 ms (Android pager snap 量级) */
@@ -75,7 +75,7 @@ export function pagerOffset(dx: number, pageWidth: number, overscrollLeft = fals
 /**
  * 松手后的目标周次 — Android HorizontalPager 默认 snap 语义:
  * 拖过半页 (positional) 或 快速甩动 (fling) 才落页, 否则回弹。
- * 阈值按页宽比例, 不用绝对 px (宽屏一碰就翻 = 用户反馈的"太丑")。
+ * 阈值按页宽比例, 不用绝对 px (宽屏一碰就翻 = 反馈的"太丑")。
  */
 export function pagerTargetWeek(
   dx: number,

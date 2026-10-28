@@ -363,7 +363,7 @@ describe('foldFlapColor — FOLD 折角 flap 色 (ConflictCard.kt:142)', () => {
 
 describe('courseNeutralTokens — 统一底色 neutral 单一事实来源 (对齐 Android colors.secondaryContainer)', () => {
   // Android 权威源: TodayScreen.kt:424 / CourseTableView.kt:859,1521 / ConflictCard.kt:531
-  // 均传 colors.secondaryContainer; WeekGridWidgetProvider.kt:222 (2026-09-28 用户令) 同源。
+  // 均传 colors.secondaryContainer; WeekGridWidgetProvider.kt:222 (2026-09-28 定令) 同源。
   // web 曾各自内联 surfaceVariant / surface-container-lowest — 即「统一底色和软件端对不上」根因。
   it('未应用主题时 fallback = default 预设 secondaryContainer (非 surfaceVariant)', () => {
     const { neutral } = courseNeutralTokens(false)

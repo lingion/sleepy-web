@@ -147,7 +147,7 @@ export function CardsGridView(props: CardsGridViewProps) {
     return periodHeaderColumnPlacements(rows, prefs.periodHeaderHanging)
   }, [geo.slots, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX])
 
-  // 用户令 2026-10-03 (ref #102): legacy 列级 dash 轴 — 全列所有行同一轴,
+  // 定令 2026-10-03 (ref #102): legacy 列级 dash 轴 — 全列所有行同一轴,
   // 与 gridGeometry 列宽同一几何 (legacyDashColumn, pad 已在列宽里, 轴不含 pad)。
   const legacyAxis = useMemo(() => {
     if (prefs.periodHeaderLayout !== 'legacy') return null

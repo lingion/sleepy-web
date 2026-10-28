@@ -5,7 +5,7 @@
  *          浏览器返回 → 栈非空则出栈一层并广播 popped key, 活动视图同步自己的 page state;
  *          栈空且历史仍是 sleepyTab 占位 → tab 间逐层回退; 真实历史 → 放行浏览器默认。
  *
- * 每页 hash 地址 (用户需求「每一个页面搞成 #首页」): tab 层 pushTab 写 #/课表 等;
+ * 每页 hash 地址 (需求「每一个页面搞成 #首页」): tab 层 pushTab 写 #/课表 等;
  * 二级页 push(key) 写 HASH_BY_KEY (缺省按 key 推导, 斜杠分层 #/我的/通用设置)。
  * 刷新/直达由 tabFromHash + 各视图 hash 恢复; hash 不经服务端, Pages/Worker 双部署均成立。
  *

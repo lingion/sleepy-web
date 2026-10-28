@@ -1,6 +1,6 @@
 /**
  * DialogActionButtons — ui/component/DialogActionButtons.kt 1:1。
- * 全 app 弹窗 confirm/dismiss 唯一入口 (2026-09-16 用户: 裸 TextButton 无边界
+ * 全 app 弹窗 confirm/dismiss 唯一入口 (2026-09-16 反馈: 裸 TextButton 无边界
  * 无色块): 确认键 primary 色块 / 取消 secondaryContainer / destructive errorContainer,
  * 高度 SleepyTheme.Buttons.regularHeight(48) 圆角 large(16)。
  * 布局自适应 (DialogButtonsLayoutPolicy): 按估算文字宽 (字符数×14 + 32 padding,

@@ -1,7 +1,7 @@
 /**
  * 新建课表待保存动线契约 — MainActivity.kt:237/271-277/311-317 + ScheduleViewModel.kt:171-241。
  *
- * 锁的是规则本身 (用户 2026-09: 二级页面功能全部对齐安卓):
+ * 锁的是规则本身 (2026-09 基线: 二级页面功能全部对齐安卓):
  *   任一「新建课表」入口 = createEmptyTable(commitSelection=false) → 跳 EditTable;
  *   没保存就返回 → 表被删掉且选中落回原表; 保存了 → 表留下、标记清空。
  * 红绿验证: 把 abandonPendingTable 的 discardNewTable 调用删掉 → 第 4 条必须红。

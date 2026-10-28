@@ -15,7 +15,7 @@ interface IconProps {
   style?: CSSProperties
 }
 
-/** Canonical Sleepy brand mark — 位图组件已移除 (2026-10-27 用户定案):
+/** Canonical Sleepy brand mark — 位图组件已移除 (2026-10-27 定案):
  * 顶栏左缘对齐安卓 ScheduleScreen.kt:512 WeekNavButton(CalendarMonth), 用下方
  * IconCalendarMonth 矢量; 位图 src 运行时拼接绝对路径, 在官网 /preview 反代
  * 前缀下解析到 Pages 根 404, 线上呈挂断破图。favicon 仍由 index.html 静态引用。 */
