@@ -35,14 +35,16 @@ jobs:
       - name: Type check
         run: npx tsc -b
 
-      - name: Test
-        run: npx vitest run
-
+      # 产物级契约测试(shell.seo.test.tsx)读 dist/index.html,必须 build 在前
+      # (与 site 仓"先 build 再 test"同一约定;2026-10-28 Pages 管线 1 failed 根因)。
       - name: Build
         run: npx vite build
         env:
           # GitHub Pages 子路径 (vite.config.ts base 同源; Pages URL=仓库名 → /sleepy-web/)
           BASE_PATH: /sleepy-web/
+
+      - name: Test
+        run: npx vitest run
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
