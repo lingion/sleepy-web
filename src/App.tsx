@@ -120,6 +120,10 @@ export function App() {
         background: 'var(--md-background)',
       }}
     >
+      {/* 文档唯一 H1(Bing 扫描 2026-10-28「missing H1」修复):视觉隐藏但保留在
+          可及性树与 DOM 中——4 tab 全站单壳,标题不随 tab 变;各 tab 内容标题维持
+          m3-title-large div(Android TopAppBar 1:1 对齐不许动)。 */}
+      <h1 style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>Sleepy 课程表</h1>
       <main style={{ flex: 1, overflow: 'auto' }}>
         {tab === 'schedule' && <ScheduleView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} readOnly={publicSchedule} />}
         {tab === 'today' && <TodayView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
