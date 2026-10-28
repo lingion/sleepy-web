@@ -3,7 +3,7 @@
  *
  * "支持格式" 每行 ⓘ 点开: 什么时候用 → 识别要求(逐条 •) → 示例(monospace 色块)。
  * 纯文本格式额外带 "AI 截图转换" 区 (primaryContainer 色块 + 可复制 Prompt)。
- * 全纯色块禁描线 (Android 2026-08-25 用户指令同构)。
+ * 全纯色块禁描线 (Android 2026-08-25 指令同构)。
  */
 
 import { useEffect, useState } from 'react'

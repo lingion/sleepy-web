@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { PNG } from 'pngjs'
 import { describe, expect, it } from 'vitest'
 
-// 2026-10-27 用户定令: 所有方形尖角 Sleepy logo 一律改圆角矩形。
+// 2026-10-27 定令: 所有方形尖角 Sleepy logo 一律改圆角矩形。
 // 品牌几何唯一源 = favicon.svg 底版 rect rx=115/512(iOS AppIcon 比例),位图按同比例圆角。
 // 五点采样断言: 四角透明(圆角生效)+ 中心保留 + 上/左外缘中点保留 ——
 // 中心与外缘中点同时不透明才能区分「真圆角」与「整图蒙掉/缩小」。
@@ -47,7 +47,7 @@ function expectFullBleed(label: string, p: URL) {
   }
 }
 
-describe('品牌位图圆角化(用户定令 2026-10-27)', () => {
+describe('品牌位图圆角化(定令 2026-10-27)', () => {
   it('sleepy-logo.png(1024 母图)四角透明、中心与外缘中点保留', expectRounded('sleepy-logo', asset('../public/assets/sleepy-logo.png')))
   it('pwa-192.png 四角透明、中心与外缘中点保留', expectRounded('pwa-192', asset('../public/assets/pwa-192.png')))
   it('pwa-512.png 四角透明、中心与外缘中点保留', expectRounded('pwa-512', asset('../public/assets/pwa-512.png')))

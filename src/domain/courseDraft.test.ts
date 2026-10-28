@@ -60,7 +60,7 @@ describe('groupSlotsForEdit — 编辑回填分组', () => {
     expect(groupSlotsForEdit(courses)).toHaveLength(2)
   })
 
-  // 用户报障对齐安卓 e5a0528c:「点周四的课跳到周五的时段块」— day 进分组 key 后跨星期不再合并
+  // 报障对齐安卓 e5a0528c:「点周四的课跳到周五的时段块」— day 进分组 key 后跨星期不再合并
   it('同节次同周次不同星期 → 2 组 (day 进 key, ref #144)', () => {
     const courses = [
       { room: 'A101', day: 1, startNode: 1, step: 2, startWeek: 1, endWeek: 16, type: 0, ownTime: false, startTime: '', endTime: '' },
@@ -98,7 +98,7 @@ describe('findTargetBlockIndex — 编辑页跳转按主键命中 (ref #144)', (
     expect(findTargetBlockIndex([blk(1, [10])], c(99))).toBe(-1)
   })
 
-  it('跨 step 共享 (day, startNode) 歧义 → 按 id 命中正确块 (b77fc4d6 用户报障反例)', () => {
+  it('跨 step 共享 (day, startNode) 歧义 → 按 id 命中正确块 (b77fc4d6 报障反例)', () => {
     // A: 周一 1-2 节 (step=2) / B: 周一 1 节 (step=1) — day+startNode 相同, 旧模糊匹配会错
     const blocks = [
       { id: 1, days: [1], startNode: 1, sourceIds: [101] },
@@ -157,7 +157,7 @@ describe('buildCourseEntity — 草稿落库形态', () => {
     expect(c.isIrregularNode).toBe(true)
   })
 
-  it('ownTime 反算: 覆盖时间 → timeToNode 真实节点 (用户报障 2026-09-10)', () => {
+  it('ownTime 反算: 覆盖时间 → timeToNode 真实节点 (报障 2026-09-10)', () => {
     // TIME_12: 节 1 = 08:00-08:45, 节 2 = 08:55-09:40
     const c = buildCourseEntity(1, 'g', '晚课', block({ isIrregularTime: true, startTime: '08:00', endTime: '08:45' }), 1, '', TIME_12)
     expect([c.startNode, c.step]).toEqual([1, 1])

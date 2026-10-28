@@ -11,7 +11,7 @@ import { DEFAULT_PREFS } from '../data/types'
 import { usePrefsStore, resolveIsDark } from './prefsStore'
 
 describe('DEFAULT_PREFS 对齐 AppPrefs.kt 兜底值', () => {
-  it('displayMode 默认 time (AppPrefs.kt:230 出厂 "time", 2026-09-14 用户定版)', () => {
+  it('displayMode 默认 time (AppPrefs.kt:230 出厂 "time", 2026-09-14 定版)', () => {
     expect(DEFAULT_PREFS.displayMode).toBe('time')
   })
 

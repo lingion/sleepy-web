@@ -134,7 +134,7 @@ export function estimatePeriodHeaderTextWidth(text: string, size: number): numbe
  * → labelSize ≤ (cardHeight + 2.5) / 3.75, 三行行盒恰贴齐卡高永不重叠
  *   (安卓 v1.0.59 定稿二, ref #96 #97; 旧估算 2.6 会使三行高出卡高 ~13%)。
  * 卡高装不下 MIN 时按高度比例继续缩 — 硬钳必竖向溢出, 优先"无重叠"。
- * 墨迹超宽时按比例回缩兜底; 整列共用一个字号 — 由最宽 (最难装下) 的行决定 (用户 2026-09-29 令)。
+ * 墨迹超宽时按比例回缩兜底; 整列共用一个字号 — 由最宽 (最难装下) 的行决定 (定令 2026-09-29)。
  */
 export interface AdaptiveFont {
   timeSize: number

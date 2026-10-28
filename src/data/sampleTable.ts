@@ -1,6 +1,6 @@
 /**
  * 示例课表 — 首次打开 (空库) 自动 seed 一张示例
- * 用户指令 2026-09-12: "默认应该给出一个示例课表"。
+ * 指令 2026-09-12: "默认应该给出一个示例课表"。
  * Android 对应行为是"没有课表就老实空着" (ScheduleViewModel.kt:72), 此为 web 特有。
  * 防重标记 = prefs 表独立行 key='sampleTableSeeded' (不进 Prefs 类型 — 展示性标记非用户偏好)。
  * 仅在 timetables 空时 seed; 用户删除示例表后标记仍在, 不复活。
@@ -95,7 +95,7 @@ function courseOf(r: SampleRow, id: number, tableId: number): Course {
   }
 }
 
-/** 上周一 ISO 日期 — 示例课表"已开学一周": 起算=上周一, 当前周=第2周 (用户指令 2026-09-15) */
+/** 上周一 ISO 日期 — 示例课表"已开学一周": 起算=上周一, 当前周=第2周 (指令 2026-09-15) */
 function lastMondayIso(): string {
   const d = new Date()
   const dow = d.getDay() === 0 ? 7 : d.getDay()

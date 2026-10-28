@@ -87,7 +87,7 @@ describe('pagerTargetWeek — 松手翻页落点 (半页 positional + fling)', (
   })
 
   it('桌面宽窗阈值封顶 240px — 半页比例不变但绝对距离对齐手机手感', () => {
-    // 1280 宽窗口: 纯半页规则要拖 640px (手机只需 ~195px) → 用户反馈"电脑端不好滑"
+    // 1280 宽窗口: 纯半页规则要拖 640px (手机只需 ~195px) → 反馈"电脑端不好滑"
     // 不变量: 阈值 = min(半页, 240px)。手机页宽 ≤480 → 与 Android 完全同规则
     expect(SWIPE_MAX_THRESHOLD_PX).toBe(240)
     expect(pagerTargetWeek(-300, 0, 1280, 3, 20)).toBe(4) // 300 ≥ 240 → 翻

@@ -5,7 +5,7 @@
  * Export/Reminder/About/License/WidgetManagement/WidgetEdit) 都在底栏组合之前 return,
  * 且 ui/screen/ 下零处 PillNavigationBar 引用 → 栈上只要有一层, 底栏两种形态都不存在。
  *
- * 这里锁的是「可见性随栈深变化的规则本身」(用户 2026-09 反馈: 二级页 Dock 还在),
+ * 这里锁的是「可见性随栈深变化的规则本身」(2026-09 反馈: 二级页 Dock 还在),
  * 不是"某个页面有没有 Dock"的快照 — 栈深 1/2/3 与两种底栏形态都必须在同一规则下。
  * 红绿验证: 把 App.tsx 的 !hasOverlay 闸门去掉 → 本文件必须全红。
  */

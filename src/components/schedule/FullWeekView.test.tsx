@@ -2,7 +2,7 @@
  * 周视图日卡日期显示契约测试 (feat/weekly-card-date)。
  *
  * 锁定行为本身: showDate=true 时, WeekStrip 摘要卡与 DetailDayCard 详情卡的
- * 天名后必须跟 "·M/D" 形式日期 (用户 2026-10-14 需求: "周一·10-13 这样子");
+ * 天名后必须跟 "·M/D" 形式日期 (需求 2026-10-14: "周一·10-13 这样子");
  * showDate=false 时整体隐藏 — 与网格视图 DayHeadCell 共用同一开关与格式。
  * 红绿验证: 去掉 FullWeekView.tsx 中任一 `·${shortDate(date)}` 拼接 → 对应断言全红。
  */

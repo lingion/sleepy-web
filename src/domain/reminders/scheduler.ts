@@ -1,5 +1,5 @@
 /**
- * 提醒引擎 — CourseNotificationScheduler.kt 的页内定时器对位 (用户拍板: 前端定时器 + Web 通知)。
+ * 提醒引擎 — CourseNotificationScheduler.kt 的页内定时器对位 (定案: 前端定时器 + Web 通知)。
  * AlarmManager 在 web 无等价物 → setInterval 1min tick + 分钟粒度触发; fired-once 台账防重;
  * 触发时数据现查 (Dexie/LiveQuery 同源), 不做整日预排, 天然对齐 Android scheduleToday 的按天重排。
  *

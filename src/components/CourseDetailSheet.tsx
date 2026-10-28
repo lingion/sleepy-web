@@ -1,7 +1,7 @@
 /**
  * CourseDetailSheet — Kotlin ui/component/CourseDetailSheet.kt 1:1 移植
  * 课程详情底部弹层: Header/时间 chip/明细行/默认置顶选择(仅 ≥2 图层冲突簇)/编辑按钮。
- * 簇信息带 timeJson 走分钟域(与网格一致), ownTime 课先归一化 (用户报障 2026-09-10)。
+ * 簇信息带 timeJson 走分钟域(与网格一致), ownTime 课先归一化 (报障 2026-09-10)。
  */
 
 import { useMemo } from 'react'

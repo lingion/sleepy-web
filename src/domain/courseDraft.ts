@@ -148,7 +148,7 @@ export function initialMeetingBlock(id = 1, course: Course | null = null): Meeti
 /** buildCourseEntity — 草稿卡 × day → Course 草稿 (落库前)
  *  - CUSTOM 色 → block.color, AUTO → ''(渲染 hash), GROUP/空 → '#FF6750A4'
  *  - 边缘槽位卡 → startNode=槽位号, step 锁 1
- *  - ownTime 反算: 时间可解析且非边缘卡 → timeToNode 真实节点 (用户报障 2026-09-10)
+ *  - ownTime 反算: 时间可解析且非边缘卡 → timeToNode 真实节点 (报障 2026-09-10)
  */
 export function buildCourseEntity(
   tableId: number,

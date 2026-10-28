@@ -563,7 +563,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
 
       {/* 主体 — 左右滑动切换周次 (ScheduleScreen.kt:239 HorizontalPager 同构):
           轨道同时渲染 [上周|本周|下周] 三页并排, 整条平移 → 相邻两周连成一体一起移动
-          (旧实现只平移当前页, 拖出来是空白 = 用户反馈"没连起来")。
+          (旧实现只平移当前页, 拖出来是空白 = 反馈"没连起来")。
           松手按半页位移 / fling 判定 → 落定动画滑到邻页槽位, 动画结束才提交周次,
           轨道以新周重居中时画面正好接上, 无跳变。
           滚动层 overflow 管纵向 (横向 hidden, 轨道 300% 宽不外溢), 轨道只管横向跟手;
@@ -795,7 +795,7 @@ function IconRedo({ size = 24 }: { size?: number }) {
 }
 
 /**
- * UndoRedoCapsule — ScheduleScreen.kt:692-750 1:1 (2026-09-21 用户令):
+ * UndoRedoCapsule — ScheduleScreen.kt:692-750 1:1 (2026-09-21 定令):
  * 体育场胶囊 surfaceContainerHigh, 左右半 32×32 各一 icon, 中缝 1×14 淡竖线
  * (onSurfaceVariant@Alpha.inactive); 无快照侧半透明禁用 (alpha .38 占位保形);
  * hasUndo||hasRedo 才渲染整个胶囊 (ScheduleScreen.kt:520)。web 无捏合缩放 → scale=1。

@@ -57,7 +57,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   const [editingId, setEditingId] = useState<number | null>(null)
   // v1.0.56 T7: 新建作息表编辑层 — 与 editTable 同栈模式 (ManagementPage 第3卡)
   const [editingPeriodId, setEditingPeriodId] = useState<number | null>(null)
-  // 2026-09-21 用户令: 点当前课表大卡 → 所有课表页 (Android onOpenAllTables 回调同构)
+  // 2026-09-21 定令: 点当前课表大卡 → 所有课表页 (Android onOpenAllTables 回调同构)
   const [allTablesOpen, setAllTablesOpen] = useState(false)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
@@ -165,7 +165,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
         </p>
       )}
 
-      {/* 当前课表摘要 — ManagementPage.kt:91-140 (点大卡 → 所有课表, 2026-09-21 用户令) */}
+      {/* 当前课表摘要 — ManagementPage.kt:91-140 (点大卡 → 所有课表, 2026-09-21 定令) */}
       {defaultTable && (
         <div
           onClick={() => open('allTables', () => setAllTablesOpen(true))}

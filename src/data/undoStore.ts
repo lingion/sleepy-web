@@ -12,7 +12,7 @@
  * - 快照含 defaultTableId: 撤回恢复默认表指向 (isDefault 随快照回滚)
  * - v8 扩展: 快照覆盖 period_tables — 恢复顺序 periodTables→time_tables→courses
  * - App 进程被杀快照即失效(不落盘) — web 同为内存态
- * - 2026-09-21 用户令 (Android UndoManager.kt:35-97): 单级 redo — 撤回把「撤回前库态」
+ * - 2026-09-21 定令 (Android UndoManager.kt:35-97): 单级 redo — 撤回把「撤回前库态」
  *   挂进 redoSlot (recordRedo), 取消撤回 pollRedo 取走并把「redo 前库态」重挂回 slot
  *   (reinsertForRedoSymmetry); 任何正常写动作 capture 清空 redo (历史不分支);
  *   restoring 抑制路径不清 redo。
