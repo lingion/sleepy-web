@@ -15,6 +15,11 @@
     <title>Sleepy 课程表</title>
   </head>
   <body>
+    <!-- 文档唯一 H1:Bing 扫描(SEO005_H1Exists)只读 HTML 源码,故静态写在壳层而非
+         React 运行期注入(2026-10-28 首修放 App 内,Bing 复报)。必须在 #root 之外
+         ——createRoot 挂载清空 #root 子节点。视觉隐藏(与旧 App 内 h1 同法),可及性
+         树保留标题;React 壳内(App/main gate·错误屏)不再出现 h1,文档源码恒单 H1。回归锁: src/shell.seo.test.tsx -->
+    <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">Sleepy 课程表</h1>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

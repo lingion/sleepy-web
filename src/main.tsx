@@ -14,7 +14,7 @@ function PublicAccessGate({ onGranted }: { onGranted: () => void }) {
   return (
     <main style={{ minHeight: '100%', display: 'grid', placeItems: 'center', padding: 24, background: 'var(--md-background)' }}>
       <form onSubmit={(event) => { event.preventDefault(); void grantPublicAccess(key).then((ok) => { setError(!ok); if (ok) onGranted() }) }} style={{ width: 'min(100%, 360px)', display: 'grid', gap: 16 }}>
-        <h1 className="m3-headline-small">Sleepy Web</h1>
+        <h2 className="m3-headline-small">Sleepy Web</h2>
         <label className="m3-body-medium" htmlFor="public-access-key">访问密钥</label>
         <input id="public-access-key" autoFocus type="password" value={key} onChange={(event) => setKey(event.target.value)} style={{ minHeight: 48, padding: '0 12px', borderRadius: 8, border: '1px solid var(--md-outline)' }} />
         {error && <div role="alert" className="m3-body-small" style={{ color: 'var(--md-error)' }}>密钥不正确</div>}
@@ -50,7 +50,7 @@ function Bootstrap() {
     return (
       <main style={{ minHeight: '100%', display: 'grid', placeItems: 'center', padding: 24, background: 'var(--md-background)' }}>
         <div role="alert" className="m3-card" style={{ maxWidth: 520, padding: 24 }}>
-          <h1 className="m3-headline-small">课表加载失败</h1>
+          <h2 className="m3-headline-small">课表加载失败</h2>
           <p className="m3-body-medium">请检查部署中的 schedule.sleepy 文件和访问路径。</p>
           <p className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', wordBreak: 'break-word' }}>{publicError}</p>
           <button type="button" className="m3-button-filled" onClick={() => window.location.reload()}>重新加载</button>
