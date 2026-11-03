@@ -77,7 +77,7 @@ describe('EditTable 保存路径 — updateTableRemappingCourses', () => {
   beforeEach(async () => {
     await db.delete()
     await db.open()
-    useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
+    useUndoStore.setState({ undoStack: [], redoStack: [], batchDepth: 0, batchCaptured: false, restoring: false })
      // 单槽模型: 上述 setState 已含全部状态
   })
 

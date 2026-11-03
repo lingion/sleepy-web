@@ -70,7 +70,7 @@ function mkCourse(partial: Partial<Course>): Omit<Course, 'id'> {
 
 beforeEach(async () => {
   // 每测重建数据库 + undo 单槽
-  useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
+  useUndoStore.setState({ undoStack: [], redoStack: [], maxDepth: 5, batchDepth: 0, batchCaptured: false, restoring: false })
   await Promise.all([db.timetables.clear(), db.courses.clear(), db.prefs.clear(), db.periodTables.clear(), db.importDrafts.clear()])
 })
 
@@ -238,11 +238,15 @@ describe('undo — 单级撤回 (UndoManager.kt v7.10.16w 1:1)', () => {
     expect(await db.courses.count()).toBe(0)
   })
 
-  it('单级语义: 撤回后无快照可再撤 (无 redo)', async () => {
+  it('多步撤回 (ref #240): 逐级回退, 可一路撤到空库', async () => {
     const tableId = await insertTable({ name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1, startDate: '', nodeCount: 12, maxWeek: 20, createdAt: 1 })
     await insertCourse(mkCourse({ tableId }))
+    // 撤 insertCourse → 课没了, 表还在 (insertTable 的快照仍在栈里)
     expect(await useUndoStore.getState().undo()).toBe(true)
-    expect(await useUndoStore.getState().undo()).toBe(false)
+    expect(await db.timetables.count()).toBe(1)
+    // 撤 insertTable → 空库
+    expect(await useUndoStore.getState().undo()).toBe(true)
+    expect(await db.timetables.count()).toBe(0)
     expect(useUndoStore.getState().canUndo()).toBe(false)
   })
 
@@ -259,6 +263,9 @@ describe('undo — 单级撤回 (UndoManager.kt v7.10.16w 1:1)', () => {
     await useUndoStore.getState().undo()
     expect(await db.courses.count()).toBe(0)
     expect(await db.timetables.count()).toBe(1)
+    // ref #240 双栈: 批外 insertTable 的快照仍在栈底 — 再撤一级回到建表前
+    expect(await useUndoStore.getState().undo()).toBe(true)
+    expect(await db.timetables.count()).toBe(0)
     expect(await useUndoStore.getState().undo()).toBe(false)
   })
 
@@ -504,14 +511,16 @@ describe('C2 换绑快照 (preBindSnapshotJson 1:1) — 解绑不丢用户手工
   it('悬空目标拒绝 + 目标未变不动库不拍快照', async () => {
     const ptId = await insertPeriodTable(mkPT())
     const tId = await ownTable()
-    const undoBefore = useUndoStore.getState().slot
+    const top = () => useUndoStore.getState().undoStack.at(-1)
+    const undoBefore = top()
     await bindPeriodTable(tId, 9999) // 悬空 → 拒绝
     expect((await db.timetables.get(tId))?.periodTableId == null).toBe(true)
-    expect(useUndoStore.getState().slot).toBe(undoBefore)
+    expect(top()).toBe(undoBefore)
     await bindPeriodTable(tId, ptId) // 有效绑定拍了快照
-    const snap = useUndoStore.getState().slot
+    const snap = top()
+    expect(snap).toBeDefined()
     await bindPeriodTable(tId, ptId) // 目标未变 → 不再拍
-    expect(useUndoStore.getState().slot).toBe(snap)
+    expect(top()).toBe(snap)
   })
 
   it('updateTableMetadataAndBind: 绑定态纯元数据写不动时间域; 解绑态叠编辑时间域', async () => {

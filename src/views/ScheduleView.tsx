@@ -162,8 +162,8 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   }
 
   // 撤回/重做显隐 — Android UndoManager.hasSnapshot/hasRedoSnapshot 同义 (ScheduleScreen.kt:518-519)
-  const undoDepth = useUndoStore((s) => (s.slot ? 1 : 0))
-  const redoDepth = useUndoStore((s) => (s.redoSlot ? 1 : 0))
+  const undoDepth = useUndoStore((s) => s.undoStack.length)
+  const redoDepth = useUndoStore((s) => s.redoStack.length)
 
   const tableList = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) as Table[] | undefined
   const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())

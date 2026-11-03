@@ -17,6 +17,7 @@ import { App } from './App'
 import { initI18n } from './i18n'
 import { usePrefsStore } from './state/prefsStore'
 import { useBackStack } from './state/backStack'
+import { setViewport } from './testUtils/viewport'
 
 /** 底栏两种形态都是 <nav>; 页面内没有其他 nav, 所以 nav 数 = 底栏数 */
 function bottomBars(): HTMLElement[] {
@@ -37,6 +38,7 @@ beforeAll(() => {
 })
 
 beforeEach(() => {
+  setViewport(390, 844) // jsdom 默认 1024×768 会落平板横屏双栏分支, 契约测试须锁手机形态
   useBackStack.getState().reset()
   window.location.hash = ''
 })

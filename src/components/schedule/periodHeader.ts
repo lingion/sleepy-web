@@ -229,12 +229,20 @@ export function legacyRowInk(
   }
 }
 
-export function legacyDashColumn(rows: LegacyDashRowInk[], pad: number): LegacyDashColumn {
+/**
+ * 时间轴对齐 (ref sleepy#259): dash=连字符字形中心共轴 (默认) / center=列宽几何中心。
+ * center 时轴取整列 (含 pad) 的中线, 与 Android axisX = maxWidth/2 同口径。
+ */
+export function legacyDashColumn(
+  rows: LegacyDashRowInk[],
+  pad: number,
+  alignment: 'dash' | 'center' = 'dash',
+): LegacyDashColumn {
   if (rows.length === 0) return { columnWidth: 0, dashCenter: 0, placements: [] }
   const leftExtent = Math.max(...rows.map((r) => Math.max(r.labelPx / 2, r.timeLeftPx + r.dashPx / 2)))
   const rightExtent = Math.max(...rows.map((r) => Math.max(r.labelPx / 2, r.dashPx / 2 + r.timeRightPx)))
-  const dashCenter = pad + leftExtent
   const columnWidth = leftExtent + rightExtent + 2 * pad
+  const dashCenter = alignment === 'center' ? columnWidth / 2 : pad + leftExtent
   return {
     columnWidth,
     dashCenter,

@@ -22,6 +22,40 @@ const EXPANDED_KEY = 'sleepy_gss_expanded'
 const TOAST_SHORT_MS = 2000
 const TOAST_LONG_MS = 3500
 
+/**
+ * 实验室: 多步撤回深度输入 (ref sleepy#240, GeneralSettingsScreen 同款) —
+ * 过滤 `^-?\d{0,6}$`; 空/半截负号忽略; 解析失败(溢出)不落库; 落库即 applyMaxDepth (prefsStore 副作用)。
+ */
+function UndoDepthRow() {
+  const { t } = useTranslation()
+  const undoDepth = usePrefsStore((s) => s.prefs.undoDepth)
+  const update = usePrefsStore((s) => s.update)
+  const [draft, setDraft] = useState(String(undoDepth))
+  useEffect(() => setDraft(String(undoDepth)), [undoDepth])
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0' }}>
+      <span className="m3-body-large" style={{ flex: 1, color: 'var(--md-on-surface)' }}>{t('settings_undo_depth')}</span>
+      <input
+        aria-label={t('settings_undo_depth')}
+        inputMode="numeric"
+        value={draft}
+        onChange={(e) => {
+          const raw = e.target.value
+          if (!/^-?\d{0,6}$/.test(raw)) return
+          setDraft(raw)
+          const v = raw === '' || raw === '-' ? null : Number.parseInt(raw, 10)
+          if (v !== null && Number.isSafeInteger(v)) void update({ undoDepth: v })
+        }}
+        style={{
+          width: 90, flexShrink: 0, boxSizing: 'border-box', height: 40, padding: '0 12px',
+          borderRadius: 8, border: '1px solid var(--md-outline-variant)', background: 'var(--md-surface-container-low)',
+          color: 'var(--md-on-surface)', font: 'inherit', textAlign: 'center',
+        }}
+      />
+    </div>
+  )
+}
+
 const LANGUAGES: Array<[Prefs['lang'], string]> = [
   ['zh-CN', '简体中文'],
   ['zh-TW', '繁體中文'],
@@ -380,6 +414,8 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
           checked={prefs.gridLongBreakSpacing}
           onChange={(v) => void update({ gridLongBreakSpacing: v })}
         />
+        <HDiv />
+        <UndoDepthRow />
       </div>
 
       <HDiv />

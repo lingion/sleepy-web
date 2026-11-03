@@ -94,8 +94,7 @@ describe('ImportView 应用层 — 预览冲突计算', () => {
   beforeEach(async () => {
     await db.delete()
     await db.open()
-    useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
-     // 单槽模型: 上述 setState 已含全部状态
+    useUndoStore.setState({ undoStack: [], redoStack: [], batchDepth: 0, batchCaptured: false, restoring: false })
   })
 
   it('同 day + 周次重叠 + 节次重叠 = 冲突; day 不同不冲突', () => {
@@ -126,8 +125,7 @@ describe('ImportView 应用层 — 5 应用模式落库', () => {
   beforeEach(async () => {
     await db.delete()
     await db.open()
-    useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
-     // 单槽模型: 上述 setState 已含全部状态
+    useUndoStore.setState({ undoStack: [], redoStack: [], batchDepth: 0, batchCaptured: false, restoring: false })
   })
 
   it('ReplaceCurrent: 清空原课表灌入导入课, 表元数据更新', async () => {
@@ -218,7 +216,7 @@ describe('ImportView 应用层 — 5 应用模式落库', () => {
     } finally {
       await undo.endBatch()
     }
-    expect(useUndoStore.getState().slot).not.toBeNull() // 批内只保首快照 (单槽)
+    expect(useUndoStore.getState().undoStack.length).toBeGreaterThan(0) // 批内只加一拍 (ref #240 双栈)
     const didUndo = await useUndoStore.getState().undo()
     expect(didUndo).toBe(true)
     expect(await getCourses(tid)).toHaveLength(0) // 回到导入前 (空表)

@@ -28,6 +28,7 @@ import {
   type SmartPeriodConfig,
 } from '../../domain/smartPeriod'
 import { previewPeriodTableChange } from '../../domain/periodTablePreview'
+import { validatePeriodRows, periodValidationMessage } from '../../domain/periodValidation'
 import { isTableNameTaken } from './periodTableNames'
 import { TimeSlotSection } from './TimeSlotSection'
 import { SettingsScaffold } from './shared'
@@ -97,9 +98,10 @@ export function PeriodTableEditView({
   }
 
   const handleSave = async (newRows: TimeSlotRow[]) => {
-    const valid = newRows.length > 0 && newRows.every((r) => /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end)) && newRows.every((r) => r.start < r.end)
-    if (!valid) {
-      setError(t('edit_table_validation_error'))
+    // ref sleepy#289: 与 Android validatePeriodRows 同构 — 重复编号/格式/倒挂/相邻重叠
+    const validation = validatePeriodRows(newRows)
+    if (validation.kind !== 'valid') {
+      setError(periodValidationMessage(validation, (k, o) => t(k, o)))
       return
     }
     setError(null)

@@ -53,7 +53,7 @@ describe('EditTableView 换绑链 — bindPeriodTable 单向写, 课程行零改
   beforeEach(async () => {
     await db.delete()
     await db.open()
-    useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
+    useUndoStore.setState({ undoStack: [], redoStack: [], batchDepth: 0, batchCaptured: false, restoring: false })
   })
 
   it('issue#40 §5.3: 换绑(→pt2)→课程行零改动; 课表 periodTableId 改成 pt2', async () => {

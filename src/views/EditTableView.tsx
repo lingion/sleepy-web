@@ -24,6 +24,7 @@ import {
   getTablesBoundTo,
 } from '../data/repository'
 import { EditPolicyState, SchedulePolicy } from '../domain/schedulePolicy'
+import { validatePeriodRows, periodValidationMessage } from '../domain/periodValidation'
 import { ScheduleConflictBottomSheet, PendingPolicyBanner } from './mine/ScheduleConflictSheet'
 import {
   parseTimeSlotRows,
@@ -179,12 +180,14 @@ export function EditTableView({
    *  'conflict' = 弹出作息三选项 Sheet (EditTableScreen.kt:397-422 三选项闸门) */
   function handleSave(newRows: TimeSlotRow[], skipBindConfirm = false): Promise<boolean> | 'confirm' | 'conflict' | false {
     const maxWeek = /^\d+$/.test(tableMaxWeek) ? parseInt(tableMaxWeek, 10) : 20
-    const valid =
-      /^\d{4}-\d{2}-\d{2}$/.test(tableStart) &&
-      newRows.every((r) => /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end)) &&
-      newRows.every((r) => r.start < r.end)
-    if (!valid) {
+    // ref sleepy#289: 节次校验与 Android validatePeriodRows 同构
+    const validation = validatePeriodRows(newRows)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tableStart)) {
       setError(t('edit_table_validation_error'))
+      return false
+    }
+    if (validation.kind !== 'valid') {
+      setError(periodValidationMessage(validation, (k, o) => t(k, o)))
       return false
     }
     setError(null)

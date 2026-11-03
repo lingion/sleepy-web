@@ -1,8 +1,10 @@
 /**
- * 单级撤回 — UndoManager.kt (v7.10.16w 撤回锚定修复版) 1:1
+ * 多步撤回 — UndoManager.kt (v7.10.16w 撤回锚定修复版 + ref sleepy#240 多步深度) 1:1
  *
  * Android 端契约:
- * - 单槽语义: capture 覆盖槽, poll 取走并清空 — 撤回不可再撤回 (无 redo)
+ * - ref sleepy#240 (Android 2026-10): 单槽 → undoStack/redoStack 双栈 (末元素=栈顶),
+ *   maxDepth 深度钳制: -1 无限 / 0 禁用捕获 / N 保留最近 N 级; applyMaxDepth 即时裁剪。
+ *   旧「单槽语义」在 maxDepth=1 时与本实现完全等价。
  * - 复合动作(如导入)入口先 beginBatch, 批内只保首个快照=动作前时点
  * - v7.10.16w 撤回锚定: 批内首拍原本只在"槽为空"时生效 — 上一动作(如复制课表)
  *   留下的旧快照会被本批误当成动作起点, 撤回跳过本动作直接回到更早, 副本被连根拔。
@@ -17,7 +19,7 @@
  *   (reinsertForRedoSymmetry); 任何正常写动作 capture 清空 redo (历史不分支);
  *   restoring 抑制路径不清 redo。
  *
- * Web 端实现: Zustand store 存单槽全量快照 (数据库全量 {periodTables, tables, courses} 深拷贝)。
+ * Web 端实现: Zustand store 存双栈全量快照 (数据库全量 {periodTables, tables, courses} 深拷贝)。
  * 数据量级 (一张表几百门课) 全量快照开销可忽略, 与 Android UndoManager 语义一致。
  */
 
@@ -33,10 +35,12 @@ interface Snapshot {
 }
 
 interface UndoState {
-  /** 单槽 — Android UndoManager.slot 同名同义 */
-  slot: Snapshot | null
-  /** redo 槽 — Android UndoManager.redoSlot (2026-09-21) 同名同义 */
-  redoSlot: Snapshot | null
+  /** undo 栈 (末元素=栈顶) — Android UndoManager.undoStack (ref #240) 同名同义 */
+  undoStack: Snapshot[]
+  /** redo 栈 (末元素=栈顶) — Android UndoManager.redoStack 同名同义 */
+  redoStack: Snapshot[]
+  /** 深度钳制: -1 无限 / 0 禁用捕获 / N 保留最近 N 级 — Android maxDepth (DEFAULT_MAX_DEPTH=5) */
+  maxDepth: number
   batchDepth: number
   /** 本批首拍是否已落: 批内多次 capture 只保第一次 — 锚定本批开始前(非旧快照) */
   batchCaptured: boolean
@@ -55,12 +59,19 @@ interface UndoActions {
   beginBatch: () => void
   /** 复合动作出口 */
   endBatch: () => Promise<void>
-  /** 撤回: poll 取走快照恢复; 「撤回前库态」挂 redo 槽 (recordRedo) */
+  /** 撤回: poll 取走快照恢复; 「撤回前库态」压 redo 栈 (recordRedo) */
   undo: () => Promise<boolean>
-  /** 取消撤回: pollRedo 取走恢复; 「redo 前库态」重挂回 slot (reinsertForRedoSymmetry) */
+  /** 取消撤回: pollRedo 取走恢复; 「redo 前库态」重压回 undo 栈 (reinsertForRedoSymmetry) */
   redo: () => Promise<boolean>
-  /** 双槽清空 — Android UndoManager.clear 同义 */
+  /** 深度变更即时生效 — Android UndoManager.applyMaxDepth: 0 清空双栈, >0 双栈裁剪, <0 仅放开 */
+  applyMaxDepth: (v: number) => void
+  /** 双栈清空 — Android UndoManager.clear 同义 */
   clear: () => void
+}
+
+/** Android UndoManager.trimmed(): maxDepth>0 时保留最近 maxDepth 个 (栈尾=最新) */
+function trimmed(stack: Snapshot[], maxDepth: number): Snapshot[] {
+  return maxDepth > 0 ? stack.slice(-maxDepth) : stack
 }
 
 async function takeSnapshot(): Promise<Snapshot> {
@@ -85,26 +96,32 @@ async function restore(snap: Snapshot): Promise<void> {
 }
 
 export const useUndoStore = create<UndoState & UndoActions>((set, get) => ({
-  slot: null,
-  redoSlot: null,
+  undoStack: [],
+  redoStack: [],
+  maxDepth: 5,
   batchDepth: 0,
   batchCaptured: false,
   restoring: false,
 
-  canUndo: () => get().slot !== null,
-  canRedo: () => get().redoSlot !== null,
+  canUndo: () => get().undoStack.length > 0,
+  canRedo: () => get().redoStack.length > 0,
 
   capture: async (_label) => {
-    const { restoring, batchDepth, batchCaptured } = get()
+    const { restoring, batchDepth, batchCaptured, maxDepth } = get()
     if (restoring) return
+    // 深度 0 = 禁用撤回捕获 (Android: 先清历史再拒绝捕获)
+    if (maxDepth === 0) {
+      if (get().undoStack.length || get().redoStack.length) get().clear()
+      return
+    }
     // 新用户动作 = 历史从 redo 分叉 — redo 立即作废 UndoManager.kt:66-68
     // (Android 顺序: restoring 后无条件清 redo, 再进批判)
-    set({ redoSlot: null })
+    set({ redoStack: [] })
     if (batchDepth > 0) {
       if (batchCaptured) return // 批内已有本动作快照 — 保动作链起点
       set({ batchCaptured: true })
     }
-    set({ slot: await takeSnapshot() })
+    set({ undoStack: trimmed([...get().undoStack, await takeSnapshot()], maxDepth) })
   },
 
   beginBatch: () => {
@@ -119,38 +136,50 @@ export const useUndoStore = create<UndoState & UndoActions>((set, get) => ({
   },
 
   undo: async () => {
-    // ScheduleRepository.restoreLastSnapshot 1:1: poll → 当前库态落 redo → 抑制下恢复
-    const { slot } = get()
-    if (!slot) return false
+    // ScheduleRepository.restoreLastSnapshot 1:1: poll → 当前库态压 redo → 抑制下恢复
+    const { undoStack, maxDepth } = get()
+    const snap = undoStack[undoStack.length - 1]
+    if (!snap) return false
     const redoSnap = await takeSnapshot()
-    set({ slot: null, restoring: true })
+    set({ undoStack: undoStack.slice(0, -1), restoring: true })
     try {
-      await restore(slot)
+      await restore(snap)
     } finally {
       set({ restoring: false })
     }
-    set({ redoSlot: redoSnap })
+    set({ redoStack: trimmed([...get().redoStack, redoSnap], maxDepth) })
     return true
   },
 
   redo: async () => {
-    // ScheduleRepository.redoLastUndo 1:1: pollRedo → 当前库态回填 undo 槽 → 抑制下恢复
-    const { redoSlot } = get()
-    if (!redoSlot) return false
+    // ScheduleRepository.redoLastUndo 1:1: pollRedo → 当前库态回填 undo 栈 → 抑制下恢复
+    const { redoStack, maxDepth } = get()
+    const snap = redoStack[redoStack.length - 1]
+    if (!snap) return false
     const undoSnap = await takeSnapshot()
-    set({ redoSlot: null, restoring: true })
+    set({ redoStack: redoStack.slice(0, -1), restoring: true })
     try {
-      await restore(redoSlot)
+      await restore(snap)
     } finally {
       set({ restoring: false })
     }
     // reinsertForRedoSymmetry: redo 也是一次"回到过去", 再点撤回应能撤掉它本身
-    set({ slot: undoSnap })
+    set({ undoStack: trimmed([...get().undoStack, undoSnap], maxDepth) })
     return true
   },
 
+  applyMaxDepth: (v) => {
+    // Android applyMaxDepth: 0 清空双栈 (禁用), >0 双栈各裁到 N, <0 仅放开上限
+    set({ maxDepth: v })
+    if (v === 0) {
+      set({ undoStack: [], redoStack: [] })
+    } else if (v > 0) {
+      set({ undoStack: trimmed(get().undoStack, v), redoStack: trimmed(get().redoStack, v) })
+    }
+  },
+
   clear: () => {
-    set({ slot: null, redoSlot: null })
+    set({ undoStack: [], redoStack: [] })
   },
 }))
 
@@ -161,5 +190,6 @@ export const undoManager = {
   endBatch: () => useUndoStore.getState().endBatch(),
   undo: () => useUndoStore.getState().undo(),
   redo: () => useUndoStore.getState().redo(),
+  applyMaxDepth: (v: number) => useUndoStore.getState().applyMaxDepth(v),
   clear: () => useUndoStore.getState().clear(),
 }

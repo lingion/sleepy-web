@@ -4,12 +4,16 @@
  * 底栏双形态对齐 PillNavigationBar.kt:
  *   navDock=false → 贴底通栏 (dock=false 分支, MainActivity.kt:392-423)
  *   navDock=true  → 悬浮胶囊 Dock (dock=true 分支, MainActivity.kt:424-474)
+ * 平板横屏第三形态 (SleepyNavHost.kt:484-657): 宽≥600 且 横屏 → NavigationRail +
+ * 左课表固定/右 Today·Manage·Mine 的 Master-Detail 双栏。
  */
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from './state/prefsStore'
-import { chainFromHash, installBackHandler, restoreChain, tabFromHash, useBackStack, type TabKey } from './state/backStack'
+import { chainFromHash, installBackHandler, restoreChain, tabFromHash, useBackStack, type BackKey, type TabKey } from './state/backStack'
+import { useTabletLayout } from './state/tabletLayout'
+import { TabletNavRail } from './components/TabletNavRail'
 import { abandonPendingTable } from './state/pendingTable'
 import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/icons'
 import { ScheduleView } from './views/ScheduleView'
@@ -30,6 +34,15 @@ const TAB_ICONS: Record<Tab, (p: { size?: number }) => JSX.Element> = {
   mine: IconPerson,
 }
 
+// 课表页弹层族 = Android 局部 sheet/dialog (不入 overlayStack 语义), Web 入栈只为
+// 浏览器返回先关弹层; 平板双栏下不触发拆栏回落 (见上 fullOverlay 注释)。
+const PANE_DIALOG_KEYS: ReadonlySet<BackKey> = new Set<BackKey>([
+  'courseDetail',
+  'weekSwitcher',
+  'weekJump',
+  'shareSheet',
+])
+
 export function App() {
   const { t } = useTranslation()
   const navDock = usePrefsStore((s) => s.prefs.navDock)
@@ -41,6 +54,13 @@ export function App() {
   // 不变量 (MainActivity.kt:301-397): 每个 overlay 分支都在底栏组合之前 return —
   // 栈上只要有一层 (二级/三级皆算, 随栈深递增永远成立), 底栏两种形态都不存在。
   const hasOverlay = useBackStack((s) => s.stack.length > 0)
+  // 平板横屏 Master-Detail (SleepyNavHost.kt:484-494): 宽≥600 且 宽≥高 → 左课表固定 + 右 Today/Manage/Mine。
+  // 全屏覆盖层 (二级/三级页) 打开时回落单栏 — Android overlay 是 NavHost 全屏目的地, 盖住整个双栏;
+  // 课表页弹层族 (详情/切表/跳周/分享) 是 fixed 浮层, 不拆栏 (Android 本就是 sheet/dialog 局部层)。
+  const tablet = useTabletLayout()
+  const stack = useBackStack((s) => s.stack)
+  const fullOverlay = stack.some((k) => !PANE_DIALOG_KEYS.has(k))
+  const tabletSplit = tablet && !publicSchedule && !fullOverlay
 
   // tab hash 首次进入不新增历史;之后点击 tab 写入独立地址。
   // 直达/刷新落在二三级页 hash → 重建返回栈链 (replaceTab 会把子页 hash 抹平甩回 tab 根)。
@@ -109,6 +129,54 @@ export function App() {
         ['manage', t('tab_manage', '课表管理')],
         ['mine', t('tab_mine', '我的')],
       ]
+
+  // ── 平板横屏 Master-Detail (SleepyNavHost.kt:494-657) ─────────────────
+  // 左 50% = 课表永久固定; 右 50% = Today/Manage/Mine 跟 rail 切;
+  // tab=Schedule 时右栏派生 Today (Android「宽屏派生为 Tab.Today」同构)。
+  if (tabletSplit) {
+    const rightTab = (tab === 'schedule' ? 'today' : tab) as 'today' | 'manage' | 'mine'
+    return (
+      <div style={{ display: 'flex', height: '100%', background: 'var(--md-background)' }}>
+        <TabletNavRail
+          current={rightTab}
+          labels={{
+            today: t('tab_today', '今日'),
+            manage: t('tab_manage', '课表管理'),
+            mine: t('tab_mine', '我的'),
+          }}
+          onSelect={selectTab}
+        />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', padding: '12px 16px', gap: 16 }}>
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              borderRadius: 16,
+              background: 'var(--md-surface-container-low)',
+              overflow: 'auto',
+            }}
+          >
+            <ScheduleView navExtraBottom={0} readOnly={publicSchedule} />
+          </div>
+          {/* 暗色沟槽 12dp (Android gap Box, 背景=background) */}
+          <div style={{ width: 12, flexShrink: 0, background: 'var(--md-background)' }} />
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              borderRadius: 16,
+              background: 'var(--md-surface-container-low)',
+              overflow: 'auto',
+            }}
+          >
+            {rightTab === 'today' && <TodayView navExtraBottom={0} />}
+            {rightTab === 'manage' && <ManageView navExtraBottom={0} />}
+            {rightTab === 'mine' && <MineView navExtraBottom={0} />}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

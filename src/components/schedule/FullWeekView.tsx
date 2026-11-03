@@ -13,7 +13,7 @@ import { courseNeutralTokens } from '../../theme/themes'
 import { weekLaneRows } from '../../domain/conflictLayout'
 import { courseTimeParts } from '../../domain/timeTable'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
-import { dateOfWeek, isDateToday, localizedDay, shortDate } from './CardsGridView'
+import { dateOfWeek, isDateToday, localizedDay, shortDateChinese } from './CardsGridView'
 
 export interface FullWeekViewProps {
   courses: Course[]
@@ -73,7 +73,6 @@ export function FullWeekView({ courses, timeJson, startDate, currentWeek, greyDa
               day={day}
               courses={byDay.get(day) ?? []}
               isToday={isDateToday(dateOfWeek(startDate, currentWeek, day), today)}
-              date={dateOfWeek(startDate, currentWeek, day)}
               isGrey={greyDays.has(day)}
               useAlias={prefs.weekUseAlias}
               scale={scale}
@@ -106,7 +105,6 @@ function DaySummaryCell({
   day,
   courses,
   isToday,
-  date,
   isGrey,
   useAlias,
   scale,
@@ -115,14 +113,12 @@ function DaySummaryCell({
   day: number
   courses: Course[]
   isToday: boolean
-  date: Date | null
   isGrey: boolean
   useAlias: boolean
   scale: number
   cornerRatio: number
 }) {
   const { t, i18n } = useTranslation()
-  const prefs = usePrefsStore((s) => s.prefs)
   const bg = isToday ? 'var(--md-primary-container)' : 'var(--md-surface-container)'
   const fg = isGrey
     ? 'color-mix(in srgb, var(--md-on-surface-variant) 60%, transparent)'
@@ -157,7 +153,6 @@ function DaySummaryCell({
         }}
       >
         {localizedDay(day, i18n.language)}
-        {prefs.showDate && date ? `·${shortDate(date)}` : ''}
       </span>
       <div style={{ height: 6 * scale }} />
       {courses.length > 0 && (
@@ -430,7 +425,7 @@ export function DetailDayCard({
         }}
       >
         {localizedDay(day, i18n.language)}
-        {prefs.showDate && date ? `·${shortDate(date)}` : ''}
+        {prefs.showDate && date ? `·${shortDateChinese(date)}` : ''}
         {isToday ? t('today_suffix') : ''}
       </span>
 
@@ -447,7 +442,7 @@ export function DetailDayCard({
             gap: 4 * scale,
           }}
         >
-          <span>{localizedDay(day, i18n.language)}{prefs.showDate && date ? `·${shortDate(date)}` : ''}</span>
+          <span>{localizedDay(day, i18n.language)}{prefs.showDate && date ? `·${shortDateChinese(date)}` : ''}</span>
           <span>{t('no_course_today')}</span>
         </span>
       ) : (
