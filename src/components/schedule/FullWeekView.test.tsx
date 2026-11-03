@@ -1,10 +1,11 @@
 /**
- * 周视图日卡日期显示契约测试 (feat/weekly-card-date)。
+ * 周视图日期显示契约测试 (ref sleepy#191)。
  *
- * 锁定行为本身: showDate=true 时, WeekStrip 摘要卡与 DetailDayCard 详情卡的
- * 天名后必须跟 "·M/D" 形式日期 (需求 2026-10-14: "周一·10-13 这样子");
- * showDate=false 时整体隐藏 — 与网格视图 DayHeadCell 共用同一开关与格式。
- * 红绿验证: 去掉 FullWeekView.tsx 中任一 `·${shortDate(date)}` 拼接 → 对应断言全红。
+ * 锁定行为: showDate=true 时, WeekStrip 摘要卡只显示天名 (不再带日期);
+ * DetailDayCard 详情卡天名后跟 "·M月d日" (固定中文格式, Android shortDateChinese 同构,
+ * 不随语言切换)。showDate=false 时详情卡日期整体隐藏。
+ * 红绿验证: 去掉 FullWeekView.tsx 中 DetailDayCard 的 `·${shortDateChinese(date)}` → 对应断言全红;
+ * 给 DaySummaryCell 加回日期 → 摘要卡无日期断言变红。
  */
 
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
@@ -89,18 +90,19 @@ afterEach(() => {
   setPrefs({ showDate: true })
 })
 
-describe('FullWeekView 日期显示 — WeekStrip 摘要 + DetailDayCard 详情', () => {
-  it('showDate=true → 摘要卡出现 周一·10/12 周三·10/14', () => {
+describe('FullWeekView 日期显示 — 摘要卡无日期 + DetailDayCard 中文日期 (ref sleepy#191)', () => {
+  it('showDate=true → 摘要卡只有天名, 不带日期', () => {
     setPrefs({ showDate: true })
     const { container } = render(
       <FullWeekView courses={[COURSE]} timeJson={TIME_JSON} startDate={START} currentWeek={1} />
     )
-    const text = container.textContent ?? ''
-    expect(text).toContain('周一·10/12')
-    expect(text).toContain('周三·10/14')
+    const strip = container.querySelector('div[style*="gap"]') ?? container
+    const stripText = Array.from(strip.querySelectorAll('span')).map((el) => el.textContent ?? '').join('|')
+    expect(stripText).toContain('周一')
+    expect(stripText).not.toMatch(/10[月/]/)
   })
 
-  it('showDate=true → 详情卡标题出现 周三·10/14 (· 今天 后缀共存)', () => {
+  it('showDate=true → 详情卡标题出现 周三·10月14日 (· 今天 后缀共存)', () => {
     setPrefs({ showDate: true })
     // 冻结系统时间到 2026-10-14 (周三): "今天"判定依赖 new Date(),不锁时钟则断言只在当天为周三时成立
     vi.useFakeTimers({ toFake: ['Date'] })
@@ -110,7 +112,7 @@ describe('FullWeekView 日期显示 — WeekStrip 摘要 + DetailDayCard 详情'
         <FullWeekView courses={[COURSE]} timeJson={TIME_JSON} startDate={START} currentWeek={1} />
       )
       const todayCard = Array.from(container.querySelectorAll('.m3-title-small')).find(
-        (el) => el.textContent === '周三·10/14· 今天'
+        (el) => el.textContent === '周三·10月14日· 今天'
       )
       expect(todayCard).not.toBeUndefined()
     } finally {
@@ -118,15 +120,15 @@ describe('FullWeekView 日期显示 — WeekStrip 摘要 + DetailDayCard 详情'
     }
   })
 
-  it('showDate=false → 日期整体隐藏, 只剩天名 (与网格视图同开关)', () => {
+  it('showDate=false → 详情卡日期整体隐藏, 只剩天名', () => {
     setPrefs({ showDate: false })
     const { container } = render(
       <FullWeekView courses={[COURSE]} timeJson={TIME_JSON} startDate={START} currentWeek={1} />
     )
     const text = container.textContent ?? ''
     expect(text).toContain('周三')
-    expect(text).not.toContain('周三·10/14')
-    expect(text).not.toContain('·10/')
+    expect(text).not.toContain('10月14日')
+    expect(text).not.toContain('月')
   })
 
   it('startDate 未设置 (空串) → 不显示日期数字, 不崩溃', () => {
@@ -136,12 +138,12 @@ describe('FullWeekView 日期显示 — WeekStrip 摘要 + DetailDayCard 详情'
     )
     const text = container.textContent ?? ''
     expect(text).toContain('周三')
-    // "周三· 今天" 中的 · 是 today_suffix (而非日期), 不应带 M/D 数字
-    expect(text).not.toContain('10/14')
-    expect(text).not.toContain('10/12')
+    // "周三· 今天" 中的 · 是 today_suffix (而非日期), 不应带日期数字
+    expect(text).not.toContain('10月14日')
+    expect(text).not.toContain('10月12日')
   })
 
-  it('DetailDayCard 独立渲染 (两栏 DayColumn 同一路径) → 标题带 ·M/D', () => {
+  it('DetailDayCard 独立渲染 (两栏 DayColumn 同一路径) → 标题带 ·M月d日', () => {
     setPrefs({ showDate: true })
     const { container } = render(
       <DetailDayCard
@@ -154,6 +156,6 @@ describe('FullWeekView 日期显示 — WeekStrip 摘要 + DetailDayCard 详情'
         cornerRatio={1}
       />
     )
-    expect(container.textContent).toContain('周三·10/14')
+    expect(container.textContent).toContain('周三·10月14日')
   })
 })

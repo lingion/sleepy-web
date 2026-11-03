@@ -10,7 +10,7 @@ import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
 import { courseNeutralTokens } from '../../theme/themes'
 import { findClusters, conflictClusterKey, layoutCluster } from '../../domain/conflictLayout'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
-import { timeToFractionalRows } from '../../domain/timeTable'
+import { timeToFractionalRows, type RenderSlotPlan } from '../../domain/timeTable'
 import { buildGridGeometry, singleCardGeom, slotIndexOf, yOfRows, rowHeightAt } from './gridGeometry'
 import { GridClusterCard } from './GridClusterCard'
 import {
@@ -94,9 +94,41 @@ export function CardsGridView(props: CardsGridViewProps) {
   const today = useMemo(() => new Date(), [])
   const updatePrefs = usePrefsStore((s) => s.update)
   const pinch = useRef<{ distance: number } | null>(null)
+  // ref sleepy#287: 捏合缩放时锚定两指中点下的行, 缩放后回写滚动位置, 中点内容不漂移。
+  const pinchAnchor = useRef<{
+    acc: number
+    rowH0: number
+    scale0: number
+    gridTop: number
+    midLocal: number
+    scroller: HTMLElement
+  } | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
   const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     if (!prefs.gridPinchZoom || event.touches.length !== 2) return
-    pinch.current = { distance: Math.abs(event.touches[0].clientY - event.touches[1].clientY) }
+    const t0 = event.touches[0]
+    const t1 = event.touches[1]
+    pinch.current = { distance: Math.abs(t0.clientY - t1.clientY) }
+    const root = rootRef.current
+    const scroller = root ? findVerticalScroller(root) : null
+    if (!root || !scroller) {
+      pinchAnchor.current = null
+      return
+    }
+    const sRect = scroller.getBoundingClientRect()
+    const gRect = root.getBoundingClientRect()
+    const gridTop = gRect.top - sRect.top + scroller.scrollTop
+    const midLocal = (t0.clientY + t1.clientY) / 2 - sRect.top
+    const bodyY = scroller.scrollTop + midLocal - gridTop - geo.headH
+    pinchAnchor.current = {
+      acc: invertRowsToAcc(geo.plan, bodyY, geo.rowH, geo.mealBreakAfterRows, geo.mealGapExtra),
+      rowH0: geo.rowH,
+      scale0: prefs.gridRowScale,
+      gridTop,
+      midLocal,
+      scroller,
+    }
   }
   const onTouchMove = (event: TouchEvent<HTMLDivElement>) => {
     if (!prefs.gridPinchZoom || !pinch.current || event.touches.length !== 2) return
@@ -104,9 +136,22 @@ export function CardsGridView(props: CardsGridViewProps) {
     const delta = (distance - pinch.current.distance) / 180
     if (Math.abs(delta) < 0.03) return
     pinch.current.distance = distance
-    void updatePrefs({ gridRowScale: prefs.gridRowScale + delta })
+    const a = pinchAnchor.current
+    const newScale = Math.min(1.8, Math.max(0.7, prefs.gridRowScale + delta))
+    void updatePrefs({ gridRowScale: newScale })
+    if (a && a.scale0 > 0) {
+      // 行距 = 行高 + 固定间隙: 只按比例缩放行高部分 (与 gridGeometry 的 rowH 构造一致)
+      const newRowH = (a.rowH0 - geo.gapH) * (newScale / a.scale0) + geo.gapH
+      const y =
+        yOfRows(geo.plan, a.acc, newRowH, geo.mealBreakAfterRows, geo.mealGapExtra) +
+        geo.headH + a.gridTop - a.midLocal
+      a.scroller.scrollTop = Math.max(0, y)
+    }
   }
-  const onTouchEnd = () => { pinch.current = null }
+  const onTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length < 2) pinch.current = null
+    if (event.touches.length === 0) pinchAnchor.current = null
+  }
   const onWheel = (event: WheelEvent<HTMLDivElement>) => {
     if (!prefs.gridPinchZoom || !event.ctrlKey) return
     event.preventDefault()
@@ -154,8 +199,8 @@ export function CardsGridView(props: CardsGridViewProps) {
     const rows = geo.slots
       .filter((slot) => !slot.isPlaceholder)
       .map((slot) => legacyRowInk(slot, prefs.periodHeaderStyle, prefs.periodHeaderShowX))
-    return legacyDashColumn(rows, 0).dashCenter * prefs.gridScale
-  }, [geo.slots, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderShowX])
+    return legacyDashColumn(rows, 0, prefs.periodHeaderTimeAlignment).dashCenter * prefs.gridScale
+  }, [geo.slots, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderShowX, prefs.periodHeaderTimeAlignment])
 
   // 簇: 时间域聚簇 (2026-09-09 假冲突修复同源)
   const clusters = useMemo(() => findClusters(courses, timeJson), [courses, timeJson])
@@ -169,6 +214,7 @@ export function CardsGridView(props: CardsGridViewProps) {
 
   return (
     <div
+      ref={rootRef}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -696,6 +742,42 @@ export function dateOfWeek(startDate: string, week: number, day: number): Date |
 
 export function shortDate(d: Date): string {
   return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+/** ref sleepy#191: 固定中文 M月d日 格式 (Android DateUtils.shortDateChinese), 不随语言变化 */
+/** 向上找最近的可垂直滚动祖先 (捏合锚点用)。 */
+function findVerticalScroller(el: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = el.parentElement
+  while (node) {
+    const oy = getComputedStyle(node).overflowY
+    if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight + 1) return node
+    node = node.parentElement
+  }
+  return null
+}
+
+/** yOfRows 的反函数: 给定网格体内 y 偏移, 求小数行号 acc ∈ [0, slots]。 */
+export function invertRowsToAcc(
+  plan: RenderSlotPlan,
+  y: number,
+  rowH: number,
+  mealBreakAfterRows: Set<number>,
+  mealGapExtra: number
+): number {
+  if (y <= 0) return 0
+  const ws = plan.slotWeights
+  const n = plan.slots.length
+  let cum = 0
+  for (let i = 0; i < n; i++) {
+    const seg = rowH * (ws?.[i] ?? 1) + (mealBreakAfterRows.has(i) ? mealGapExtra : 0)
+    if (y <= cum + seg) return seg > 0 ? i + (y - cum) / seg : i
+    cum += seg
+  }
+  return n
+}
+
+export function shortDateChinese(d: Date): string {
+  return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
 /** Compare calendar dates, ignoring time-of-day. */

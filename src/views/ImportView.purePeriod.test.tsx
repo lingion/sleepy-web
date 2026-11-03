@@ -25,7 +25,7 @@ beforeAll(() => {
 afterEach(async () => {
   cleanup()
   vi.restoreAllMocks()
-  useUndoStore.setState({ slot: null, batchDepth: 0, batchCaptured: false, restoring: false })
+  useUndoStore.setState({ undoStack: [], redoStack: [], batchDepth: 0, batchCaptured: false, restoring: false })
   await db.delete()
   await db.open()
 })

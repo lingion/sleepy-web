@@ -27,7 +27,7 @@ let tableB = 0
 beforeEach(async () => {
   await db.delete()
   await db.open()
-  useUndoStore.setState({ slot: null, redoSlot: null, batchDepth: 0, batchCaptured: false, restoring: false })
+  useUndoStore.setState({ undoStack: [], redoStack: [], batchDepth: 0, batchCaptured: false, restoring: false })
   ptId = await insertPeriodTable({
     name: '共享作息', nodesPerDay: 1, timeJson: T1, smartConfigJson: '', createdAt: 1, updatedAt: 1,
   })

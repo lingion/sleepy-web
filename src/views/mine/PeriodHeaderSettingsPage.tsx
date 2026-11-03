@@ -114,9 +114,11 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
           const inkLeft = Math.min(0, hangingLabelLeft)
           const legacyDashWidth = measureTextWidth('-', TIME_SIZE)
           // ref #102: dash 字形中心共轴, 与网格 legacyAxis 同一函数 (pad=0, pad 只进列宽)。
+          // ref #259: center 对齐时轴 = 列宽几何中心。
           const legacyAxis = legacyDashColumn(
             [{ labelPx: labelWidth, timeLeftPx: startWidth, dashPx: legacyDashWidth, timeRightPx: endWidth }],
             0,
+            prefs.periodHeaderTimeAlignment,
           ).dashCenter
           return (
             <div
@@ -203,6 +205,21 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <ToggleRow label={t('appearance_header_show_x', '显示“第 X 节”')} checked={prefs.periodHeaderShowX} onChange={(v) => void update({ periodHeaderShowX: v })} />
+      {/* ref sleepy#259: 时间轴对齐仅适用旧式两行表头 (Android 同款 layout==legacy 门控) */}
+      {prefs.periodHeaderLayout === 'legacy' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 4px 0' }}>
+          <span className="m3-label-medium" style={{ color: 'var(--md-on-surface-variant)' }}>
+            {t('appearance_header_time_alignment', '时间对齐')}
+          </span>
+          <SegmentedSwitcher
+            options={[t('appearance_header_alignment_dash', '连字符'), t('appearance_header_alignment_center', '居中')]}
+            selected={prefs.periodHeaderTimeAlignment === 'center' ? 1 : 0}
+            onSelect={(i) => void update({ periodHeaderTimeAlignment: i === 1 ? 'center' : 'dash' })}
+            height={40}
+            containerColor="var(--md-surface-container-highest)"
+          />
+        </div>
+      )}
       {prefs.periodHeaderLayout === 'three_line' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 4px' }}>
           <div className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>

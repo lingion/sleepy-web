@@ -79,6 +79,37 @@ describe('legacy dash column geometry (Android legacyDashColumnPx parity)', () =
   })
 })
 
+// ---- ref sleepy#259: 时间整体居中 (alignment='center') --------------------
+describe('legacy dash column center alignment (ref sleepy#259)', () => {
+ const pad = 3
+ const rowA: LegacyDashRowInk = { labelPx: 16, timeLeftPx: 30, dashPx: 0, timeRightPx: 30 }
+ const rowB: LegacyDashRowInk = { labelPx: 80, timeLeftPx: 20, dashPx: 0, timeRightPx: 45 }
+ const rows = [rowA, rowB]
+
+ it('center axis sits at column midline, column width unchanged', () => {
+   const dash = legacyDashColumn(rows, pad, 'dash')
+   const center = legacyDashColumn(rows, pad, 'center')
+   expect(center.columnWidth).toBeCloseTo(dash.columnWidth, 6)
+   expect(center.dashCenter).toBeCloseTo(center.columnWidth / 2, 6)
+ })
+
+ it('every row still shares the axis and stays inside the column', () => {
+   const g = legacyDashColumn(rows, pad, 'center')
+   rows.forEach((row, i) => {
+     const p = g.placements[i]
+     expect(p.timeLeft + row.timeLeftPx + row.dashPx / 2).toBeCloseTo(g.dashCenter, 3)
+     expect(p.labelLeft + row.labelPx / 2).toBeCloseTo(g.dashCenter, 3)
+     expect(p.labelLeft).toBeGreaterThanOrEqual(-0.001)
+     expect(p.timeLeft).toBeGreaterThanOrEqual(-0.001)
+     expect(p.timeLeft + row.timeLeftPx + row.timeRightPx).toBeLessThanOrEqual(g.columnWidth + 0.001)
+   })
+ })
+
+ it('default alignment keeps dash-axis behavior (backward compatible)', () => {
+   expect(legacyDashColumn(rows, pad).dashCenter).toBeCloseTo(legacyDashColumn(rows, pad, 'dash').dashCenter, 6)
+ })
+})
+
 // ---- Android LegacyDashVerticalFitTest 1:1 (ref #102) -------------------
 describe('legacy union-envelope vertical fit (Android legacyColumnVerticalFit parity)', () => {
   const row: LegacyDashRowInk = {

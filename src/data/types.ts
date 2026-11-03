@@ -263,6 +263,8 @@ export interface Prefs {
   gridPinchZoom: boolean
   /** 网格行高缩放持久化值 — Android gridRowScale 同源 */
   gridRowScale: number
+  /** 实验室: 多步撤回深度 — -1 无限 / 0 禁用 / N 级 (AppPrefs KEY_UNDO_DEPTH, 默认 5, ref sleepy#240) */
+  undoDepth: number
   /** 今日无课时跳到最近有课日 — Android nearestBusyDay 同源 */
   nearestBusyDay: boolean
   /** 实验室: 全学期无晚课自动收起晚间节次 — 默认 false (AppPrefs KEY_GRID_AUTO_HIDE_EMPTY_EVENING) */
@@ -277,6 +279,8 @@ export interface Prefs {
   periodHeaderHanging: number
   /** 单节时显示完整“第 X 节” */
   periodHeaderShowX: boolean
+  /** 旧式两行表头时间轴对齐: dash=连字符字形中心轴 / center=卡片中心 (AppPrefs KEY_PERIOD_HEADER_TIME_ALIGNMENT, ref sleepy#259) */
+  periodHeaderTimeAlignment: 'dash' | 'center'
   /** 实验室: 网格视图额外分隔线 — 默认 false (AppPrefs KEY_GRID_SHOW_SEPARATORS) */
   gridShowSeparators: boolean
   /** 实验室: 大小课间(>45min 长课间)加宽间距 — 默认 false (AppPrefs KEY_GRID_LONG_BREAK_SPACING) */
@@ -335,6 +339,7 @@ export const DEFAULT_PREFS: Prefs = {
   gridAdaptiveHeight: false,
   gridPinchZoom: false,
   gridRowScale: 1,
+  undoDepth: 5,
   nearestBusyDay: false,
   gridAutoHideEmptyEvening: false,
   gridEveningStart: '18:00',
@@ -342,6 +347,7 @@ export const DEFAULT_PREFS: Prefs = {
   periodHeaderStyle: 'arabic',
   periodHeaderHanging: 0,
   periodHeaderShowX: false,
+  periodHeaderTimeAlignment: 'dash',
   gridShowSeparators: false,
   gridLongBreakSpacing: false,
   calendarImportRange: 'NEXT_WEEK',

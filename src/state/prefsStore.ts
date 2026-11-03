@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import { loadPrefs, savePrefs } from '../data/db'
 import { DEFAULT_PREFS } from '../data/types'
 import type { Prefs } from '../data/types'
+import { undoManager } from '../data/undoStore'
 import { changeLang } from '../i18n'
 import { applyTheme } from '../theme/themes'
 
@@ -52,11 +53,13 @@ function clampPrefs(p: Prefs): Prefs {
   }
 }
 
-/** 副作用: 主题/语言即时应用 (Android side-effect 同) */
+/** 副作用: 主题/语言/撤回深度即时应用 (Android side-effect 同) */
 function syncSideEffects(prefs: Prefs): void {
   const isDark = resolveIsDark(prefs)
   applyTheme(prefs.theme, isDark)
   changeLang(prefs.lang)
+  // ref sleepy#240: 深度改动即时生效 (Android GeneralSettingsScreen 同款 setUndoDepth+applyMaxDepth)
+  undoManager.applyMaxDepth(prefs.undoDepth)
 }
 
 export function resolveIsDark(prefs: Prefs): boolean {
