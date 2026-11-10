@@ -39,12 +39,11 @@ function octantInset(point: Vec2, a: number, curve: readonly number[], center: V
 export function roundedBoxGeometry(shape: OpticalShape, point: Vec2) {
   const { width, height } = shape
   const px = point[0] - width / 2, py = point[1] - height / 2
-  const radii = typeof shape.borderRadius === 'number' ? [shape.borderRadius, shape.borderRadius, shape.borderRadius, shape.borderRadius] : shape.borderRadius
   const corner = py < 0 ? px < 0 ? 0 : 1 : px < 0 ? 3 : 2
-  const radius = Math.max(0, Math.min(radii[corner], width / 2, height / 2))
+  const radius = Math.max(0, Math.min(typeof shape.borderRadius === 'number' ? shape.borderRadius : shape.borderRadius[corner], width / 2, height / 2))
   const qx = Math.abs(px) - width / 2 + radius, qy = Math.abs(py) - height / 2 + radius
   const distance = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - radius
-  const length = Math.hypot(qx, qy)
+  const length = qx > 0 && qy > 0 ? Math.hypot(qx, qy) : 1
   const normal: Vec2 = [
     (qx > 0 && qy > 0 ? qx / length : qx > qy ? 1 : 0) * (px < 0 ? -1 : 1),
     (qx > 0 && qy > 0 ? qy / length : qx > qy ? 0 : 1) * (py < 0 ? -1 : 1),
@@ -91,12 +90,66 @@ export function sampleGlassOptics(shape: OpticalShape, point: Vec2, style: Glass
   const line = style.hairline > 0 || (style.hairlineSide ?? style.hairline) > 0
     ? clamp01((.67 - edge) / (shape.pixelSize ?? 1) + .5) : 0
   return {
-    ...geometry, bevel, rise, shift, part, frost: style.blur + style.rimBlur * rise * rise,
+    // Avoid copying and extending the geometry object for every scalar sample.
+    distance: geometry.distance, inset, normal, edge, edgeDistance: geometry.edgeDistance,
+    bevel, rise, shift, part, frost: style.blur + style.rimBlur * rise * rise,
     shine, endScale, line, darken,
     lightGain: 1 - (1 - style.rimAdded) * shine,
   }
 }
 export type OpticalSample = ReturnType<typeof sampleGlassOptics>
+
+/** Allocation-free map sampler. The public scalar implementation above remains
+ * the reference for custom curves and for checking these same equations.
+ * The returned object is scratch storage, valid until the next sample call.
+ */
+export function createOpticalSampler(shape: OpticalShape, style: GlassStyle) {
+  const halfWidth = shape.width / 2, halfHeight = shape.height / 2, halfMinor = Math.min(halfWidth, halfHeight)
+  const radii = typeof shape.borderRadius === 'number' ? [shape.borderRadius, shape.borderRadius, shape.borderRadius, shape.borderRadius] : shape.borderRadius
+  const radius = radii.map(value => Math.max(0, Math.min(value, halfWidth, halfHeight)))
+  const bevel = Math.max(Math.min(style.bevel, halfMinor * .5), 1e-3), lens = style.refraction < 0
+  const depthScale = -Math.min(style.refraction, halfMinor), rimWidth = Math.max(style.rimWidth, 1e-3)
+  const hairlineSide = style.hairlineSide ?? style.hairline, hasLine = style.hairline > 0 || hairlineSide > 0
+  const sample = { edgeDistance: 0, shiftX: 0, shiftY: 0, partX: 0, partY: 0, rise: 0, endScale: 1, shine: 0, darken: 0, line: 0 }
+  if (shape.cornerCurves) return (x: number, y: number) => {
+    const value = sampleGlassOptics(shape, [x, y], style)
+    sample.edgeDistance = value.edgeDistance; sample.shiftX = value.shift[0]; sample.shiftY = value.shift[1]
+    sample.partX = value.part[0]; sample.partY = value.part[1]; sample.rise = value.rise
+    sample.endScale = value.endScale; sample.shine = value.shine; sample.darken = value.darken; sample.line = value.line
+    return sample
+  }
+  return (x: number, y: number) => {
+    const px = x - halfWidth, py = y - halfHeight
+    const r = radius[py < 0 ? px < 0 ? 0 : 1 : px < 0 ? 3 : 2]
+    const qx = Math.abs(px) - halfWidth + r, qy = Math.abs(py) - halfHeight + r
+    const ax = Math.max(qx, 0), ay = Math.max(qy, 0)
+    const length = ax > 0 && ay > 0 ? Math.hypot(ax, ay) : Math.max(ax, ay)
+    const distance = length + Math.min(Math.max(qx, qy), 0) - r, inset = Math.max(-distance, 0)
+    const nx = (qx > 0 && qy > 0 ? qx / length : qx > qy ? 1 : 0) * (px < 0 ? -1 : 1)
+    const ny = (qx > 0 && qy > 0 ? qy / length : qx > qy ? 0 : 1) * (py < 0 ? -1 : 1)
+    const rise = 1 - clamp01(inset / bevel)
+    const depth = lens ? -style.refraction * smoothstep(0, bevel, inset) * (1 - smoothstep(bevel, halfMinor, inset))
+      : depthScale * (1 - Math.sqrt(Math.max(0, 1 - rise * rise)))
+    const part = style.dispersion > 0 && inset < 10
+      ? .5 * style.dispersion * (.6 + .4 * Math.abs(ny) * Math.max(1 - inset / 7, 0)) * (1 - smoothstep(7, 10, inset)) : 0
+    let shine = 0
+    if (style.rim !== 0) {
+      const rise2 = ny ** 2, rise4 = rise2 ** 2, rise16 = rise4 ** 4
+      const facing = lens ? smoothstep(.65, .95, Math.abs(ny))
+        : rise2 * (1 - style.rimFocus) + .5 * rise2 * Math.abs(ny) * (1 + rise16) * style.rimFocus
+      const band = clamp01(1 - Math.max(inset - .67, 0) / rimWidth)
+      const tail = clamp01(1 - Math.max(inset - .67, 0) / 4.5)
+      shine = Math.min(style.rim * facing * (band * (1 - style.rimTail) + tail * style.rimTail), 1)
+    }
+    const across = Math.abs(nx) ** 3
+    sample.edgeDistance = distance; sample.shiftX = nx * depth; sample.shiftY = ny * depth
+    sample.partX = ny * part; sample.partY = nx * part; sample.rise = rise
+    sample.endScale = style.endShade === 0 ? 1 : 1 - style.endShade * Math.abs(nx) * Math.exp(-inset / 3)
+    sample.shine = shine; sample.darken = style.hairline * (1 - across) + hairlineSide * across
+    sample.line = hasLine ? clamp01((.67 - inset) / (shape.pixelSize ?? 1) + .5) : 0
+    return sample
+  }
+}
 
 /** Inputs/outputs are premultiplied, matching the shader's texture contract. */
 export function combineGlassChannels(red: RGBA, green: RGBA, blue: RGBA): RGBA {
