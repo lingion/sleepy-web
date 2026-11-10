@@ -146,7 +146,7 @@ export function filterSchools(schools: readonly SchoolInfo[], query: string): Sc
   if (!query.trim()) return [...schools]
   const q = query.trim().toLowerCase()
   return schools
-    .filter((s) => matchPinyin(s.name, s.sortKey, query, s.aliases))
+    .filter((s) => s.sortKeyFull.toLowerCase().includes(q) || matchPinyin(s.name, s.sortKey, query, s.aliases))
     .sort((a, b) => {
       const aHit = a.aliases.some((x) => x.toLowerCase() === q)
       const bHit = b.aliases.some((x) => x.toLowerCase() === q)

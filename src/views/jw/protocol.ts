@@ -6,6 +6,7 @@
  */
 
 import type { SchoolInfo } from './schools'
+import { PROTOCOL_NAMES } from './protocolNames'
 
 export const TYPE_HELP = 'help'
 export const TYPE_ZF = 'zf'
@@ -46,75 +47,7 @@ export const TYPE_XJU_POST = 'xju_post'
 
 /** displayName(type) — JwProtocol.displayName 逐条对齐; 未知回落原始 type 串 */
 export function protocolDisplayName(type: string | null): string {
-  switch (type) {
-    case TYPE_QZ:
-    case TYPE_QZ_OLD:
-    case TYPE_QZ_CRAZY:
-    case TYPE_QZ_BR:
-    case TYPE_QZ_WITH_NODE:
-      return '强智教务'
-    case TYPE_QZ_APP:
-      return '强智移动教务'
-    case TYPE_QZ_IEAS:
-      return '强智教务（iEAS 网络版）'
-    case TYPE_UCAS:
-      return '国科大选课系统'
-    case TYPE_BJTU:
-      return '北京交通大学'
-    case TYPE_ZF:
-    case TYPE_ZF_1:
-    case TYPE_ZF_NEW:
-      return '正方教务'
-    case TYPE_URP:
-    case TYPE_URP_NEW:
-      return 'URP 教务'
-    case TYPE_CF:
-      return '青果教务'
-    case TYPE_PKU:
-      return '北京大学'
-    case TYPE_BNUZ:
-      return '北师珠'
-    case TYPE_WISEDU:
-      return '金智教务（直连）'
-    case TYPE_CQU:
-      return '重庆大学门户'
-    case TYPE_CHAOXING:
-      return '超星综合教务'
-    case TYPE_BOYA_PP:
-      return '博雅研究生平台'
-    case TYPE_HNUST:
-      return '湖南科大教务'
-    case TYPE_HNIU:
-      return '湖南信息职业技术学院'
-    case TYPE_EAMS5:
-      return '合工大教务 (EAMS5)'
-    case TYPE_CLASSIC_EAMS:
-      return '金智教务（经典 EAMS）'
-    case TYPE_YETHAN:
-      return '西南交通大学 (逐专平台)'
-    case TYPE_XJU_POST:
-      return '西交/新疆大学教务'
-    case TYPE_SEU:
-      return '东南大学'
-    case TYPE_ZJU:
-      return '浙江大学'
-    case TYPE_USTC:
-      return '中国科学技术大学'
-    case TYPE_SCU:
-      return '四川大学'
-    case TYPE_NEU:
-      return '东北大学'
-    case TYPE_WHUT:
-      return '武汉理工大学'
-    case TYPE_LOGIN:
-      return '特殊登录（v1 暂不支持）'
-    case TYPE_HELP:
-      return '如何选择教务类型'
-    case TYPE_MAINTAIN:
-      return '维护中'
-    default:
-      return type ?? ''
-  }
+  return type === null ? '' : PROTOCOL_NAMES[type] ?? type
 }
 
 // ── URL 判型 (detectProtocolFromUrlImpl 有序链 1:1) ──

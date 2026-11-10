@@ -361,6 +361,10 @@ describe('protocol', () => {
 
   it('协议显示名覆盖已知类型, 未知原样返回', () => {
     expect(protocolDisplayName('qz')).toContain('强智')
+    expect(protocolDisplayName('jw_home')).toBe('教务主页')
+    expect(protocolDisplayName('sg_asset')).toBe('拾光适配脚本')
+    expect(protocolDisplayName('hrbeu_post')).toBe('哈尔滨工程大学研究生教务')
+    expect(protocolDisplayName('future_protocol')).toBe('future_protocol')
     expect(protocolDisplayName(null)).toBe('')
   })
 })
