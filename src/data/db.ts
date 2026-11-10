@@ -27,6 +27,7 @@ export class SleepyDatabase extends Dexie {
   courses!: DexieTable<Course, number>
   importDrafts!: DexieTable<ImportDraft, string>
   prefs!: DexieTable<PrefsRow, string>
+  courseColors!: DexieTable<{ tableKey: string; groupId: string; hue: number }, [string, string]>
 
   constructor() {
     super('sleepy')
@@ -56,6 +57,14 @@ export class SleepyDatabase extends Dexie {
     this.version(4).stores({}).upgrade(async (tx) => {
       await tx.table('timetables').toCollection().modify((t: TimetableEntity) => {
         if (t.reminderEnabled === undefined) t.reminderEnabled = 1
+      })
+    })
+    // v1.0.64 additions preserve every existing row and its original palette.
+    this.version(5).stores({ courseColors: '[tableKey+groupId], groupId' }).upgrade(async tx => {
+      await tx.table('courses').toCollection().modify((c: Course) => { c.fixedDate ??= null })
+      await tx.table('timetables').toCollection().modify((t: TimetableEntity) => {
+        t.reminderOverride ??= null
+        t.importSourceJson ??= ''
       })
     })
   }
@@ -92,6 +101,9 @@ export async function loadPrefs(): Promise<Prefs> {
     return {
       ...DEFAULT_PREFS,
       ...parsed,
+      uiStyle: parsed.uiStyle === 'liquid_glass' ? 'liquid_glass' : 'classic',
+      courseColorMode: [0, 1, 2].includes(parsed.courseColorMode) ? parsed.courseColorMode : 0,
+      courseColorSeedHue: Number.isFinite(parsed.courseColorSeedHue) && parsed.courseColorSeedHue >= 0 && parsed.courseColorSeedHue <= 360 ? parsed.courseColorSeedHue : -1,
       periodHeaderLayout: normalizePeriodHeaderLayout(parsed.periodHeaderLayout),
       periodHeaderStyle: normalizePeriodHeaderStyle(parsed.periodHeaderStyle),
       periodHeaderHanging: clampPeriodHeaderHanging(Number(parsed.periodHeaderHanging)),

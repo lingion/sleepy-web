@@ -50,6 +50,9 @@ interface PrefsFieldMap {
 }
 
 const PrefsFieldMap: PrefsFieldMap[] = [
+  { field: 'uiStyle', key: 'dock_theme', type: 'STRING' },
+  { field: 'courseColorMode', key: 'course_color_mode', type: 'INT' },
+  { field: 'courseColorSeedHue', key: 'course_color_seed_hue', type: 'FLOAT' },
   { field: 'themeMode', key: 'theme_mode', type: 'STRING' },
   { field: 'theme', key: 'theme_key', type: 'STRING' },
   { field: 'lang', key: 'language', type: 'STRING' },
@@ -109,6 +112,12 @@ const KEY_TO_FIELD = new Map(PrefsFieldMap.map((m) => [m.key, m]))
 
 /** localStorage 键 (含 sleepy_ 前缀) → Android 键名 + 类型。仅导出实际存在的键。 */
 const LOCAL_KEYS: Array<{ local: string; key: string; type: PrefType; isJson?: boolean }> = [
+  { local: 'sleepy_holiday_reminder_rules_enabled', key: 'holiday_reminder_rules_enabled', type: 'BOOL' },
+  { local: 'sleepy_holiday_reminder_public_holiday', key: 'holiday_reminder_public_holiday', type: 'BOOL' },
+  { local: 'sleepy_holiday_reminder_transfer_holiday', key: 'holiday_reminder_transfer_holiday', type: 'BOOL' },
+  { local: 'sleepy_holiday_reminder_makeup_workday', key: 'holiday_reminder_makeup_workday', type: 'BOOL' },
+  { local: 'sleepy_holiday_reminder_ordinary_weekend', key: 'holiday_reminder_ordinary_weekend', type: 'BOOL' },
+
   // 提醒 (reminderStore)
   { local: 'sleepy_reminder_master', key: 'reminder_master', type: 'BOOL' },
   { local: 'sleepy_daily_reminder', key: 'daily_reminder', type: 'BOOL' },
