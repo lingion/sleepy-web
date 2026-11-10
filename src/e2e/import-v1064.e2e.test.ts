@@ -147,8 +147,7 @@ it('management append selects groups, previews clock conflicts and saves only ac
     {...occupied,name:'浏览器冲突课',groupId:'conflict'},
     {name:'浏览器追加单次课',day:7,startNode:1,step:1,startWeek:1,endWeek:20,type:0,startTime:'00:00',endTime:'00:10',fixedDate:'2026-11-15',groupId:'accepted'},
   ]})
-  await page.getByRole('button',{name:/^手动添加课程/}).click()
-  await page.getByRole('button',{name:'从课表或文件导入课程',exact:true}).click()
+  await page.getByRole('button',{name:/^添加课程/}).click()
   await page.locator('input[type=file]').setInputFiles({name:'append.json',mimeType:'application/json',buffer:Buffer.from(appendPayload)})
   await page.getByRole('heading',{name:'选择导入课程',exact:true}).waitFor()
   await page.getByRole('button',{name:'取消全选',exact:true}).click()
