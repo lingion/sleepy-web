@@ -222,6 +222,8 @@ export function SliderRow({
 }) {
   const [draft, setDraft] = useState(value)
   const baseline=useRef(value)
+  const slider=useRef<HTMLDivElement>(null)
+  const lens=useGlassLens(slider)
   useLayoutEffect(() => setDraft(value), [value])
   const commit = (next: number) => {
     setDraft(next)
@@ -233,7 +235,12 @@ export function SliderRow({
   return (
     <label style={{ display: 'block' }}>
       <div className="m3-body-medium" style={{ color: labelColor }}>{displayLabel}</div>
-      <div className="single-slider">
+      <div className="single-slider" ref={slider} data-glass-motion="off"
+        onPointerDown={event=>{if(event.button===0)lens.press(event.clientX,event.clientY)}}
+        onPointerMove={event=>lens.move(event.clientX,event.clientY)}
+        onPointerUp={()=>lens.release()} onPointerCancel={()=>lens.release(true)}>
+      <span aria-hidden className="single-glass-track" style={{background:`linear-gradient(to right,var(--md-primary) ${progress}%,var(--md-secondary-container) ${progress}%)`}} />
+      <span aria-hidden className="single-glass-thumb" style={{left:`calc(8px + (100% - 16px) * ${progress / 100})`}} />
       {Number.isFinite(baseline.current) && Math.abs(draft-baseline.current)>step/2 && <span aria-hidden data-slider-ghost className="single-slider-ghost" style={{'--ghost-frac':Math.max(0,Math.min(1,(baseline.current-min)/(max-min)))} as CSSProperties}/>}
       <input
         className="m3-slider"
@@ -246,6 +253,7 @@ export function SliderRow({
         aria-valuetext={String(formatValue ? formatValue(draft) : displayValue)}
         onChange={(event) => {
           const next = Number(event.currentTarget.value)
+          if(next!==draft)haptic()
           setDraft(next)
           onChange?.(next)
         }}
