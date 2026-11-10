@@ -32,7 +32,7 @@ export function SegmentedSwitcher({
   const count = Math.max(1, options.length)
   const index = Math.min(Math.max(0, selected), count - 1)
   const rootRef = useRef<HTMLDivElement>(null)
-  const lens=useGlassLens(rootRef)
+  const lens=useGlassLens(rootRef,{index,count,inset:4,onSelect})
   const segmentWidth = useMeasuredSegmentWidth(rootRef, fit ? options : null)
   const width = fit ? (segmentWidth === null ? 'max-content' : segmentWidth * count + 8) : '100%'
 
@@ -41,9 +41,9 @@ export function SegmentedSwitcher({
       ref={rootRef}
       className="segmented-track" data-glass-motion="off"
       data-held={held}
-      onPointerDown={(e) => { if (e.button !== 0) return; setHeld(true);lens.press(e.clientX,e.clientY); e.currentTarget.setPointerCapture?.(e.pointerId); dragSelect(e.clientX) }}
-      onPointerMove={(e) => { if (held) {dragSelect(e.clientX);lens.move(e.clientX,e.clientY)} }}
-      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => {setHeld(false);lens.release()}}
+      onPointerDown={(e) => { if (e.button !== 0) return; setHeld(true);lens.press(e.clientX,e.clientY); e.currentTarget.setPointerCapture?.(e.pointerId); if(document.documentElement.dataset.uiStyle!=='liquid_glass')dragSelect(e.clientX) }}
+      onPointerMove={(e) => { if (held) {if(document.documentElement.dataset.uiStyle!=='liquid_glass')dragSelect(e.clientX);lens.move(e.clientX,e.clientY)} }}
+      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => {setHeld(false);lens.release(true)}}
       style={{
         position: 'relative', display: 'grid', gridAutoFlow: 'column', gridAutoColumns: '1fr',
         width, height, flexShrink: 0, boxSizing: 'border-box', padding: 4, borderRadius: 14,
@@ -56,7 +56,7 @@ export function SegmentedSwitcher({
         className="segment-lens"
         style={{
           position: 'absolute', top: 4, bottom: 4, borderRadius: 12, background: 'var(--md-secondary-container)',
-          left: `calc(4px + ${index} * (100% - 8px) / ${count})`, width: `calc((100% - 8px) / ${count})`,
+          left: `calc(4px + var(--lens-position,${index}) * (100% - 8px) / ${count})`, width: `calc((100% - 8px) / ${count})`,
           transition: `left ${THUMB_TRANSITION}`,
         }}
       />
