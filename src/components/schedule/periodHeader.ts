@@ -120,8 +120,23 @@ export function periodHeaderColumnPlacements(
   })
 }
 
-/** CSS fallback text width estimate, using the same glyph classes as the preview measurer. */
-export function estimatePeriodHeaderTextWidth(text: string, size: number): number {
+const measuredWidths = new Map<string, number>()
+let textContext: CanvasRenderingContext2D | null | undefined
+/** Match the actual system font and labelSmall tracking; use a deterministic SSR fallback. */
+export function estimatePeriodHeaderTextWidth(text: string, size: number, weight = 500): number {
+  if (typeof document !== 'undefined' && !/jsdom/i.test(navigator.userAgent)) {
+    textContext ??= document.createElement('canvas').getContext('2d')
+    if (textContext) {
+      const family = getComputedStyle(document.body).fontFamily || 'sans-serif'
+      const key = `${family}|${weight}|${size}|${text}`
+      const cached = measuredWidths.get(key)
+      if (cached !== undefined) return cached
+      textContext.font = `${weight} ${size}px ${family}`
+      const width = textContext.measureText(text).width + text.length * 0.5
+      measuredWidths.set(key,width)
+      return width
+    }
+  }
   let width = 0
   for (const char of text) width += /[0-9:]/.test(char) ? size * 0.58 : char === '-' ? size * 0.4 : size
   return width
@@ -222,7 +237,7 @@ export function legacyRowInk(
 ): LegacyDashRowInk {
   const lines = periodHeaderLines(slot, 'legacy', style, showX)
   return {
-    labelPx: estimatePeriodHeaderTextWidth(lines[0], LEGACY_BASE_LABEL),
+    labelPx: estimatePeriodHeaderTextWidth(lines[0], LEGACY_BASE_LABEL,600),
     timeLeftPx: estimatePeriodHeaderTextWidth(slot.displayStart, LEGACY_BASE_TIME),
     dashPx: estimatePeriodHeaderTextWidth('-', LEGACY_BASE_TIME),
     timeRightPx: estimatePeriodHeaderTextWidth(slot.displayEnd, LEGACY_BASE_TIME),
@@ -239,10 +254,14 @@ export function legacyDashColumn(
   alignment: 'dash' | 'center' = 'dash',
 ): LegacyDashColumn {
   if (rows.length === 0) return { columnWidth: 0, dashCenter: 0, placements: [] }
+  if(alignment==='center') {
+    const columnWidth=Math.max(...rows.map(row=>Math.max(row.labelPx,row.timeLeftPx+row.dashPx+row.timeRightPx)))+2*pad
+    return {columnWidth,dashCenter:columnWidth/2,placements:rows.map(row=>({labelLeft:(columnWidth-row.labelPx)/2,timeLeft:(columnWidth-row.timeLeftPx-row.dashPx-row.timeRightPx)/2}))}
+  }
   const leftExtent = Math.max(...rows.map((r) => Math.max(r.labelPx / 2, r.timeLeftPx + r.dashPx / 2)))
   const rightExtent = Math.max(...rows.map((r) => Math.max(r.labelPx / 2, r.dashPx / 2 + r.timeRightPx)))
   const columnWidth = leftExtent + rightExtent + 2 * pad
-  const dashCenter = alignment === 'center' ? columnWidth / 2 : pad + leftExtent
+  const dashCenter = pad + leftExtent
   return {
     columnWidth,
     dashCenter,

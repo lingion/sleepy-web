@@ -58,6 +58,8 @@ export function buildGridGeometry(
     periodHeaderLayout?: 'legacy' | 'three_line'
     periodHeaderStyle?: PeriodHeaderStyle
     periodHeaderHanging?: number
+    periodHeaderTimeAlignment?: 'dash' | 'center'
+    periodHeaderHideTime?: boolean
     periodHeaderShowX?: boolean
   } = {},
 ): GridGeometry {
@@ -113,18 +115,21 @@ function resolveTimeColumnWidth(
     periodHeaderLayout?: 'legacy' | 'three_line'
     periodHeaderStyle?: PeriodHeaderStyle
     periodHeaderHanging?: number
+    periodHeaderTimeAlignment?: 'dash' | 'center'
+    periodHeaderHideTime?: boolean
     periodHeaderShowX?: boolean
   },
 ): number {
   const style = options.periodHeaderStyle ?? 'arabic'
   const showX = options.periodHeaderShowX ?? false
   if (options.periodHeaderLayout !== 'three_line') {
+    if(options.periodHeaderHideTime) return Math.max(36,...slots.filter(slot=>!slot.isPlaceholder).map(slot=>estimatePeriodHeaderTextWidth(periodHeaderLines(slot,'legacy',style,showX)[0],12,600)+6))
     // 定令 (老式表头同三行式统一, ref #102): 列宽 = dash 轴几何
     // (所有行 dash 同一 X, 列宽含最宽行两侧余量), 不再硬钉 68。
     const rows = slots
       .filter((slot) => !slot.isPlaceholder)
       .map((slot) => legacyRowInk(slot, style, showX))
-    return Math.max(46, legacyDashColumn(rows, 3).columnWidth)
+    return Math.max(46, legacyDashColumn(rows, 3, options.periodHeaderTimeAlignment).columnWidth)
   }
   const hanging = options.periodHeaderHanging ?? 0
   const widths = slots

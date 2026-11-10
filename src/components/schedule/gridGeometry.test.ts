@@ -183,3 +183,13 @@ describe('singleCardGeom — 非簇单卡', () => {
     expect(g.h).toBeGreaterThanOrEqual(56 * 0.3 - 4)
   })
 })
+
+
+describe('legacy hide-time width',()=>{
+ it('budgets only labels with a 36px floor and keeps three-line clocks visible',()=>{
+  const hidden=buildGridGeometry([],DEFAULT_TIME_JSON,7,390,1,{periodHeaderLayout:'legacy',periodHeaderHideTime:true})
+  expect(hidden.timeW).toBe(36)
+  const visible=buildGridGeometry([],DEFAULT_TIME_JSON,7,390,1,{periodHeaderLayout:'three_line',periodHeaderHideTime:true})
+  expect(visible.timeW).toBeGreaterThan(36)
+ })
+})

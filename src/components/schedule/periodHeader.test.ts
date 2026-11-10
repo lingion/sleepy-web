@@ -86,18 +86,19 @@ describe('legacy dash column center alignment (ref sleepy#259)', () => {
  const rowB: LegacyDashRowInk = { labelPx: 80, timeLeftPx: 20, dashPx: 0, timeRightPx: 45 }
  const rows = [rowA, rowB]
 
- it('center axis sits at column midline, column width unchanged', () => {
+ it('center axis sits at column midline and shrinks the unused dash envelope', () => {
    const dash = legacyDashColumn(rows, pad, 'dash')
    const center = legacyDashColumn(rows, pad, 'center')
-   expect(center.columnWidth).toBeCloseTo(dash.columnWidth, 6)
+   expect(center.columnWidth).toBe(86)
+   expect(center.columnWidth).toBeLessThan(dash.columnWidth)
    expect(center.dashCenter).toBeCloseTo(center.columnWidth / 2, 6)
  })
 
- it('every row still shares the axis and stays inside the column', () => {
+ it('every complete time range is centered and stays inside the column', () => {
    const g = legacyDashColumn(rows, pad, 'center')
    rows.forEach((row, i) => {
      const p = g.placements[i]
-     expect(p.timeLeft + row.timeLeftPx + row.dashPx / 2).toBeCloseTo(g.dashCenter, 3)
+     expect(p.timeLeft + (row.timeLeftPx + row.dashPx + row.timeRightPx) / 2).toBeCloseTo(g.dashCenter, 3)
      expect(p.labelLeft + row.labelPx / 2).toBeCloseTo(g.dashCenter, 3)
      expect(p.labelLeft).toBeGreaterThanOrEqual(-0.001)
      expect(p.timeLeft).toBeGreaterThanOrEqual(-0.001)

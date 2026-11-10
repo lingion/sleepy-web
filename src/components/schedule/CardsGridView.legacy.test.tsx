@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
-import { CardsGridView } from './CardsGridView'
+import { CardsGridView,SingleTimeHeadCell } from './CardsGridView'
 import { estimatePeriodHeaderTextWidth } from './periodHeader'
 import { initI18n } from '../../i18n'
 import { usePrefsStore } from '../../state/prefsStore'
@@ -94,4 +94,16 @@ describe('legacy 表头共轴渲染 (ref #102)', () => {
     expect(parseFloat(labels[0].style.lineHeight)).toBeCloseTo(14, 3)
     expect(parseFloat(times[0].style.lineHeight)).toBeCloseTo(13, 3)
   })
+})
+
+
+it('legacy hide-time renders one centered label while three-line ignores the flag',()=>{
+ const props={slot:{label:'12',displayStart:'08:00',displayEnd:'08:45',nodeStart:12,nodeEnd:12},width:36,height:52,scale:1,cornerRatio:1,style:'arabic' as const,hanging:0,showX:false,hideTime:true}
+ const {container,rerender}=render(<SingleTimeHeadCell {...props} layout="legacy"/>)
+ expect(container.textContent).toBe('12')
+ expect(container.querySelector('[data-period-header-hide-time]')).toBeTruthy()
+ expect(container.querySelector('[data-period-header-line="time"]')).toBeNull()
+ rerender(<SingleTimeHeadCell {...props} layout="three_line"/>)
+ expect(container.textContent).toContain('08:00')
+ expect(container.querySelector('[data-period-header-line="end"]')?.textContent).toBe('08:45')
 })
