@@ -203,6 +203,17 @@ describe('hslToRgb / rgbToHex / parseHex / rgbToHsl 往返', () => {
 })
 
 describe('pickCourseColor — 三层决策树', () => {
+  it('preserves Android ARGB transparency in group and custom rendering while keeping RGB contrast input', () => {
+    for (const colorMode of [0, 2] as const) {
+      const row = mkCourse({ colorMode, color: '#80123456' })
+      const css = pickCourseColorWithGroupRows(row, [row], false, '#EEEEEE')
+      expect(css).toBe(`rgba(18,52,86,${128 / 255})`)
+      expect(parseHex(css)).toEqual([18, 52, 86])
+      expect(pickCourseColor(row, false, '#EEEEEE')).toBe(css)
+    }
+    const transparent = mkCourse({ colorMode: 2, color: '#00123456' })
+    expect(pickCourseColorWithGroupRows(transparent, [transparent], false, '#EEE')).toBe('rgba(18,52,86,0)')
+  })
   it('① 自定义色优先返回', () => {
     const c = mkCourse({ color: '#FFAA0000', colorMode: 0 })
     expect(pickCourseColor(c, false, '#EEEEEE')).toBe('#aa0000')
