@@ -1,0 +1,413 @@
+{
+  "source": "Android v1.0.64 77b878fd5c8903a3f201ea938b3b152de4c4fbc0",
+  "webCommit": "077585a8c1928dbb6551b3dade3c4832f94f6823",
+  "verifiedAt": "2026-11-10T05:12:56.769Z",
+  "browser": "155.0.8049.0",
+  "origin": "http://127.0.0.1:5198/sleepy-web/",
+  "errors": [],
+  "toolbar": [
+    {
+      "style": "classic",
+      "width": 280,
+      "grouped": "true",
+      "start": {
+        "left": 0,
+        "right": 75.33333587646484,
+        "top": 10,
+        "bottom": 42,
+        "width": 75.33333587646484
+      },
+      "center": {
+        "left": 77.78125,
+        "right": 202.21875,
+        "top": 10,
+        "bottom": 42,
+        "width": 124.4375
+      },
+      "end": {
+        "left": 216,
+        "right": 280,
+        "top": 10,
+        "bottom": 42,
+        "width": 64
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "classic",
+      "width": 320,
+      "grouped": "true",
+      "start": {
+        "left": 0,
+        "right": 75.33333587646484,
+        "top": 10,
+        "bottom": 42,
+        "width": 75.33333587646484
+      },
+      "center": {
+        "left": 97.78125,
+        "right": 222.21875,
+        "top": 10,
+        "bottom": 42,
+        "width": 124.4375
+      },
+      "end": {
+        "left": 256,
+        "right": 320,
+        "top": 10,
+        "bottom": 42,
+        "width": 64
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "classic",
+      "width": 360,
+      "grouped": "false",
+      "start": {
+        "left": 0,
+        "right": 84.75,
+        "top": 8,
+        "bottom": 44,
+        "width": 84.75
+      },
+      "center": {
+        "left": 88.78125,
+        "right": 271.21875,
+        "top": 2,
+        "bottom": 50,
+        "width": 182.4375
+      },
+      "end": {
+        "left": 288,
+        "right": 360,
+        "top": 8,
+        "bottom": 44,
+        "width": 72
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "classic",
+      "width": 390,
+      "grouped": "false",
+      "start": {
+        "left": 0,
+        "right": 101.69999694824219,
+        "top": 4.400001525878906,
+        "bottom": 47.599998474121094,
+        "width": 101.69999694824219
+      },
+      "center": {
+        "left": 103.78125,
+        "right": 286.21875,
+        "top": 2,
+        "bottom": 50,
+        "width": 182.4375
+      },
+      "end": {
+        "left": 303.6000061035156,
+        "right": 390,
+        "top": 4.400001525878906,
+        "bottom": 47.599998474121094,
+        "width": 86.39999389648438
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "classic",
+      "width": 768,
+      "grouped": "false",
+      "start": {
+        "left": 12,
+        "right": 133,
+        "top": 2,
+        "bottom": 50,
+        "width": 121
+      },
+      "center": {
+        "left": 292.78125,
+        "right": 475.21875,
+        "top": 2,
+        "bottom": 50,
+        "width": 182.4375
+      },
+      "end": {
+        "left": 652,
+        "right": 756,
+        "top": 2,
+        "bottom": 50,
+        "width": 104
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "liquid_glass",
+      "width": 280,
+      "grouped": "true",
+      "start": {
+        "left": 0,
+        "right": 75.33333587646484,
+        "top": 10,
+        "bottom": 42,
+        "width": 75.33333587646484
+      },
+      "center": {
+        "left": 77.78125,
+        "right": 202.21875,
+        "top": 10,
+        "bottom": 42,
+        "width": 124.4375
+      },
+      "end": {
+        "left": 216,
+        "right": 280,
+        "top": 10,
+        "bottom": 42,
+        "width": 64
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "liquid_glass",
+      "width": 320,
+      "grouped": "true",
+      "start": {
+        "left": 0,
+        "right": 75.33333587646484,
+        "top": 10,
+        "bottom": 42,
+        "width": 75.33333587646484
+      },
+      "center": {
+        "left": 97.78125,
+        "right": 222.21875,
+        "top": 10,
+        "bottom": 42,
+        "width": 124.4375
+      },
+      "end": {
+        "left": 256,
+        "right": 320,
+        "top": 10,
+        "bottom": 42,
+        "width": 64
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "liquid_glass",
+      "width": 360,
+      "grouped": "false",
+      "start": {
+        "left": 0,
+        "right": 84.75,
+        "top": 8,
+        "bottom": 44,
+        "width": 84.75
+      },
+      "center": {
+        "left": 88.78125,
+        "right": 271.21875,
+        "top": 2,
+        "bottom": 50,
+        "width": 182.4375
+      },
+      "end": {
+        "left": 288,
+        "right": 360,
+        "top": 8,
+        "bottom": 44,
+        "width": 72
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "liquid_glass",
+      "width": 390,
+      "grouped": "false",
+      "start": {
+        "left": 0,
+        "right": 101.69999694824219,
+        "top": 4.400001525878906,
+        "bottom": 47.599998474121094,
+        "width": 101.69999694824219
+      },
+      "center": {
+        "left": 103.78125,
+        "right": 286.21875,
+        "top": 2,
+        "bottom": 50,
+        "width": 182.4375
+      },
+      "end": {
+        "left": 303.6000061035156,
+        "right": 390,
+        "top": 4.400001525878906,
+        "bottom": 47.599998474121094,
+        "width": 86.39999389648438
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    },
+    {
+      "style": "liquid_glass",
+      "width": 768,
+      "grouped": "false",
+      "start": {
+        "left": 12,
+        "right": 133,
+        "top": 2,
+        "bottom": 50,
+        "width": 121
+      },
+      "center": {
+        "left": 292.78125,
+        "right": 475.21875,
+        "top": 2,
+        "bottom": 50,
+        "width": 182.4375
+      },
+      "end": {
+        "left": 652,
+        "right": 756,
+        "top": 2,
+        "bottom": 50,
+        "width": 104
+      },
+      "text": "第 1 周",
+      "overflow": 0,
+      "undoOverflow": "visible"
+    }
+  ],
+  "classicIcon": {
+    "target": 48,
+    "disc": 32,
+    "fill": "rgb(236, 230, 240)"
+  },
+  "inPlace": {
+    "databaseUnchanged": true,
+    "undoUnchanged": true
+  },
+  "touch": {
+    "pointerCancels": 0,
+    "confirmation": "挪动本次课程\n\n数学分析\n第 1 周，周二，第 1–2 节\n改为 第 1 周，周二，第 2–3 节\n\n返回修改\n确定"
+  },
+  "explicitAdjust": {
+    "openedFormDirectly": true
+  },
+  "resize": "调整持续节次\n\n数学分析\n第 1 周，周二，第 1–2 节\n改为 第 1 周，周二，第 1–3 节\n\n返回修改\n确定",
+  "crossWeek": {
+    "before": "第 2 周",
+    "after": "第 2 周"
+  },
+  "icon": {
+    "rest": {
+      "x": 12,
+      "y": 2,
+      "width": 48,
+      "height": 48,
+      "discWidth": 36,
+      "discHeight": 36,
+      "xMotion": 0,
+      "yMotion": 0
+    },
+    "held": {
+      "x": 12,
+      "y": 2,
+      "width": 48,
+      "height": 48,
+      "discWidth": 36,
+      "discHeight": 36,
+      "xMotion": 1.8109239619310165,
+      "yMotion": -1.5671457362864567
+    }
+  },
+  "navigation": {
+    "held": {
+      "x": 0,
+      "y": 0,
+      "top": -3.36285400390625,
+      "bottom": 3.36285400390625,
+      "edge": "conic-gradient(from 130deg, rgba(255, 179, 182, 0.8), rgba(192, 169, 255, 0.733), rgba(140, 228, 255, 0.8), rgba(170, 255, 196, 0.733), rgba(255, 243, 159, 0.867), rgba(255, 174, 212, 0.733), rgba(152, 190, 255, 0.8), rgba(255, 179, 182, 0.8))"
+    },
+    "drag": {
+      "x": 2.0891518345802242,
+      "y": -1.6459984151238127,
+      "top": -5.37054443359375,
+      "bottom": 2.07855224609375,
+      "edge": "conic-gradient(from 130deg, rgba(255, 179, 182, 0.8), rgba(192, 169, 255, 0.733), rgba(140, 228, 255, 0.8), rgba(170, 255, 196, 0.733), rgba(255, 243, 159, 0.867), rgba(255, 174, 212, 0.733), rgba(152, 190, 255, 0.8), rgba(255, 179, 182, 0.8))"
+    }
+  },
+  "switch": {
+    "held": {
+      "x": 0,
+      "y": 0,
+      "top": -4.265960693359375,
+      "bottom": 4.2659912109375,
+      "edge": "conic-gradient(from 130deg, rgba(255, 179, 182, 0.8), rgba(192, 169, 255, 0.733), rgba(140, 228, 255, 0.8), rgba(170, 255, 196, 0.733), rgba(255, 243, 159, 0.867), rgba(255, 174, 212, 0.733), rgba(152, 190, 255, 0.8), rgba(255, 179, 182, 0.8))"
+    },
+    "drag": {
+      "x": 1.433463749126826,
+      "y": -1.2104804992626528,
+      "top": -5.517425537109375,
+      "bottom": 4.78131103515625,
+      "edge": "conic-gradient(from 130deg, rgba(255, 179, 182, 0.8), rgba(192, 169, 255, 0.733), rgba(140, 228, 255, 0.8), rgba(170, 255, 196, 0.733), rgba(255, 243, 159, 0.867), rgba(255, 174, 212, 0.733), rgba(152, 190, 255, 0.8), rgba(255, 179, 182, 0.8))"
+    }
+  },
+  "segment": {
+    "held": {
+      "x": 0,
+      "y": 0,
+      "top": -3.821258544921875,
+      "bottom": 3.821258544921875,
+      "edge": "conic-gradient(from 130deg, rgba(255, 179, 182, 0.8), rgba(192, 169, 255, 0.733), rgba(140, 228, 255, 0.8), rgba(170, 255, 196, 0.733), rgba(255, 243, 159, 0.867), rgba(255, 174, 212, 0.733), rgba(152, 190, 255, 0.8), rgba(255, 179, 182, 0.8))"
+    },
+    "drag": {
+      "x": 1.6872441139725354,
+      "y": -1.3866078900283383,
+      "top": -5.51116943359375,
+      "bottom": 2.73797607421875,
+      "edge": "conic-gradient(from 130deg, rgba(255, 179, 182, 0.8), rgba(192, 169, 255, 0.733), rgba(140, 228, 255, 0.8), rgba(170, 255, 196, 0.733), rgba(255, 243, 159, 0.867), rgba(255, 174, 212, 0.733), rgba(152, 190, 255, 0.8), rgba(255, 179, 182, 0.8))"
+    }
+  },
+  "picker": {
+    "before": "#FF6750A4",
+    "sv": "#FF343040",
+    "after": "#FF383040",
+    "bounds": {
+      "x": 24,
+      "y": 176,
+      "width": 232,
+      "height": 492
+    }
+  },
+  "headerHidden": 12,
+  "threeLineTimes": 12,
+  "weekSummary": {
+    "clickDetails": true,
+    "longPressOccurrence": true
+  },
+  "cancellations": {
+    "databaseUnchanged": true,
+    "undoUnchanged": true
+  },
+  "passed": true
+}
