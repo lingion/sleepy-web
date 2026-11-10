@@ -79,4 +79,20 @@ describe('Android v1.0.64 portable fields', () => {
       expect(parsed.value.courses[0]).toMatchObject({fixedDate:row.fixedDate,ownTime:true,startTime:'07:05',endTime:'07:55',type:row.fixedDate ? 0 : 2})
     }
   })
+
+  it('native integrity checks use original bytes before full-width text normalization',()=>{
+    const parsed=parseSchedule(exportSleepyV1File(table.name,table.startDate,20,2,table.timeJson,[course],null,source),0)
+    if(!parsed.ok)throw parsed.error
+    expect(parsed.value.warnings).not.toContain('完整性校验不符，文件可能被截断或修改')
+  })
+
+  it('explicit high periods survive native and JSON DTOs without a 30-period cap',()=>{
+    const row={...course,startNode:41,step:3,ownTime:false,isIrregularTime:false}
+    for(const text of [exportWakeUpJson({...table,nodesPerDay:43},[row]),exportSleepyV1File(table.name,table.startDate,20,43,table.timeJson,[row])]) {
+      const parsed=parseSchedule(text,0)
+      if(!parsed.ok)throw parsed.error
+      expect(parsed.value.courses[0]).toMatchObject({startNode:41,step:3,fixedDate:'2026-09-15'})
+      expect(parsed.value.nodesPerDay).toBeGreaterThanOrEqual(43)
+    }
+  })
 })

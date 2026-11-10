@@ -78,7 +78,7 @@ export function parseSleepyV1(
 
   // ---- pass 1: T 行 ----
   let importSourceJson = ''
-  const originalLines = original.split('\n')
+  const originalLines = original.split('\n').map(line => line.replace(/\r$/, ''))
   let tSeen = false
   let tableName = ''
   let startDateStr = ''
@@ -249,7 +249,7 @@ export function parseSleepyV1(
       if (algo === 'crc32') {
         const zIdx = lines.findIndex((l) => l.trim() === chkLine)
         if (zIdx > bodyStart - 1) {
-          const bodyToChk = lines.slice(0, zIdx).join('\n')
+          const bodyToChk = originalLines.slice(0, zIdx).join('\n')
           const actual = crc32(new TextEncoder().encode(bodyToChk))
           if (actual.toLowerCase() !== m[2].toLowerCase()) {
             warnings.push('完整性校验不符，文件可能被截断或修改')
