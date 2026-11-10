@@ -303,7 +303,7 @@ describe('ConflictDetailReporter', () => {
   it('formatDetail 模板拼行', () => {
     const line = formatDetail(
       { existingName: '旧课', draftName: '新', day: 1, dayText: '周一', nodeRangeText: '3-4', weekText: '第5-8周' },
-      '%1$s 第%2$s节 %3$s 与「%4$s」冲突',
+      '{{v1}} 第{{v2}}节 {{v3}} 与「{{v4}}」冲突',
     )
     expect(line).toBe('周一 第3-4节 第5-8周 与「旧课」冲突')
   })

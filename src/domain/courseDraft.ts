@@ -428,9 +428,6 @@ export function draftConflictDetails(
 
 /** formatDetail — 模板拼行: %1=星期 %2=节次交集 %3=周文案 %4=存量课名 */
 export function formatDetail(d: ConflictDetail, template: string): string {
-  return template
-    .replace('%1$s', d.dayText)
-    .replace('%2$s', d.nodeRangeText)
-    .replace('%3$s', d.weekText)
-    .replace('%4$s', d.existingName)
+  const values: Record<string, string> = { '1': d.dayText, '2': d.nodeRangeText, '3': d.weekText, '4': d.existingName }
+  return template.replace(/%(\d+)\$s|\{\{v(\d+)\}\}/g, (match, android: string, web: string) => values[android ?? web] ?? match)
 }
