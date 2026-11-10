@@ -126,6 +126,7 @@ const LOCAL_KEYS: Array<{ local: string; key: string; type: PrefType; isJson?: b
   { local: 'sleepy_daily_reminder_time', key: 'daily_reminder_time', type: 'STRING' },
   { local: 'sleepy_tomorrow_reminder', key: 'tomorrow_reminder', type: 'BOOL' },
   { local: 'sleepy_tomorrow_reminder_time', key: 'tomorrow_reminder_time', type: 'STRING' },
+  { local: 'sleepy_before_class_mode', key: 'before_class_mode', type: 'STRING' },
   { local: 'sleepy_before_class_enabled', key: 'before_class_enabled', type: 'BOOL' },
   { local: 'sleepy_before_class_minutes', key: 'before_class_minutes', type: 'INT' },
   { local: 'sleepy_before_class_banner', key: 'before_class_banner', type: 'BOOL' },
