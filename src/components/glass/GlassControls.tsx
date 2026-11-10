@@ -25,11 +25,12 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
       // A static backing still opts into optics inside a track that owns its motion.
       const motionBlocked=el.dataset.glassMotion!=='static' && el.closest('[data-glass-motion="off"]')
       if(!roles.has(role) || el.hasAttribute('data-glass-plain') || group && group!==el || motionBlocked) { if(enhanced.has(el)) clear(el); return }
-      const signature=[role,el.dataset.glassTint,el.dataset.glassIcon,el.dataset.glassMotion,el.dataset.glassSelected,document.documentElement.dataset.mode,document.documentElement.getAttribute('style')].join('|')
-      if(enhanced.get(el)?.signature===signature) return
-      enhanced.get(el)?.optics.destroy()
-      const optics=installLensOptics(el,{role,...el.dataset.glassIcon==='true'?{size:{width:36,height:36},borderRadius:18}:{}})
-      optics.update(1)
+      const signature=[role,el.dataset.glassTint,el.dataset.glassIcon,el.dataset.glassMotion,el.dataset.glassSelected,el.hasAttribute('disabled'),el.getAttribute('aria-disabled'),document.documentElement.dataset.mode,document.documentElement.dataset.theme,document.documentElement.getAttribute('style')].join('|')
+      const current=enhanced.get(el)
+      if(current?.signature===signature) return
+      const options={role,size:el.dataset.glassIcon==='true'?{width:36,height:36}:undefined,borderRadius:el.dataset.glassIcon==='true'?18:undefined}
+      const optics=current?.optics??installLensOptics(el,options)
+      if(current)optics.configure(options)
       enhanced.set(el,{signature,optics})
       const moving=el.dataset.glassMotion!=='static' && role!=='menu' && role!=='alert'
       el.classList.toggle('glass-control',moving); el.classList.toggle('glass-surface',!moving)
@@ -48,8 +49,8 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
       }
       for(const el of enhanced.keys()) if(!el.isConnected) clear(el)
     })
-    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['data-glass-role','data-glass-tint','data-glass-icon','data-glass-group','data-glass-motion','data-glass-selected','data-glass-plain']})
-    observer.observe(document.documentElement,{attributes:true,attributeFilter:['style','data-mode']})
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['data-glass-role','data-glass-tint','data-glass-icon','data-glass-group','data-glass-motion','data-glass-selected','data-glass-plain','disabled','aria-disabled']})
+    observer.observe(document.documentElement,{attributes:true,attributeFilter:['style','data-mode','data-theme']})
     let frame=0,last=0
     const reduced=()=>window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     const paint=(el:HTMLElement,m:GlassPressMotion)=>{

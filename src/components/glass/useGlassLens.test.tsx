@@ -1,8 +1,30 @@
 import {afterEach,describe,expect,it,vi} from 'vitest'
 import {act,cleanup,renderHook} from '@testing-library/react'
-import {useGlassLens} from './useGlassLens'
+import {lensGeometry,useGlassLens} from './useGlassLens'
 afterEach(()=>{cleanup();vi.unstubAllGlobals();delete document.documentElement.dataset.uiStyle})
 describe('complete glass lens motion',()=>{
+ it('reuses track measurements during motion and refreshes exact geometry on resize',()=>{
+  document.documentElement.dataset.uiStyle='liquid_glass'
+  let callback:()=>void=()=>{}, id=0, now=0, width=364
+  const frames=new Map<number,FrameRequestCallback>()
+  vi.stubGlobal('ResizeObserver',class {constructor(fn:()=>void){callback=fn}observe(){}disconnect(){}})
+  vi.stubGlobal('requestAnimationFrame',(fn:FrameRequestCallback)=>{frames.set(++id,fn);return id})
+  vi.stubGlobal('cancelAnimationFrame',(key:number)=>frames.delete(key))
+  const advance=()=>{const current=[...frames.values()];frames.clear();now+=16.667;act(()=>current.forEach(fn=>fn(now)))}
+  const element=document.createElement('div')
+  const measure=vi.fn(()=>width)
+  Object.defineProperties(element,{offsetWidth:{get:measure},offsetHeight:{get:()=>42}})
+  const bounds=vi.spyOn(element,'getBoundingClientRect').mockImplementation(()=>({left:0,width,height:42}) as DOMRect)
+  const {result}=renderHook(()=>useGlassLens({current:element},{kind:'segment',index:1,count:3}))
+  act(()=>result.current.press(100,20));measure.mockClear();bounds.mockClear()
+  for(let i=0;i<30;i++)advance()
+  expect(measure).not.toHaveBeenCalled();expect(bounds).not.toHaveBeenCalled()
+  width=424;act(()=>callback())
+  const lift=Number(element.style.getPropertyValue('--lens-lift')),stretch=Number(element.style.getPropertyValue('--lens-stretch'))
+  const geometry=lensGeometry('segment',424,42,3,1,lift,stretch)
+  expect(element.style.getPropertyValue('--source-width')).toBe('424px')
+  expect(parseFloat(element.style.getPropertyValue('--lens-width'))).toBe(geometry.width)
+ })
  it('keeps both pointer axes independent of the selected position and settles without a permanent frame loop',()=>{
   document.documentElement.dataset.uiStyle='liquid_glass'
   let id=0,now=0
