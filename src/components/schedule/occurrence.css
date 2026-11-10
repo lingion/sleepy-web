@@ -1,0 +1,11 @@
+.occurrence-scrim { position: fixed; inset: 0; z-index: 1140; background: #0005; display: flex; justify-content: center; align-items: flex-end; padding: 16px; }
+.occurrence-editor { width: min(100%,560px); max-height: 90dvh; overflow: auto; padding: 20px; border-radius: 28px; background: var(--md-surface-container); display: flex; flex-direction: column; gap: 12px; }
+.occurrence-editor h2,.occurrence-editor p { margin: 0; }
+.occurrence-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.occurrence-inline > * { min-width: 0; }
+.occurrence-field { display: flex; flex: 1; flex-direction: column; gap: 6px; font-size: 13px; color: var(--md-on-surface-variant); }
+.occurrence-field input { width: 100%; min-width: 0; height: 48px; border: none; border-bottom: 1px solid var(--md-outline); border-radius: 12px 12px 0 0; padding: 10px 12px; font: inherit; background: var(--md-surface-container-highest); color: var(--md-on-surface); }
+.occurrence-primary,.occurrence-secondary,.occurrence-danger { min-height: 48px; border: none; border-radius: 16px; padding: 12px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.occurrence-primary { background: var(--md-primary); color: var(--md-on-primary); }
+.occurrence-secondary { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.occurrence-danger { background: var(--md-error-container); color: var(--md-on-error-container); }

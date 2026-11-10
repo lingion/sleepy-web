@@ -7,7 +7,7 @@
 
 import 'fake-indexeddb/auto'
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor,within } from '@testing-library/react'
 import { db } from '../data/db'
 import { AddCourseView } from './AddCourseView'
 import { initI18n } from '../i18n'
@@ -60,6 +60,20 @@ function captureScroll() {
 }
 
 describe('AddCourseView 编辑跳转 (ref #144)', () => {
+  it('collapses other slots and keeps 48px delete immediately before the 48px chevron',async()=>{
+    const first=mk({id:1,day:1}),second=mk({id:2,day:3})
+    await seed([first,second]);captureScroll()
+    render(<AddCourseView editingCourse={second} onBack={vi.fn()} onSaved={vi.fn()}/>)
+    await screen.findByText('时段 2')
+    await waitFor(()=>expect(screen.getByRole('button',{name:'时段 1'}).getAttribute('aria-expanded')).toBe('false'))
+    expect(screen.getByRole('button',{name:'时段 2'}).getAttribute('aria-expanded')).toBe('true')
+    const header=screen.getByRole('button',{name:'时段 2'}).closest('[data-slot-header]') as HTMLElement
+    const actions=within(header).getAllByRole('button')
+    expect(actions.map(action=>action.getAttribute('aria-label'))).toEqual(['时段 2','删除时段','收起时段'])
+    expect((actions[1] as HTMLElement).style.width).toBe('48px')
+    expect((actions[2] as HTMLElement).style.width).toBe('48px')
+    expect(header.style.gap).toBe('8px')
+  })
   it('点第二时段卡的课 → 滚动落在「时段 2」卡 (PK 命中 sourceIds)', async () => {
     const c1 = mk({ id: 1, day: 1, startNode: 1, step: 2 })
     const c2 = mk({ id: 2, day: 3, startNode: 3, step: 1 })
