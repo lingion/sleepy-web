@@ -1,5 +1,5 @@
 /** Query flags are fixed for this document, before any database/store is opened. */
-export function parseRuntimeMode(search: string) {
+export function parseRuntimeMode(search: string): { demo: boolean; embed: boolean; theme?: 'light' | 'dark' } {
   const query = new URLSearchParams(search)
   const theme = query.get('theme')
   return {

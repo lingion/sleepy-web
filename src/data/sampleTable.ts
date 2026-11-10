@@ -11,6 +11,8 @@ import { db, nextTableId, loadPrefs } from './db'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import i18next from 'i18next'
 import type { Course, Table } from './types'
+import { DEFAULT_PREFS } from './types'
+import { DEMO_DATABASE_NAME, runtimeMode } from '../runtimeMode'
 
 /** 示例课程行 — [课名, 教师, 教室, 周几, 起节, 连节数, 起周, 止周, 单双周] */type SampleRow = [string, string, string, number, number, number, number, number, Course['type']]
 
@@ -26,6 +28,36 @@ const SAMPLE_ROWS: SampleRow[] = [
   ['马克思主义基本原理', '孙老师', '文科楼F-102', 5, 3, 2, 1, 16, 0],
   ['大学物理', '赵老师', '物理楼D-105', 5, 6, 2, 3, 16, 2], // 双周
 ]
+
+/** Reuse the real sample rows, refreshed on entry so an old demo never opens on an empty semester. */
+export async function seedDemoTable(): Promise<void> {
+  if (!runtimeMode.demo || db.name !== DEMO_DATABASE_NAME) {
+    throw new Error('Demo data requires the isolated demo database')
+  }
+  await db.transaction('rw', db.timetables, db.courses, db.prefs, async () => {
+    await db.timetables.put({
+      id: 1,
+      name: i18next.t('sample_table_name') || '示例课表',
+      startDate: lastMondayIso(),
+      timeJson: DEFAULT_TIME_JSON,
+      isDefault: 1,
+      maxWeek: 16,
+      createdAt: 1,
+      smartConfigJson: '',
+      nodeCount: 12,
+      reminderEnabled: 0,
+    })
+    await db.courses.bulkPut(SAMPLE_ROWS.map((row, index) => courseOf(row, index + 1, 1)))
+    await db.prefs.put({ key: 'prefs', value: JSON.stringify({
+      ...DEFAULT_PREFS,
+      startView: 'cards',
+      visibleDays: [1, 2, 3, 4, 5],
+      periodHeaderLayout: 'three_line',
+      themeMode: runtimeMode.theme ?? 'light',
+    }) })
+    await db.prefs.put({ key: 'sampleTableId', value: '1' })
+  })
+}
 
 /** 空库时 seed 示例课表 — Bootstrap 挂载前 await 一次 */
 export async function seedSampleTable(): Promise<void> {

@@ -23,6 +23,7 @@ import { MineView } from './views/MineView'
 import { publicScheduleEnabled } from './publicSchedule'
 import { startReminderEngine, stopReminderEngine } from './domain/reminders/scheduler'
 import { useReminderStore } from './state/reminderStore'
+import { runtimeMode } from './runtimeMode'
 
 type Tab = TabKey
 
@@ -47,7 +48,8 @@ export function App() {
   const { t } = useTranslation()
   const navDock = usePrefsStore((s) => s.prefs.navDock)
   const publicSchedule = publicScheduleEnabled()
-  const [tab, setTab] = useState<Tab>(() => publicSchedule ? 'schedule' : tabFromHash(window.location.hash))
+  const scheduleOnly = publicSchedule || runtimeMode.demo
+  const [tab, setTab] = useState<Tab>(() => scheduleOnly ? 'schedule' : tabFromHash(window.location.hash))
   const [dockExtra, setDockExtra] = useState(76)
   const pushTab = useBackStack((s) => s.pushTab)
   const replaceTab = useBackStack((s) => s.replaceTab)
@@ -60,11 +62,15 @@ export function App() {
   const tablet = useTabletLayout()
   const stack = useBackStack((s) => s.stack)
   const fullOverlay = stack.some((k) => !PANE_DIALOG_KEYS.has(k))
-  const tabletSplit = tablet && !publicSchedule && !fullOverlay
+  const tabletSplit = tablet && !scheduleOnly && !fullOverlay
 
   // tab hash 首次进入不新增历史;之后点击 tab 写入独立地址。
   // 直达/刷新落在二三级页 hash → 重建返回栈链 (replaceTab 会把子页 hash 抹平甩回 tab 根)。
   useEffect(() => {
+    if (runtimeMode.demo) {
+      replaceTab('schedule')
+      return
+    }
     if (publicSchedule) {
       if (window.location.hash !== '#/课表') window.history.replaceState(null, '', '#/课表')
       setTab('schedule')
@@ -85,13 +91,14 @@ export function App() {
   }, [])
 
   const selectTab = (next: Tab) => {
-    if (publicSchedule || next === tab) return
+    if (scheduleOnly || next === tab) return
     pushTab(next)
     setTab(next)
   }
 
   // 提醒引擎 (页内定时器, CourseNotificationScheduler 对位): 常驻挂载, 提醒配置一变即重排。
   useEffect(() => {
+    if (runtimeMode.demo || runtimeMode.embed) return
     startReminderEngine()
     const unsub = useReminderStore.subscribe(() => startReminderEngine())
     return () => {
@@ -121,7 +128,7 @@ export function App() {
   }, [navDock, hasOverlay])
 
   // Tab 枚举顺序 = MainActivity.kt:173 Schedule/Today/Manage/Mine
-  const items: [Tab, string][] = publicSchedule
+  const items: [Tab, string][] = scheduleOnly
     ? [['schedule', t('tab_schedule', '课表')]]
     : [
         ['schedule', t('tab_schedule', '课表')],
@@ -191,8 +198,8 @@ export function App() {
       {/* H1 唯一持有者 = index.html 壳层静态标签(Bing 只读源码,运行期注入不可见,
           2026-10-28 复报定案)。App 内不再渲染 h1,否则文档双 H1;各 tab 内容标题
           维持 m3-title-large div(Android TopAppBar 1:1 对齐不许动)。 */}
-      <main style={{ flex: 1, overflow: 'auto' }}>
-        {tab === 'schedule' && <ScheduleView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} readOnly={publicSchedule} />}
+      <main style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {tab === 'schedule' && <ScheduleView navExtraBottom={!scheduleOnly && !hasOverlay && navDock ? dockExtra : 0} readOnly={scheduleOnly} />}
         {tab === 'today' && <TodayView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
         {tab === 'manage' && <ManageView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
         {tab === 'mine' && <MineView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
@@ -204,7 +211,7 @@ export function App() {
       </main>
       {/* 底栏闸门 = 返回栈是否为空 (Android 每个 overlay 分支都在底栏之前 return)。
           栈非空 → 贴底通栏与悬浮 Dock 两种形态都不渲染, 底部滚动余量同时归零。 */}
-      {!publicSchedule && !hasOverlay && (navDock ? (
+      {!scheduleOnly && !hasOverlay && (navDock ? (
         // 悬浮胶囊 Dock (PillNavigationBar dock=true / DockNavigationBar):
         // iOS 悬浮 tab bar 语义 — 居中玻璃胶囊, 4 座位等宽恒显 icon+label 双行,
         // thumb (secondaryContainer) 包住整个座位, 选中文字 onSecondaryContainer
