@@ -169,7 +169,7 @@ export function HolidayPage({ onBack }: { onBack: () => void }) {
               />
             </span>
           ) : (
-            <IconBtn label={t('holiday_data_refresh')} size={36} color="var(--md-on-surface-variant)" onClick={() => void load(year, true)}>
+            <IconBtn label={t('holiday_data_refresh')} color="var(--md-on-surface-variant)" onClick={() => void load(year, true)}>
               <IconRefresh size={20} />
             </IconBtn>
           )}
@@ -311,7 +311,7 @@ function IconBtn({
   children: ReactNode
 }) {
   return (
-    <button
+    <button data-glass-role="regular" data-glass-icon="true"
       type="button"
       aria-label={label}
       disabled={disabled}
@@ -338,7 +338,7 @@ function TonalButton({
   children: ReactNode
 }) {
   return (
-    <button
+    <button data-glass-role="tinted" data-glass-tint={container}
       type="button"
       onClick={onClick}
       className="m3-label-large"
@@ -444,7 +444,7 @@ function HolidayTransferRow({
       <span className="m3-body-large" style={{ flex: 1, minWidth: 0 }}>{dayLabel(date, dayNames)}</span>
       <IconArrowForward size={18} color="var(--md-on-surface-variant)" />
       <div style={{ flex: 1, minWidth: 0, marginLeft: 10, position: 'relative' }}>
-        <button
+        <button data-glass-plain
           type="button"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
@@ -462,7 +462,7 @@ function HolidayTransferRow({
         {menuOpen && (
           <>
             <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 900 }} />
-            <div
+            <div data-glass-plain
               role="menu"
               style={{
                 position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 901, padding: '8px 0', borderRadius: 12,
@@ -503,7 +503,7 @@ function HolidayTransferRow({
 /** DropdownMenuItem: 最小高 48, 水平内边距 12, labelLarge, onSurface */
 function MenuItem({ onClick, children }: { onClick: () => void; children: ReactNode }) {
   return (
-    <button
+    <button data-glass-plain
       type="button"
       role="menuitem"
       onClick={onClick}

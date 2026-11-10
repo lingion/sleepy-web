@@ -19,7 +19,7 @@ export function DailyAgendaPage({ date, onBack }: { date: string; onBack: () => 
   return <SettingsScaffold title={t('agenda_title')} onBack={onBack}>
     <div className="m3-title-medium">{new Date(date + 'T12:00:00').toLocaleDateString(i18n.language, { dateStyle: 'full' })}</div>
     {!result && <p role="status">{t('loading')}</p>}
-    {result?.failed && <div role="alert"><p>{t('agenda_load_error')}</p><button className="m3-button-text" onClick={() => setRetry(value => value + 1)}>{t('holiday_data_retry')}</button></div>}
+    {result?.failed && <div role="alert"><p>{t('agenda_load_error')}</p><button data-glass-role="regular" className="m3-button-text" onClick={() => setRetry(value => value + 1)}>{t('holiday_data_retry')}</button></div>}
     {result?.agenda && (result.agenda.items.length === 0 ? <p>{t('agenda_empty')}</p> : <>
       <p className="m3-body-medium">{t('agenda_count', { v1: result.agenda.items.length, v2: result.agenda.tableCount })}</p>
       {result.agenda.items.map((item, index) => <article key={index} style={{ padding: 16, borderRadius: 16, background: 'var(--md-surface-container)', display: 'grid', gap: 4 }}>

@@ -215,7 +215,7 @@ export function ReminderPage({ onBack, onOpenTableReminder = () => {}, onOpenHol
                     <div className="m3-body-medium" style={{ color: 'var(--md-on-surface)' }}>{t('reminder_fluid_fields')}</div>
                     <div style={{ height: 6 }} />
                     <div style={{ position: 'relative' }}>
-                      <button
+                      <button data-glass-plain
                         type="button"
                         aria-haspopup="menu"
                         aria-expanded={fieldsMenuExpanded}
@@ -238,7 +238,7 @@ export function ReminderPage({ onBack, onOpenTableReminder = () => {}, onOpenHol
                         <>
                           {/* DropdownMenu 遮罩 — onDismissRequest */}
                           <div onClick={() => setFieldsMenuExpanded(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-                          <div
+                          <div data-glass-role="menu" data-glass-motion="static"
                             role="menu"
                             style={{
                               position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
@@ -266,7 +266,7 @@ export function ReminderPage({ onBack, onOpenTableReminder = () => {}, onOpenHol
                     <p className="m3-body-small" style={{ margin: '6px 0 0', color: 'var(--md-on-surface-variant)' }}>
                       {t('reminder_fluid_note')}
                     </p>
-                    <button
+                    <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)"
                       type="button"
                       onClick={() => void sendFluidTest()}
                       className="m3-label-large"
@@ -315,7 +315,7 @@ export function ReminderPage({ onBack, onOpenTableReminder = () => {}, onOpenHol
                 onChange={(v) => update({ todayEnabled: v })}
               />
               {/* 今日摘要时间行 */}
-              <div
+              <div data-glass-plain
                 role="button"
                 tabIndex={0}
                 onClick={() => setShowTimePicker('today')}
@@ -338,7 +338,7 @@ export function ReminderPage({ onBack, onOpenTableReminder = () => {}, onOpenHol
                 onChange={(v) => update({ tomorrowEnabled: v })}
               />
               {/* 明日预告时间行 */}
-              <div
+              <div data-glass-plain
                 role="button"
                 tabIndex={0}
                 onClick={() => setShowTimePicker('tomorrow')}
@@ -367,7 +367,7 @@ export function ReminderPage({ onBack, onOpenTableReminder = () => {}, onOpenHol
             ['publicHolidayReminder', 'public_holiday'], ['transferHolidayReminder', 'transfer_holiday'],
             ['makeupWorkdayReminder', 'makeup_workday'], ['ordinaryWeekendReminder', 'ordinary_weekend'],
           ] as const).map(([key, label]) => <ReminderToggleRow key={key} title={t(`reminder_date_rules_${label}`)} subtitle="" checked={prefs[key]} onChange={value => update({ [key]: value })} />)}
-          <button type="button" className="m3-button-tonal" onClick={onOpenHoliday}>{t('reminder_date_rules_advanced_button')}</button>
+          <button data-glass-plain type="button" className="m3-button-tonal" onClick={onOpenHoliday}>{t('reminder_date_rules_advanced_button')}</button>
         </>}
       </ReminderCard>
 
@@ -489,7 +489,7 @@ function FluidFieldItem({
   onSelect: () => void
 }) {
   return (
-    <button
+    <button data-glass-plain
       type="button"
       role="menuitemradio"
       aria-checked={selected}
@@ -520,7 +520,7 @@ function ReliabilityBlock({ notification, onRequestPermission }: { notification:
   const { t } = useTranslation()
   const status = notification === 'granted' ? t('reminder_reliability_ready') : notification === 'denied' ? t('reminder_reliability_missing') : t('reminder_reliability_not_applicable')
   const row = (key: string, value: string, onClick?: () => void) => (
-    <button
+    <button data-glass-plain
       type="button"
       onClick={onClick}
       disabled={onClick == null}
@@ -543,7 +543,7 @@ function ReliabilityBlock({ notification, onRequestPermission }: { notification:
       {row('reminder_reliability_vendor', t('reminder_reliability_not_applicable'))}
       {row('reminder_reliability_promoted', t('reminder_reliability_not_applicable'))}
       <div className="m3-body-small" style={{ marginTop: 6, color: 'var(--md-on-surface-variant)' }}>{t('reminder_web_only')}</div>
-      <button
+      <button data-glass-plain
         type="button"
         className="m3-label-large"
         onClick={onRequestPermission}
