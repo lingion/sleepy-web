@@ -93,7 +93,7 @@ export function PeriodTableEditView({
 
   const handleBack = async () => {
     // 未保存的新表 → 丢弃残留行 (Android discardNewPeriodTable)
-    if (unsavedNew) await deletePeriodTable(pt.id)
+    if (unsavedNew) await deletePeriodTable(pt.id, true)
     onBack()
   }
 
@@ -238,7 +238,10 @@ export function PeriodTableEditView({
       {showDeleteConfirm && (
         <ConfirmDialog
           title={t('period_table_delete_confirm')}
-          body={<p className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>{t('period_table_delete_msg_body', { v1: pt.name })}</p>}
+          body={<div className="m3-body-medium" style={{ color: 'var(--md-on-surface-variant)' }}>
+            <p style={{ margin: 0 }}>{t('period_table_delete_msg_body', { v1: pt.name })}</p>
+            {allTables.some(tb => tb.periodTableId === pt.id) && <p>{t('period_table_delete_bound_hint', { v1: allTables.filter(tb => tb.periodTableId === pt.id).length })}</p>}
+          </div>}
           confirmText={t('delete')}
           destructive
           onConfirm={handleDelete}

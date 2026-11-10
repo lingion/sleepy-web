@@ -15,6 +15,7 @@ import { computeCurrentWeek } from '../ScheduleView'
 import { EditTableView } from '../EditTableView'
 import { duplicateTable, setDefault } from '../../data/repository'
 import { IconCheckCircle, IconContentCopy, IconSettings, IconAdd } from '../../components/icons'
+import { AlertDialog, TextButton } from '../../components/AlertDialog'
 import type { Table } from '../../data/types'
 import { SettingsScaffold } from './shared'
 
@@ -23,6 +24,9 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) ?? []
   const selectedId = useLiveQuery(async () => (await db.timetables.where('isDefault').equals(1).first())?.id)
+  const [copying, setCopying] = useState<Table | null>(null)
+  const [copyName, setCopyName] = useState('')
+  const [copyError, setCopyError] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const push = useBackStack((s) => s.push)
   const back = useBackStack((s) => s.pop)
@@ -49,6 +53,13 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
 
   return (
     <SettingsScaffold title={t('all_tables')} onBack={onBack}>
+      {copying && <AlertDialog title={t('all_tables_duplicate', '复制课表')} onDismiss={() => setCopying(null)} buttons={<><TextButton label={t('cancel')} onClick={() => setCopying(null)} /><TextButton label={t('confirm', '确定')} onClick={() => {
+        if (!copyName.trim()) { setCopyError(t('table_name_required', '请输入课表名称')); return }
+        void duplicateTable(copying.id, copyName).then(() => setCopying(null)).catch(() => setCopyError(t('save_failed', '保存失败，请重试')))
+      }} /></>}>
+        <input aria-label={t('table_name', '课表名称')} value={copyName} autoFocus onChange={e => setCopyName(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, background: 'var(--md-surface-container)', color: 'var(--md-on-surface)', border: '1px solid var(--md-outline)' }} />
+        {copyError && <p role="alert">{copyError}</p>}
+      </AlertDialog>}
       <div style={{ height: 4 }} />
       {tables.map((tb: Table) => {
         const isCurrent = tb.id === selectedId
@@ -80,7 +91,7 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
               )}
             </div>
             <button
-              onClick={(e) => { e.stopPropagation(); void duplicateTable(tb.id) }}
+              onClick={(e) => { e.stopPropagation(); setCopying(tb); setCopyError(''); let suffix = 2; while (tables.some(t => t.name === `${tb.name}${suffix}`)) suffix++; setCopyName(`${tb.name}${suffix}`) }}
               aria-label={t('all_tables_duplicate')}
               style={iconBtnStyle}
             >

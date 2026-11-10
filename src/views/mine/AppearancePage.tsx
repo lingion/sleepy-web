@@ -7,13 +7,21 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from '../../state/prefsStore'
-import { THEME_PRESETS, type ThemePreset } from '../../theme/themes'
+import { THEME_PRESETS, resolveThemeScheme, type ThemePreset } from '../../theme/themes'
 import { deriveCustomScheme } from '../../theme/customSchemeDeriver'
 import { CUSTOM_KEY_PREFIX, getAllThemes, type CustomTheme } from '../../data/customThemeStore'
 import { IconAdd, IconAutoAwesome, IconChevronRight, IconEdit } from '../../components/icons'
 import type { Prefs } from '../../data/types'
 import { SettingsScaffold, SectionHeader, CheckIcon, onActivateKey } from './shared'
-import { ScheduleDisplayContent } from './ScheduleDisplayPage'
+import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
+import { FlatCard, SliderRow } from './shared'
+import { refreshCourseHues } from '../../data/courseHueStore'
+import { resolveIsDark } from '../../state/prefsStore'
+import { db } from '../../data/db'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { courseNeutralTokens } from '../../theme/themes'
+import { pickCourseColor, textColorOn, parseHex, rgbToHex } from '../../domain/courseColor'
+import { courseColorAnchor } from '../../domain/courseHarmony'
 
 type ThemeGridCell =
   | { kind: 'preset'; preset: ThemePreset }
@@ -26,7 +34,7 @@ function chunked<T>(list: T[], size: number): T[][] {
   return out
 }
 
-export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader }: { onBack: () => void; onOpenThemeEditor?: (id: string | null) => void; onOpenPeriodHeader?: () => void }) {
+export function AppearancePage({ onBack, onOpenThemeEditor, onOpenScheduleDisplay }: { onBack: () => void; onOpenThemeEditor?: (id: string | null) => void; onOpenPeriodHeader?: () => void; onOpenScheduleDisplay?: () => void }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
@@ -48,6 +56,9 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader }
 
   return (
     <SettingsScaffold title={t('mine_appearance')} onBack={onBack} gap={12}>
+      <SectionHeader title={t('theme_appearance')} />
+      <SegmentedSwitcher options={modes.map(([, label]) => label)} selected={modes.findIndex(([mode]) => mode === prefs.themeMode)} onSelect={(i) => void update({ themeMode: modes[i][0] })} />
+
       {/* ── Section① 主题色彩 ── */}
       <SectionHeader title={t('appearance_section_theme')} />
 
@@ -92,47 +103,13 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenPeriodHeader }
         ))}
       </div>
 
-      {/* ── Section② 外观深浅 ── */}
-      <SectionHeader title={t('theme_appearance')} />
-      <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 16, background: 'var(--md-surface-container)' }}>
-        {modes.map(([mode, label]) => {
-          const sel = mode === prefs.themeMode
-          const select = () => {
-            if (mode !== prefs.themeMode) void update({ themeMode: mode })
-          }
-          return (
-            <button
-              key={mode}
-              type="button"
-              aria-label={label}
-              aria-pressed={sel}
-              onClick={select}
-              className="m3-label-large"
-              style={{
-                flex: 1, minWidth: 0, height: 44, padding: 0, border: 'none', borderRadius: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-                background: sel ? 'var(--md-primary)' : 'var(--md-surface-container-high)',
-                color: sel ? 'var(--md-on-primary)' : 'var(--md-on-surface-variant)',
-                fontFamily: 'inherit',
-                fontWeight: sel ? 600 : 500,
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ── Section③ 课表显示 — Surface(surfaceContainer, shapes.large) + ScheduleDisplayContent(padding 16) ── */}
-      <SectionHeader title={t('appearance_section_schedule_display')} />
-      <div style={{ borderRadius: 16, background: 'var(--md-surface-container)', color: 'var(--md-on-surface)', padding: 16 }}>
-        <ScheduleDisplayContent />
-      </div>
-
-      {/* ── Section④ 节次表头 ── */}
-      <SectionHeader title={t('appearance_period_header')} />
-      <AppearanceNavigationRow title={t('appearance_period_header')} onClick={() => onOpenPeriodHeader?.()} />
+      <SectionHeader title={t('settings_appearance_navigation', '导航')} />
+      <FlatCard title={t('settings_nav_style')} options={[t('settings_nav_style_docked'), t('settings_nav_style_floating')]} selectedKey={prefs.navDock ? 1 : 0} onSelect={(i) => void update({ navDock: i === 1 })} />
+      <SectionHeader title={t('appearance_section_dock_theme', '界面风格')} />
+      <SegmentedSwitcher options={[t('dock_theme_classic', '经典'), t('dock_theme_liquid_glass', '液态玻璃')]} selected={prefs.uiStyle === 'liquid_glass' ? 1 : 0} onSelect={(i) => void update({ uiStyle: i === 1 ? 'liquid_glass' : 'classic' })} />
+      <SectionHeader title={t('appearance_section_course_color', '课程配色')} />
+      <CourseColorSettings />
+      <AppearanceNavigationRow title={t('appearance_section_schedule_display')} onClick={() => onOpenScheduleDisplay?.()} />
     </SettingsScaffold>
   )
 }
@@ -326,4 +303,21 @@ function AppearanceNavigationRow({ title, onClick }: { title: string; onClick: (
       </span>
     </div>
   )
+}
+
+function CourseColorSettings() {
+  const { t } = useTranslation()
+  const prefs = usePrefsStore(s => s.prefs)
+  const update = usePrefsStore(s => s.update)
+  const courses = useLiveQuery(() => db.courses.orderBy('id').toArray(), []) ?? []
+  const preview = [...new Map(courses.map(c => [c.groupId, c])).values()].slice(0, 6)
+  const neutral = courseNeutralTokens(resolveIsDark(prefs)).neutral
+  return <div style={{ padding: 16, borderRadius: 16, background: 'var(--md-surface-container)', display: 'grid', gap: 12 }}>
+    <SegmentedSwitcher options={[t('course_color_uniform', '统一底色'), t('course_color_classic', '经典'), t('course_color_follow_theme', '跟随主题'), t('course_color_custom_seed', '自定色相')]} selected={prefs.courseColorless ? 0 : prefs.courseColorMode + 1} onSelect={(i) => void update(i === 0 ? { courseColorless: true } : { courseColorless: false, courseColorMode: (i - 1) as 0 | 1 | 2, ...(i === 3 && prefs.courseColorSeedHue < 0 ? { courseColorSeedHue: courseColorAnchor(1, resolveThemeScheme(prefs.theme, resolveIsDark(prefs)).primary, -1) ?? 0 } : {}) })} />
+    {!prefs.courseColorless && prefs.courseColorMode === 2 && <SliderRow label={t('course_color_seed_label', '种子色相')} value={Math.max(0, prefs.courseColorSeedHue)} min={0} max={360} step={1} formatValue={v => `${Math.round(v)}°`} onCommit={courseColorSeedHue => void update({ courseColorSeedHue })} />}
+    <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }} aria-label={t('course_color_preview', '配色预览')}>
+      {preview.map(course => { const color = pickCourseColor(course, resolveIsDark(prefs), neutral, prefs.courseColorless); const text = rgbToHex(textColorOn(parseHex(color) ?? [255, 255, 255], resolveIsDark(prefs), parseHex(courseNeutralTokens(resolveIsDark(prefs)).onSurface) ?? [0, 0, 0])); return <span key={course.groupId} style={{ padding: '6px 12px', borderRadius: 8, whiteSpace: 'nowrap', color: text, background: color }}>{course.courseName}</span> })}
+    </div>
+    {!prefs.courseColorless && <button type="button" className="m3-button-tonal" onClick={() => void refreshCourseHues(prefs, resolveIsDark(prefs), true).then(() => update({}))}>{t('course_color_recalc', '重新编排课程颜色')}</button>}
+  </div>
 }

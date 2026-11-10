@@ -169,6 +169,48 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
 
           <InfoCard>
             <CardRow
+              title={t('about_update_check')}
+              detail={t('about_update_check_detail')}
+              trailing={
+                <Switch
+                  checked={updateCheckEnabled}
+                  uncheckedTrack="var(--md-surface-variant)"
+                  onChange={(v) => {
+                    void updatePrefs({ updateCheckEnabled: v })
+                    if (!v) clearUpdateCache()
+                    setRefresh((c) => c + 1)
+                  }}
+                />
+              }
+            />
+          </InfoCard>
+
+          <InfoCard>
+            <CardRow
+              icon={<IconBugReport size={24} />}
+              title={t('about_feedback')}
+              detail={t('about_feedback_detail')}
+              trailing={
+                <>
+                  <IconBtn label={t('about_feedback_github')} onClick={openGitHubFeedback}><IconOpenInNew size={20} /></IconBtn>
+                  <IconBtn label={t('about_feedback_email')} onClick={openEmailFeedback}><IconEmail size={20} /></IconBtn>
+                </>
+              }
+            />
+          </InfoCard>
+
+          <InfoCard>
+            <CardRow
+              onClick={joinQqGroup}
+              icon={<IconGroups size={24} />}
+              title={t('about_qq_title')}
+              detail={t('about_qq_detail', { v1: QQ_GROUP_NUMBER })}
+              trailing={<IconBtn label={t('about_qq_copy_action')} onClick={joinQqGroup}><IconContentCopy size={20} /></IconBtn>}
+            />
+          </InfoCard>
+
+          <InfoCard>
+            <CardRow
               icon={<IconPerson size={24} />}
               title={t('about_author')}
               detail={t('about_author_name')}
@@ -203,52 +245,10 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
 
           <InfoCard>
             <CardRow
-              icon={<IconBugReport size={24} />}
-              title={t('about_feedback')}
-              detail={t('about_feedback_detail')}
-              trailing={
-                <>
-                  <IconBtn label={t('about_feedback_github')} onClick={openGitHubFeedback}><IconOpenInNew size={20} /></IconBtn>
-                  <IconBtn label={t('about_feedback_email')} onClick={openEmailFeedback}><IconEmail size={20} /></IconBtn>
-                </>
-              }
-            />
-          </InfoCard>
-
-          <InfoCard>
-            <CardRow
-              onClick={joinQqGroup}
-              icon={<IconGroups size={24} />}
-              title={t('about_qq_title')}
-              detail={t('about_qq_detail', { v1: QQ_GROUP_NUMBER })}
-              trailing={<IconBtn label={t('about_qq_copy_action')} onClick={joinQqGroup}><IconContentCopy size={20} /></IconBtn>}
-            />
-          </InfoCard>
-
-          <InfoCard>
-            <CardRow
               onClick={() => onOpenLicense?.()}
               title={t('about_license_title')}
               detail={t('about_license_detail')}
               trailing={<IconChevronRight size={20} color="var(--md-on-surface-variant)" />}
-            />
-          </InfoCard>
-
-          <InfoCard>
-            <CardRow
-              title={t('about_update_check')}
-              detail={t('about_update_check_detail')}
-              trailing={
-                <Switch
-                  checked={updateCheckEnabled}
-                  uncheckedTrack="var(--md-surface-variant)"
-                  onChange={(v) => {
-                    void updatePrefs({ updateCheckEnabled: v })
-                    if (!v) clearUpdateCache()
-                    setRefresh((c) => c + 1)
-                  }}
-                />
-              }
             />
           </InfoCard>
 

@@ -104,7 +104,7 @@ describe('外观深浅 + 节次表头', () => {
     await waitFor(() => expect(usePrefsStore.getState().prefs.themeMode).toBe('dark'))
     const container = dark.parentElement as HTMLElement
     expect(container.style.padding).toBe('4px')
-    expect(dark.style.height).toBe('44px')
+    expect(container.style.height).toBe('42px')
     expect(dark.getAttribute('aria-pressed')).toBe('true')
   })
 
@@ -117,10 +117,10 @@ describe('外观深浅 + 节次表头', () => {
   })
   it('节次表头: 段头 + 同名导航行, 点击进入', () => {
     const onOpen = vi.fn()
-    render(<AppearancePage onBack={() => {}} onOpenPeriodHeader={onOpen} />)
-    const hits = screen.getAllByText('节次表头')
-    expect(hits).toHaveLength(2)
-    fireEvent.click(hits[1].closest('[role="button"]') as HTMLElement)
+    render(<AppearancePage onBack={() => {}} onOpenScheduleDisplay={onOpen} />)
+    const hits = screen.getAllByText('课表显示')
+    expect(hits).toHaveLength(1)
+    fireEvent.click(hits[0].closest('[role="button"]') as HTMLElement)
     expect(onOpen).toHaveBeenCalledTimes(1)
   })
 })
