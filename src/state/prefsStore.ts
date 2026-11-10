@@ -11,6 +11,7 @@ import { undoManager } from '../data/undoStore'
 import { changeLang } from '../i18n'
 import { applyTheme } from '../theme/themes'
 import { observeCourseHues, refreshCourseHues } from '../data/courseHueStore'
+import { prepareGlassRuntime } from '../components/glass/runtime'
 
 interface PrefsState {
   prefs: Prefs
@@ -19,12 +20,38 @@ interface PrefsState {
   update: (patch: Partial<Prefs>) => Promise<void>
 }
 
+let prefsIntent = 0
+const fieldIntents = new Map<string, number>()
+
+/** Loads and updates share field ownership, including same-value selections. */
+function claimPrefs(patch: Partial<Prefs>): number {
+  const intent = ++prefsIntent
+  for (const key of Object.keys(patch)) fieldIntents.set(key, intent)
+  return intent
+}
+
+function currentPatch(patch: Partial<Prefs>, intent: number): Partial<Prefs> {
+  return Object.fromEntries(Object.entries(patch).filter(([key]) => (fieldIntents.get(key) ?? intent) === intent))
+}
+
+function preparePrefsStyle(style: Prefs['uiStyle'], intent: number): Promise<void> {
+  return prepareGlassRuntime(style).catch(error => {
+    // A superseded style must not reject or discard still-current non-style fields.
+    if (fieldIntents.get('uiStyle') === intent) throw error
+  })
+}
+
 export const usePrefsStore = create<PrefsState>((set, get) => ({
   prefs: { ...DEFAULT_PREFS },
   loaded: false,
 
   load: async (initialPrefs) => {
-    const prefs = initialPrefs ?? await loadPrefs()
+    const intent = claimPrefs(DEFAULT_PREFS)
+    const saved = initialPrefs ?? await loadPrefs()
+    if (saved.uiStyle === 'liquid_glass') await preparePrefsStyle(saved.uiStyle, intent)
+    const remaining = currentPatch(saved, intent)
+    if (!Object.keys(remaining).length) return
+    const prefs = { ...get().prefs, ...remaining }
     set({ prefs, loaded: true })
     syncSideEffects(prefs)
     await refreshCourseHues(prefs, resolveIsDark(prefs)).catch(() => 0)
@@ -32,7 +59,12 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
   },
 
   update: async (patch) => {
-    const prefs = clampPrefs({ ...get().prefs, ...patch })
+    const intent = claimPrefs(patch)
+    if (patch.uiStyle === 'liquid_glass') await preparePrefsStyle(patch.uiStyle, intent)
+    const remaining = currentPatch(patch, intent)
+    if (Object.keys(patch).length && !Object.keys(remaining).length) return
+    // Rebase after preparation so edits made during the download are retained.
+    const prefs = clampPrefs({ ...get().prefs, ...remaining })
     set({ prefs })
     syncSideEffects(prefs)
     await savePrefs(prefs)
