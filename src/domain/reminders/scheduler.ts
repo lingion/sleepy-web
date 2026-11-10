@@ -4,9 +4,9 @@
  * 触发时数据现查 (Dexie/LiveQuery 同源), 不做整日预排, 天然对齐 Android scheduleToday 的按天重排。
  *
  * 与 Android 的差异 (平台限制, 均有说明):
- *  - 仅页面打开时工作 (无后台进程); 错过分钟点不回补 (Android setExact 也错过休眠即跳过);
+ *  - 仅页面打开时工作 (无后台进程); 错过分钟点不回补；不能保证后台唤醒。
  *  - 流体云/进度条通知 (FluidCloudService) 不移植 — Web Notification 无法持续更新进度;
- *    fluid 开+banner 关时 web 无通知, 与 Android fallback 语义一致 (两者全关 → 不发)。
+ *    fluid 开+banner 关时使用普通浏览器通知承接；两者全关不发。
  */
 
 import i18next from 'i18next'
@@ -105,7 +105,7 @@ export async function fireSummary(targetDay: Date, isTomorrow: boolean): Promise
  * now ∈ [classStart − minutes, classStart − minutes + 60s) 即命中。
  * ref #143: 扫描所有开启表 (Android BeforeClassNotifyReceiver 只查 owner 表开关 →
  * reminderTables 过滤即等价; resync 收集全部开启表槽位 → web 每次现扫)。
- * 同刻多表命中 → 取最早开始的一节 (Android 各 alarm 独立, web 轮询只能选一)。
+ * 同刻多表命中逐项投递，各课程独立去重，不因首个命中丢掉其他提醒。
  */
 export async function fireBeforeClass(now: Date, p: ReminderPrefs): Promise<void> {
   const tables = await reminderTables()
