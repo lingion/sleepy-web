@@ -595,6 +595,7 @@ export function LessonRow({
   return (
     <div
       onClick={onClick}
+      data-course-id={course.id} data-course-day={course.day} data-course-node={course.startNode} data-course-step={course.step}
       style={{
         width: '100%',
         borderRadius: 12 * effScale * cornerRatio,

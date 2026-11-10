@@ -66,8 +66,8 @@ describe('实验室网格策略', () => {
     const spaced = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1, { longBreakSpacing: true })
     expect(baseline.mealBreakAfterRows.size).toBe(0)
     expect(spaced.mealBreakAfterRows).toEqual(new Set([3, 7]))
-    expect(spaced.mealGapExtra).toBe(6)
-    expect(spaced.gridH - baseline.gridH).toBe(12)
+    expect(spaced.mealGapExtra).toBe(24)
+    expect(spaced.gridH - baseline.gridH).toBe(48)
   })
 
 })

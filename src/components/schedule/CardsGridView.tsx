@@ -1,3 +1,4 @@
+import './mealBreak.css'
 /**
  * CardsGridView — 网格视图 (CourseTableView.kt CardsGridView 1:1)
  * 双层架构: 时间栏 (renderSlots 逐行) + 课程卡绝对定位 (非簇单卡 + 冲突簇整簇)。
@@ -250,8 +251,11 @@ export function CardsGridView(props: CardsGridViewProps) {
         <div style={{ height: geo.gapH }} />
 
         {/* 网格主体: 绝对定位 */}
-        <div style={{ position: 'relative', height: geo.gridH }}>
+        <div data-grid-week={currentWeek} data-grid-days={JSON.stringify(sortedDays)} data-grid-time={geo.timeW} data-grid-gap={geo.gapW} data-grid-col={geo.colW}
+          data-grid-rows={JSON.stringify(geo.slots.filter((slot) => !slot.isPlaceholder).map((slot) => { const i=geo.slots.indexOf(slot); return { node:slot.nodeStart,y:yOfRows(geo.plan,i,geo.rowH,geo.mealBreakAfterRows,geo.mealGapExtra),height:rowHeightAt(geo.plan,i,geo.rowH)-geo.gapH } }))}
+          style={{ position: 'relative', height: geo.gridH }}>
           {prefs.gridShowSeparators && <GridSeparators geo={geo} dayCount={dayCount} />}
+          {[...geo.mealBreakAfterRows].map((row) => <div key={`meal-${row}`} className="meal-break-band" style={{ position: 'absolute', top: yOfRows(geo.plan,row+1,geo.rowH,geo.mealBreakAfterRows,geo.mealGapExtra)-geo.mealGapExtra, height:geo.mealGapExtra,left:0,right:0 }}><span>{Number(geo.slots[row].end.slice(0,2)) < 15 ? '午餐' : '晚餐'}</span><i /></div>)}
           {/* 时间栏 */}
           {geo.slots.map((slot, i) => (
             <div
@@ -561,6 +565,7 @@ export function CourseOverlayCard({
 
   return (
     <div
+      data-course-id={course.id} data-course-day={course.day} data-course-node={course.startNode} data-course-step={course.step}
       onClick={onClick}
       style={{
         position: 'absolute',

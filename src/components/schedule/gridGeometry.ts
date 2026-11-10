@@ -77,7 +77,7 @@ export function buildGridGeometry(
     ? { slots: fullPlan.slots.slice(0, firstEvening), slotWeights: fullPlan.slotWeights?.slice(0, firstEvening) ?? null }
     : fullPlan
   const mealBreakAfterRows = options.longBreakSpacing ? detectMealBreakRows(timeJson, courses, plan.slots) : new Set<number>()
-  const mealGapExtra = options.longBreakSpacing ? d(6) : 0
+  const mealGapExtra = options.longBreakSpacing ? d(24) : 0
   const fit = options.adaptiveHeight && options.availableHeight
     ? Math.min(96, Math.max(36, (options.availableHeight - mealGapExtra * mealBreakAfterRows.size) / Math.max(1, plan.slots.reduce((sum, _, i) => sum + (plan.slotWeights?.[i] ?? 1), 0))))
     : GRID.slotH
