@@ -508,20 +508,22 @@ function Field({
 }
 
 function Header({ title, onBack }: { title: string; onBack: () => void }) {
+  const { t } = useTranslation()
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 64 }}>
       <button
         type="button"
         onClick={onBack}
-        aria-label="back"
+        aria-label={t('back', { defaultValue: '返回' })}
         style={{
-          padding: '8px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
+          width: 48, height: 48, padding: 0, borderRadius: 24, border: 'none', cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           background: 'transparent', color: 'var(--md-on-surface)', fontSize: 18,
         }}
       >
         <IconArrowBack size={20} />
       </button>
-      <h1 className="m3-headline-medium" style={{ margin: 0 }}>{title}</h1>
+      <h1 className="m3-title-large" style={{ margin: 0 }}>{title}</h1>
     </div>
   )
 }
@@ -541,7 +543,7 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
         aria-modal="true"
         className="m3-card"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
+        style={{ maxWidth: 400, width: '100%', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
       >
         {children}
       </div>
