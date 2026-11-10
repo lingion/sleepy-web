@@ -48,11 +48,11 @@ describe('PeriodHeaderSettingsPage', () => {
   it('gates hide-time to legacy and centers label-only previews',async()=>{
     await usePrefsStore.getState().update({periodHeaderLayout:'legacy',periodHeaderHideTime:false} as never)
     const {container}=render(<PeriodHeaderSettingsPage onBack={()=>{}}/>)
-    fireEvent.click(screen.getByRole('switch',{name:'隐藏时间'}))
+    fireEvent.click(screen.getByRole('switch',{name:'隐藏时间行'}))
     await waitFor(()=>expect(container.querySelectorAll('[data-period-header-hide-time]').length).toBe(5))
     expect(container.textContent).not.toContain('08:00-08:45')
     fireEvent.click(screen.getByRole('button',{name:'三行表头'}))
-    await waitFor(()=>expect(screen.queryByRole('switch',{name:'隐藏时间'})).toBeNull())
+    await waitFor(()=>expect(screen.queryByRole('switch',{name:'隐藏时间行'})).toBeNull())
     expect(container.querySelectorAll('[data-period-header-hide-time]').length).toBe(0)
     expect(container.textContent).toContain('08:00')
   })

@@ -39,6 +39,6 @@ it('failed clipboard writes show a failure instead of copied success',async()=>{
   await seed();Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:vi.fn(async()=>{throw Error('denied')})}})
   render(<ShareScheduleSheetView table={table} courses={[course]} onDismiss={()=>{}} />)
   fireEvent.click(screen.getByText('分享文本'))
-  await waitFor(()=>expect(screen.getByText('导出失败，请重试')).toBeTruthy())
+  await waitFor(()=>expect(screen.getByText('导出失败，请重试。')).toBeTruthy())
   expect(screen.queryByText('已复制')).toBeNull()
 })
