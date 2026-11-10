@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { exportIcs, exportWakeUpJson, exportWakeUpShareText, type ExportCourse, type ExportTable } from './scheduleExporter'
 import { exportSleepyV1File } from './sleepyNativeExporter'
 import { parseSchedule } from './scheduleParser'
-import { buildDatedEvents } from './icsRangeExporter'
+import { buildDatedEvents, exportDatedIcs } from './icsRangeExporter'
 
 const source = '{ "name": "Ａ１|校区", "weekStart": null, "unknown": ["\\n", 2] }'
 const table: ExportTable = {
@@ -53,5 +53,30 @@ describe('Android v1.0.64 portable fields', () => {
   it('invalid fixed dates are ignored rather than rolling into another month', () => {
     const parsed = parseSchedule(exportWakeUpJson(table, [{ ...course, fixedDate: '2026-02-30' }]), 0)
     expect(parsed.ok && parsed.value.courses[0].fixedDate).toBeNull()
+  })
+
+  it('all ICS paths use the mapped source week, suppress that source, and leave fixed dates in place', () => {
+    const transfers = [{sourceDate:'2026-09-07',targetDate:'2026-09-19',segmentId:'s'}]
+    const recurring = {...course,id:2,courseName:'第一周',fixedDate:null,startWeek:1,endWeek:1,type:1}
+    const fixed = {...course,fixedDate:'2026-09-07'}
+    const options = {today:new Date(2026,8,7),range:'SEMESTER' as const,transfers,reminderMinutes:null,firstAlarmEnabled:false,firstAlarmMinutes:20}
+    const events=buildDatedEvents(table,[recurring,fixed],options)
+    expect(events.map(e=>[e.course.courseName,e.date.getDate(),e.transferred])).toEqual([[fixed.courseName,7,false],['第一周',19,true]])
+    for(const ics of [exportIcs(table,[recurring,fixed],transfers),exportDatedIcs(table,[recurring,fixed],options)]) {
+      expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(2)
+      expect(ics).toContain('DTSTART:20260919T070500')
+      expect(ics).toContain('DTSTART:20260907T070500')
+      expect(ics).not.toContain('RRULE:')
+    }
+  })
+
+  it('ICS reimport retains concrete dates, own times and recurring parity', () => {
+    for(const row of [course,{...course,fixedDate:null,type:2}]) {
+      const parsed=parseSchedule(exportIcs(table,[row]),0)
+      if(!parsed.ok)throw parsed.error
+      expect(parsed.ok).toBe(true)
+      expect(parsed.value.startDate).toBe(table.startDate)
+      expect(parsed.value.courses[0]).toMatchObject({fixedDate:row.fixedDate,ownTime:true,startTime:'07:05',endTime:'07:55',type:row.fixedDate ? 0 : 2})
+    }
   })
 })

@@ -15,6 +15,7 @@ export type { ParseResultV1, ParsedCourse }
 export type ParseResult = ParseResultV1 & { groupIdsAuthoritative: boolean }
 
 export interface ExportCourseInput {
+  fixedDate?: string | null
   groupId: string
   courseName: string
   alias?: string
@@ -59,7 +60,8 @@ function parseDispatch(rawText: string, defaultTableId: number, defaultColor: st
   const originalBody = !original.startsWith('{') && original.includes('{') ? original.substring(original.indexOf('{')) : original
 
   // 兼容: 导出端常在 JSON 前加 "【来自Sleepy】\n课程分享：\n\n" 前缀, 剥掉再判别
-  const body = !trimmed.startsWith('{') && trimmed.includes('{')
+  const isCalendar = trimmed.startsWith('BEGIN:VCALENDAR') || trimmed.startsWith('BEGIN:VEVENT')
+  const body = !isCalendar && !trimmed.startsWith('{') && trimmed.includes('{')
     ? trimmed.substring(trimmed.indexOf('{'))
     : trimmed
 
@@ -79,8 +81,8 @@ function parseDispatch(rawText: string, defaultTableId: number, defaultColor: st
   if (body.startsWith('{') && (body.includes('"courses"') || body.includes('"tableInfo"'))) {
     return parseWakeUpJson(body, defaultTableId, defaultColor, originalBody)
   }
-  if (body.startsWith('BEGIN:VCALENDAR') || body.startsWith('BEGIN:VEVENT')) {
-    return parseIcs(body, defaultTableId, defaultColor)
+  if (isCalendar) {
+    return parseIcs(original, defaultTableId, defaultColor)
   }
   if (startsWithAnyTag(trimmed, 'html', 'body', 'table', 'div', 'section', 'article')) {
     return parseHtml(trimmed, defaultTableId, defaultColor)
@@ -161,7 +163,7 @@ export function normalizeFullWidth(s: string): string {
 // ---- WakeUp 分享文本 / JSON ----
 
 interface WakeupCourseJson {
-  fixedDate?: string
+  fixedDate?: string | null
   startTime?: string
   endTime?: string
   name?: string
@@ -380,6 +382,11 @@ function lossless(
 // ---- ICS (RFC 5545, WakeUp 导出 + Sleepy 导出 + NEU 块模型) ----
 
 interface IcsEvent {
+  fixedDate: string | null
+  ownTime: boolean
+  startTime: string
+  endTime: string
+  note: string
   name: string
   day: number
   startNode: number
@@ -408,19 +415,20 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
     const end = raw.indexOf('END:VEVENT')
     const block = end > 0 ? raw.substring(0, end) : raw
 
-    const summary = extractIcsField(block, 'SUMMARY')
+    const summaryRaw = extractIcsField(block, 'SUMMARY')
+    const summary = summaryRaw === null ? null : unescapeIcs(summaryRaw)
     if (summary === null) continue
-    const location = extractIcsField(block, 'LOCATION') ?? ''
+    const location = unescapeIcs(extractIcsField(block, 'LOCATION') ?? '')
     const description = extractIcsField(block, 'DESCRIPTION') ?? ''
     // ICS 折行已在 extractIcsField 剥除; 字面 \n 转义切行
     const descLines = description.split('\\n')
 
-    const teacher =
+    const teacher = unescapeIcs(extractIcsField(block, 'X-SLEEPY-TEACHER') ?? (
       descLines.length >= 3 ? descLines[2].trim()
         : description.startsWith('老师：') ? description.split('老师：')[1]?.trim() ?? ''
           : description.startsWith('老师:') ? description.split('老师:')[1]?.trim() ?? ''
-            : ''
-    const room =
+            : ''))
+    const room = extractIcsField(block,'X-SLEEPY-TEACHER') !== null ? location :
       descLines.length >= 2 && descLines[1].trim() !== '' ? descLines[1].trim()
         : location !== '' && teacher !== '' && location.endsWith(teacher)
           ? location.slice(0, location.length - teacher.length).trim()
@@ -430,13 +438,19 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
     if (day === null) continue
     const dtstart = extractIcsDate(block)
     if (dtstart === null) continue
-    const explicitNode = extractIcsNode(description)
+    const nodeField = extractIcsField(block, 'X-SLEEPY-NODES')?.split(',').map(Number)
+    const explicitNode = nodeField?.length === 2 && nodeField.every(n => Number.isInteger(n) && n > 0) ? nodeField as [number,number] : extractIcsNode(description)
     const inferred = explicitNode
       ?? (isNeuIcs ? neuSpanFor(neuBlocks, block) : extractIcsTime(block))
     if (inferred === null) continue
     const [startNode, step] = inferred
 
-    if (!isNeuIcs) harvestNodeTimes(block, startNode, step, nodeTimes)
+    const ownTime = extractIcsField(block, 'X-SLEEPY-OWN-TIME') === 'TRUE'
+    const clock = (field: string) => {
+      const value = extractIcsField(block, field)?.split('T')[1]?.slice(0,4) ?? ''
+      return /^([01]\d|2[0-3])[0-5]\d$/.test(value) ? `${value.slice(0,2)}:${value.slice(2)}` : ''
+    }
+    if (!isNeuIcs && !ownTime) harvestNodeTimes(block, startNode, step, nodeTimes)
 
     const rrule = extractIcsField(block, 'RRULE') ?? ''
     const interval = rrule.includes('INTERVAL=2') ? 2 : 1
@@ -447,7 +461,7 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
     const aligned = deltaDays - (((deltaDays % 7) + 7) % 7)
     const lastOccurrence = addDays(dtstart, aligned)
 
-    events.push({ name: summary, day, startNode, step, teacher, room, firstDate: dtstart, lastDate: lastOccurrence, interval })
+    events.push({ fixedDate:validFixedDate(extractIcsField(block, 'X-SLEEPY-FIXED-DATE')), ownTime, startTime:ownTime ? clock('DTSTART') : '', endTime:ownTime ? clock('DTEND') : '', note:unescapeIcs(extractIcsField(block, 'X-SLEEPY-NOTE') ?? ''), name: summary, day, startNode, step, teacher, room, firstDate: dtstart, lastDate: lastOccurrence, interval })
   }
 
   if (events.length === 0) {
@@ -466,14 +480,15 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
   }
 
   // 锚点 = 最早 DTSTART 所在周的周一
-  const anchor = toMonday(events.reduce((min, e) => (e.firstDate < min ? e.firstDate : min), events[0].firstDate))
+  const declaredStart = validFixedDate(extractIcsField(text.split('BEGIN:VEVENT')[0], 'X-SLEEPY-START-DATE'))
+  const anchor = declaredStart ? parseIcsDate(declaredStart.replaceAll('-',''))! : toMonday(events.reduce((min, e) => (e.firstDate < min ? e.firstDate : min), events[0].firstDate))
   const weekOf = (d: Date): number => Math.floor(daysBetween(anchor, d) / 7) + 1
 
   // 按 (课名,星期,节次,教师) 聚合; room 不进键(防假单双周, 24sp 管理心理学实证)
-  const groups = new Map<string, { key: { name: string; day: number; node: number; step: number; teacher: string }; chunks: Array<[number, number, string]>; interval: number }>()
+  const groups = new Map<string, { key: { name: string; day: number; node: number; step: number; teacher: string; fixedDate:string|null; ownTime:boolean; startTime:string; endTime:string; note:string }; chunks: Array<[number, number, string]>; interval: number }>()
   for (const e of events) {
-    const key = { name: e.name, day: e.day, node: e.startNode, step: e.step, teacher: e.teacher }
-    const k = `${key.name}|${key.day}|${key.node}|${key.step}|${key.teacher}`
+    const key = { name: e.name, day: e.day, node: e.startNode, step: e.step, teacher: e.teacher, fixedDate:e.fixedDate,ownTime:e.ownTime,startTime:e.startTime,endTime:e.endTime,note:e.note }
+    const k = JSON.stringify({...key,interval:e.interval})
     if (!groups.has(k)) groups.set(k, { key, chunks: [], interval: e.interval })
     groups.get(k)!.chunks.push([weekOf(e.firstDate), weekOf(e.lastDate), e.room])
   }
@@ -484,10 +499,10 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
     const emit = (startWeek: number, endWeek: number, type: number, room: string) => {
       courses.push({
         groupId: '', tableId: defaultTableId, courseName: key.name, alias: '',
-        teacher: key.teacher, room, note: '', day: key.day,
+        teacher: key.teacher, room, note: key.note, day: key.day, fixedDate:key.fixedDate,
         startNode: key.node, step: key.step,
         startWeek, endWeek, type, color: defaultColor,
-        ownTime: false, startTime: '', endTime: '',
+        ownTime:key.ownTime,startTime:key.startTime,endTime:key.endTime,
       })
     }
     const spans = sorted.map((c) => [c[0], c[1]] as [number, number])
@@ -500,7 +515,7 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
     }
 
     if (spans.length === 1) {
-      emit(spans[0][0], spans[0][1], 0, sorted[0][2])
+      emit(spans[0][0], spans[0][1], !key.fixedDate && interval === 2 ? (spans[0][0] % 2 ? 1 : 2) : 0, sorted[0][2])
     } else if (contiguous) {
       emit(spans[0][0], spans[spans.length - 1][1], 0, sorted[0][2])
     } else if (interval === 2 || allSingleSameParitySpaced2()) {
@@ -526,14 +541,20 @@ function parseIcs(text: string, defaultTableId: number, defaultColor: string): P
   }
 
   const timeMap = isNeuIcs ? buildNeuTimetable(neuBlocks) : nodeTimes
-  return lossless(
-    '导入的 ICS 课表',
+  const result = lossless(
+    unescapeIcs(extractIcsField(text.split('BEGIN:VEVENT')[0],'X-WR-CALNAME') ?? '导入的 ICS 课表'),
     isoOf(anchor),
     courses,
     buildTimeJson(timeMap),
     timeMap.size === 0 ? 0 : Math.max(...timeMap.keys()),
     false,
   )
+  const maxWeek = Number(extractIcsField(text.split('BEGIN:VEVENT')[0],'X-SLEEPY-MAX-WEEK'))
+  return {...result,maxWeek:Number.isInteger(maxWeek) && maxWeek > 0 ? Math.max(maxWeek,result.maxWeek) : result.maxWeek}
+}
+
+function unescapeIcs(value: string): string {
+  return value.replace(/\\([nN,;\\])/g,(_,ch: string) => ch === 'n' || ch === 'N' ? '\n' : ch)
 }
 
 // ---- Date 工具 (UTC 语义, 防时区漂移) ----
@@ -563,7 +584,8 @@ function parseIcsDate(s: string): Date | null {
   const m = parseInt(s.substring(4, 6), 10)
   const d = parseInt(s.substring(6, 8), 10)
   if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d) || m < 1 || m > 12 || d < 1 || d > 31) return null
-  return mkDate(y, m, d)
+  const value=mkDate(y,m,d)
+  return value.getUTCMonth() === m-1 && value.getUTCDate() === d ? value : null
 }
 
 function extractIcsDate(block: string): Date | null {
@@ -585,7 +607,7 @@ function extractIcsNode(description: string): [number, number] | null {
 /** ICS 字段提取(容忍折行: 下一行以空格开头) */
 function extractIcsField(block: string, name: string): string | null {
   const regex = new RegExp(`^${name}(?:;[^:]*)?:(.*(?:\\n .*)*)`, 'm')
-  const m = regex.exec(block)
+  const m = regex.exec(block.replace(/\r\n/g,'\n').replace(/\n[ \t]/g,''))
   if (!m) return null
   return m[1].replace(/\n /g, '').trim()
 }

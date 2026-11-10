@@ -13,3 +13,11 @@ The worker relays only POSTs to the two exact official paths on `https://api.wak
 Verification on November 10, 2026: `npm test -- src/domain/import/wakeupShare.test.ts src/domain/import/wakeupRelay.test.ts` passed 9 tests, including the complete encrypted request chain against an in-process server mock, exact Android vectors, date conversion, cancellation and relay restrictions. This proves offline protocol equivalence, not a successful import of a live valid share code.
 
 The existing deployed relay returned HTTP 204 for a real browser-style CORS preflight on November 10, 2026. Its advertised methods are still GET, POST, HEAD, OPTIONS. Main must deploy the restricted worker before claiming that its academic URL guard is active on the server. No worker was deployed by this task.
+
+## Export fields and ICS dates
+
+Both the export screen and top-bar share sheet serialize fixedDate and raw importSourceJson. Share text uses the sleepy-v1 marker format, preserving aliases, groups, notes, own times and the bound period-table block. The bound period table supplies the effective timing before JSON, native text or ICS serialization. Clipboard rejection produces a failure message.
+
+Recurring ICS retains compact RRULEs when no transfers apply. When transfers apply, it projects concrete events through `src/domain/courseOccurrence.ts` coursesForDate. Dated ICS uses the same projector. Cross-week transfers read the source week's parity and range, suppress the source date, and include exceptional destinations outside the ordinary semester boundary. Fixed-date courses remain on their own dates. Sleepy extension fields preserve fixed dates, own times, semester start and maximum week on ICS reimport; external ICS retains its existing grouping behavior. The parser does not mistake braces inside calendar text for a JSON wrapper.
+
+The date projection depends on main's domain commit `b6c4902` (equivalent local cherry-pick `5059b1d`). Main already has it and should skip the duplicate dependency.

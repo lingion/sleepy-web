@@ -1,5 +1,7 @@
 import { javaStringHash } from './uuid'
 import { parseNodes } from '../timeTable'
+import type { HolidayTransferEntry } from '../holiday/transfers'
+import { projectIcsCourses } from './icsProjection'
 
 /**
  * 课表导出器 — Kotlin ScheduleExporter.kt 1:1 移植
@@ -107,14 +109,17 @@ export function exportWakeUpShareText(table: ExportTable, courses: ExportCourse[
 }
 
 /** 导出 ICS 日历 */
-export function exportIcs(table: ExportTable, courses: ExportCourse[]): string {
+export function exportIcs(table: ExportTable, courses: ExportCourse[], transfers: HolidayTransferEntry[] = []): string {
+  if (transfers.length && parseIsoDate(table.startDate)) courses = projectIcsCourses(table, courses, transfers)
   const sb: string[] = []
   sb.push('BEGIN:VCALENDAR')
   sb.push('VERSION:2.0')
   sb.push('PRODID:-//Sleepy//课程表//ZH')
   sb.push('CALSCALE:GREGORIAN')
   sb.push('METHOD:PUBLISH')
-  sb.push(`X-WR-CALNAME:${table.name}`)
+  sb.push(`X-WR-CALNAME:${escapeIcs(table.name)}`)
+  sb.push(`X-SLEEPY-START-DATE:${table.startDate}`)
+  sb.push(`X-SLEEPY-MAX-WEEK:${table.maxWeek}`)
 
   // 学期起始日规范为周一 (应用约定 day=1 对应周一)
   const startDate = parseIsoDate(table.startDate)
@@ -129,7 +134,7 @@ export function exportIcs(table: ExportTable, courses: ExportCourse[]): string {
         ? (c.startWeek % 2 === 0 ? c.startWeek : c.startWeek + 1)
         : c.startWeek
     // 起止周奇偶不符无实际发生周 → 跳过
-    if (firstWeek > c.endWeek) continue
+    if (!c.fixedDate && firstWeek > c.endWeek) continue
 
     const firstDate = c.fixedDate ? parseIsoDate(c.fixedDate) : addDays(addWeeks(start, firstWeek - 1), c.day - 1)
     if (!firstDate) continue
@@ -138,14 +143,15 @@ export function exportIcs(table: ExportTable, courses: ExportCourse[]): string {
 
     let startTime: string
     let endTime: string
-    if (c.ownTime && c.startTime !== '' && c.endTime !== '') {
+    if ((c.ownTime || c.isIrregularTime) && c.startTime !== '' && c.endTime !== '') {
       startTime = compactTime(c.startTime)
       endTime = compactTime(c.endTime)
     } else {
-      startTime = nodeStartTimes[c.startNode - 1]?.[0] ?? '080000'
-      endTime = nodeStartTimes[c.startNode + c.step - 2]?.[1] ?? '090000'
+      startTime = nodeStartTimes.get(c.startNode)?.[0] ?? '080000'
+      endTime = nodeStartTimes.get(c.startNode + c.step - 1)?.[1] ?? '090000'
     }
 
+    if (endTime <= startTime) continue
     const dtStart = `${ymd(firstDate)}T${startTime}`
     const dtEnd = `${ymd(firstDate)}T${endTime}`
 
@@ -161,6 +167,10 @@ export function exportIcs(table: ExportTable, courses: ExportCourse[]): string {
     sb.push(`DTSTAMP:${dtstampUtcNow()}`)
     sb.push(`DTSTART:${dtStart}`)
     sb.push(`DTEND:${dtEnd}`)
+    if (c.fixedDate) sb.push(`X-SLEEPY-FIXED-DATE:${c.fixedDate}`)
+    if (c.ownTime || c.isIrregularTime) sb.push('X-SLEEPY-OWN-TIME:TRUE')
+    sb.push(`X-SLEEPY-TEACHER:${escapeIcs(c.teacher)}`)
+    sb.push(`X-SLEEPY-NOTE:${escapeIcs(c.note)}`)
     if (!c.fixedDate) sb.push(byDay !== null ? `RRULE:FREQ=WEEKLY;BYDAY=${byDay}${interval}${until}` : `RRULE:FREQ=WEEKLY${interval}${until}`)
     sb.push(`SUMMARY:${escapeIcs(c.courseName)}`)
     if (c.room.trim() !== '') sb.push(`LOCATION:${escapeIcs(c.room)}`)
@@ -190,16 +200,16 @@ function compactTime(hhmm: string): string {
 }
 
 /** timeJson → [[startCompact, endCompact]] (去冒号, 4 位补 00); 解析失败 [] */
-function parseNodeTimes(jsonStr: string): Array<[string, string]> {
+function parseNodeTimes(jsonStr: string): Map<number, [string, string]> {
   try {
     const nodes = parseNodes(jsonStr)
     const compact = (s: string): string => {
       const t = s.replace(/:/g, '')
       return t.length === 4 ? `${t}00` : t
     }
-    return nodes.map((n) => [compact(n.start), compact(n.end)] as [string, string])
+    return new Map(nodes.map((n) => [n.node, [compact(n.start), compact(n.end)] as [string, string]]))
   } catch {
-    return []
+    return new Map()
   }
 }
 

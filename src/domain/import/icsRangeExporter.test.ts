@@ -59,7 +59,7 @@ it('SEMESTER: 裁剪到学期末; 周次/奇偶课过滤', () => {
 it('调休: 周三调成周二 → 按周二课导出并标记 transferred', () => {
   const english: ExportCourse = { ...baseCourse, id: 2, courseName: '英语', day: 2 }
   const events = buildDatedEvents(table, [english], opts({
-    transfers: [{ sourceDate: '2026-09-02', targetDate: '2026-09-01', segmentId: 's1' }],
+    transfers: [{ sourceDate: '2026-09-01', targetDate: '2026-09-02', segmentId: 's1' }],
   }))
   expect(events).toHaveLength(2) // 9/2(调休) + 9/8(正常周二)
   const hit = events[0]
@@ -86,7 +86,7 @@ it('exportDatedIcs: VEVENT 结构 / marker / VALARM / 调休文案', () => {
   // 9/2(周三) 按 9/1(周二) 课表上 → 取周二课 (day=2)
   const english: ExportCourse = { ...baseCourse, id: 2, courseName: '英语', day: 2, startNode: 3, step: 1, note: '换教室' }
   const ics = exportDatedIcs(table, [english], opts({
-    transfers: [{ sourceDate: '2026-09-02', targetDate: '2026-09-01', segmentId: 's1' }],
+    transfers: [{ sourceDate: '2026-09-01', targetDate: '2026-09-02', segmentId: 's1' }],
     reminderMinutes: 15,
   }))
   expect(ics).toContain('BEGIN:VCALENDAR')

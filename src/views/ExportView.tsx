@@ -23,7 +23,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { getCourses, getDefaultTable } from '../data/repository'
-import { exportWakeUpJson, exportWakeUpShareText, exportIcs } from '../domain/import/scheduleExporter'
+import { exportWakeUpJson, exportIcs } from '../domain/import/scheduleExporter'
 import { exportDatedIcs, type IcsRange } from '../domain/import/icsRangeExporter'
 import { exportSleepyV1File, exportSleepyV1ShareText, exportPeriodTableShareText, exportPeriodTableJson } from '../domain/import/sleepyNativeExporter'
 import type { Table, Course, PeriodTable } from '../data/types'
@@ -46,7 +46,9 @@ export function ExportView({ onBack }: { onBack: () => void }) {
   const [exportPeriodTableId, setExportPeriodTableId] = useState<number | null>(null)
   const selectedPeriodTable = periodTables.find((pt) => pt.id === exportPeriodTableId) ?? null
   const effectiveId = exportPeriodTableId != null ? null : (exportTableId ?? defaultTable?.id ?? tables[0]?.id)
-  const table = tables.find((tb) => tb.id === effectiveId)
+  const selectedTable = tables.find((tb) => tb.id === effectiveId)
+  const boundPeriod = periodTables.find(pt => pt.id === selectedTable?.periodTableId)
+  const table = selectedTable && boundPeriod ? {...selectedTable,timeJson:boundPeriod.timeJson,nodeCount:boundPeriod.nodesPerDay,smartConfigJson:boundPeriod.smartConfigJson} : selectedTable
   const [pickerOpen, setPickerOpen] = useState(false)
   // Android state.selectedTableId (主页当前表) 的 web 对应 = 默认课表
   const homeTableId = defaultTable?.id ?? tables[0]?.id
@@ -71,10 +73,10 @@ export function ExportView({ onBack }: { onBack: () => void }) {
 
   async function handleShareText() {
     if (!table) return
-    const text = exportWakeUpShareText(toExportTable(table), toExportCourses(courses))
+    const text = await nativePayload(table, courses)
     try {
       await copyText(text)
-      show(t('export_copied_hint', '已调起分享面板'))
+      show(t('copy_done', '已复制'))
     } catch {
       show(t('export_failed', '导出失败，请重试'))
     }
@@ -107,7 +109,7 @@ export function ExportView({ onBack }: { onBack: () => void }) {
           firstAlarmEnabled: calendarPrefs.calendarFirstAlarmEnabled,
           firstAlarmMinutes: calendarPrefs.calendarFirstAlarmMinutes,
         })
-      : exportIcs(toExportTable(table), toExportCourses(courses))
+      : exportIcs(toExportTable(table), toExportCourses(courses), calendarPrefs.calendarApplyTransfers ? getHolidayTransfers(table.id) : [])
     try {
       await downloadFile(fileName, ics, 'text/calendar')
       show(t('export_saved_to', { v1: fileName, defaultValue: `已保存到 Download/Sleepy/${fileName}` }))
@@ -120,14 +122,7 @@ export function ExportView({ onBack }: { onBack: () => void }) {
   async function handleNative() {
     if (!table) return
     const fileName = `sleepy_${table.name}_${await stamp()}.sleepy`
-    const out = exportSleepyV1File(
-      table.name,
-      table.startDate,
-      table.maxWeek,
-      table.nodeCount,
-      table.timeJson,
-      toExportCourses(courses),
-    )
+    const out = await nativePayload(table,courses,true)
     try {
       await downloadFile(fileName, out, 'text/plain')
       show(t('export_saved_to', { v1: fileName, defaultValue: `已保存到 Download/Sleepy/${fileName}` }))
@@ -317,23 +312,20 @@ export function ShareScheduleSheetView({
 
   async function handleJson() {
     const fileName = `sleepy_${table.name}_${await stamp()}.json`
-    await downloadFile(fileName, exportWakeUpJson(toExportTable(table), toExportCourses(courses)), 'application/json')
+    await downloadFile(fileName, exportWakeUpJson(toExportTable(await effectiveExportTable(table)), toExportCourses(courses)), 'application/json')
   }
   async function handleShareText() {
-    await copyText(exportWakeUpShareText(toExportTable(table), toExportCourses(courses)))
-    show(t('export_copied_hint', '已调起分享面板'))
+    await copyText(await nativePayload(table,courses))
+    show(t('copy_done', '已复制'))
   }
   async function handleIcs() {
     const fileName = `sleepy_${table.name}_${await stamp()}.ics`
-    await downloadFile(fileName, exportIcs(toExportTable(table), toExportCourses(courses)), 'text/calendar')
+    await downloadFile(fileName, exportIcs(toExportTable(await effectiveExportTable(table)), toExportCourses(courses), usePrefsStore.getState().prefs.calendarApplyTransfers ? getHolidayTransfers(table.id) : []), 'text/calendar')
   }
   async function handleNativeShare() {
     // 分享形态: marker 包裹 + 无 chk (IM 场景最小体积), 接收方粘贴导入
-    await copyText(exportSleepyV1ShareText(
-      table.name, table.startDate, table.maxWeek, table.nodeCount,
-      table.timeJson, toExportCourses(courses),
-    ))
-    show(t('export_copied_hint', '已调起分享面板'))
+    await copyText(await nativePayload(table,courses))
+    show(t('copy_done', '已复制'))
   }
   function guard(fn: () => Promise<void>) {
     return () => { void fn().catch(() => show(t('export_failed', '导出失败，请重试'))) }
@@ -506,6 +498,19 @@ function IcsOptionsSheet({
   )
 }
 
+async function effectiveExportTable(table: Table): Promise<Table> {
+  const period = table.periodTableId != null ? await db.periodTables.get(table.periodTableId) : undefined
+  return period ? {...table,timeJson:period.timeJson,nodeCount:period.nodesPerDay,smartConfigJson:period.smartConfigJson} : table
+}
+
+async function nativePayload(table: Table, courses: Course[], file = false): Promise<string> {
+  const effective = await effectiveExportTable(table)
+  const period = table.periodTableId != null ? await db.periodTables.get(table.periodTableId) : undefined
+  const serialize = file ? exportSleepyV1File : exportSleepyV1ShareText
+  return serialize(effective.name,effective.startDate,effective.maxWeek,effective.nodeCount,effective.timeJson,
+    toExportCourses(courses),period ?? null,(table as Table & {importSourceJson?:string}).importSourceJson ?? '')
+}
+
 function toExportTable(tb: Table): import('../domain/import/scheduleExporter').ExportTable {
   // scheduleExporter 的 ExportTable 用 nodesPerDay; web 端 Table 是 nodeCount
   return {
@@ -515,13 +520,15 @@ function toExportTable(tb: Table): import('../domain/import/scheduleExporter').E
     maxWeek: tb.maxWeek,
     nodesPerDay: tb.nodeCount,
     timeJson: tb.timeJson,
-    color: '#FF6750A4', // Table (web schema) 未建 color 列, 用 Kotlin TimeTableEntity 默认主色
+    color: tb.color ?? '#FF6750A4',
+    importSourceJson: (tb as Table & {importSourceJson?:string}).importSourceJson ?? '',
   }
 }
 
 function toExportCourses(cs: Course[]): ExportCourse[] {
   return cs.map((c) => ({
     id: c.id,
+    fixedDate: (c as Course & {fixedDate?:string|null}).fixedDate ?? null,
     groupId: c.groupId,
     tableId: c.tableId,
     courseName: c.courseName,
@@ -768,7 +775,7 @@ async function copyText(text: string): Promise<void> {
   document.body.appendChild(ta)
   ta.select()
   try {
-    document.execCommand('copy')
+    if (!document.execCommand('copy')) throw Error('复制失败，请检查浏览器权限。')
   } finally {
     ta.remove()
   }
