@@ -1,0 +1,15 @@
+# Web portable import parity with Android v1.0.64
+
+Reference: immutable Android checkout `android-v1064-reference`, commit `77b878fd5c8903a3f201ea938b3b152de4c4fbc0`. This work changes the Web import and export paths. Main owns the shared model, database migration, settings, backups, and deployment.
+
+## WakeUP share codes
+
+The online path uses the Android v6.1.70 protocol: antispam POST, private DES signB decoding, signed share POST, RC4 payload decoding, and five-part shareData conversion. Bare codes and labelled 分享口令 text enter it. JSON, native text, CSV, HTML, and ICS remain local. Cancellation stops the request chain; each POST has a 15 second deadline. Codes and signatures are not logged.
+
+The crypto module is adapted from the MIT licensed Android bundled `third_party/shiguang/js/GLOBAL_TOOLS/wake_up.js`. Its reference SHA-256 is `63b97fb525f604dfd7b227f4a68c8290390d2224543ce5cba83d1ccb2bf998b8`. The exact Android golden vectors in `app/src/test/resources/jw/wakeup/vectors.json` have SHA-256 `812e11dd84a97d91a2e86c75ad695fd49fc9b3764c216940e122d11efa9749ed`. Attribution and license are retained beside the Web crypto module. The private DES and native hex functions must not be replaced with standard library DES.
+
+The worker relays only POSTs to the two exact official paths on `https://api.wakeup.fun`. It rejects academic URLs, other hosts, credentials, queries, fragments, methods, and redirects. It does not forward cookies or authorization. Request bodies are bounded at 64 KiB and responses at 8 MiB while streaming. `VITE_WAKEUP_PROXY_BASE` can select a deployed instance of this worker; the default is the existing Sleepy relay.
+
+Verification on November 10, 2026: `npm test -- src/domain/import/wakeupShare.test.ts src/domain/import/wakeupRelay.test.ts` passed 9 tests, including the complete encrypted request chain against an in-process server mock, exact Android vectors, date conversion, cancellation and relay restrictions. This proves offline protocol equivalence, not a successful import of a live valid share code.
+
+The existing deployed relay returned HTTP 204 for a real browser-style CORS preflight on November 10, 2026. Its advertised methods are still GET, POST, HEAD, OPTIONS. Main must deploy the restricted worker before claiming that its academic URL guard is active on the server. No worker was deployed by this task.
