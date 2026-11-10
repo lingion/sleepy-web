@@ -19,6 +19,12 @@ export const MINUTES_MAX = 999
 export const MINUTES_DEBOUNCE_MS = 500
 
 export interface ReminderPrefs {
+  dateRulesEnabled: boolean
+  publicHolidayReminder: boolean
+  transferHolidayReminder: boolean
+  makeupWorkdayReminder: boolean
+  ordinaryWeekendReminder: boolean
+
   /** KEY_REMINDER — master 总开关, 默认 false */
   masterEnabled: boolean
   /** KEY_DAILY_ENABLED — 每日提醒卡头总开关, 默认 true (仅 master 开时生效) */
@@ -45,6 +51,12 @@ export interface ReminderPrefs {
 
 /** Android getter 兜底值逐项 1:1 */
 export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
+  dateRulesEnabled: false,
+  publicHolidayReminder: true,
+  transferHolidayReminder: true,
+  makeupWorkdayReminder: true,
+  ordinaryWeekendReminder: true,
+
   masterEnabled: false,
   dailyEnabled: true,
   todayEnabled: true,
@@ -60,6 +72,12 @@ export const DEFAULT_REMINDER_PREFS: ReminderPrefs = {
 
 /** localStorage 键 — 名称与 AppPrefs.kt 常量同名, 前缀 sleepy_ (sleepy_holiday_overrides 同风格) */
 const KEYS = {
+  dateRulesEnabled: 'sleepy_holiday_reminder_rules_enabled',
+  publicHolidayReminder: 'sleepy_holiday_reminder_public_holiday',
+  transferHolidayReminder: 'sleepy_holiday_reminder_transfer_holiday',
+  makeupWorkdayReminder: 'sleepy_holiday_reminder_makeup_workday',
+  ordinaryWeekendReminder: 'sleepy_holiday_reminder_ordinary_weekend',
+
   masterEnabled: 'sleepy_reminder_master',
   dailyEnabled: 'sleepy_daily_reminder',
   todayEnabled: 'sleepy_today_reminder',
@@ -107,7 +125,16 @@ export function loadReminderPrefs(): ReminderPrefs {
       raw[key] = null
     }
   }
+  let mode: string | null = null
+  try { mode = localStorage.getItem('sleepy_before_class_mode') } catch { /* Storage may be disabled. */ }
+  const fluid = mode ? mode === 'fluid' : raw[KEYS.fluidEnabled] === 'true'
   return clampReminderPrefs({
+    dateRulesEnabled: parseBool(raw[KEYS.dateRulesEnabled]),
+    publicHolidayReminder: parseBool(raw[KEYS.publicHolidayReminder]),
+    transferHolidayReminder: parseBool(raw[KEYS.transferHolidayReminder]),
+    makeupWorkdayReminder: parseBool(raw[KEYS.makeupWorkdayReminder]),
+    ordinaryWeekendReminder: parseBool(raw[KEYS.ordinaryWeekendReminder]),
+
     masterEnabled: parseBool(raw[KEYS.masterEnabled]),
     dailyEnabled: parseBool(raw[KEYS.dailyEnabled]),
     todayEnabled: parseBool(raw[KEYS.todayEnabled]),
@@ -116,8 +143,8 @@ export function loadReminderPrefs(): ReminderPrefs {
     tomorrowTime: raw[KEYS.tomorrowTime] ?? undefined,
     beforeClassEnabled: parseBool(raw[KEYS.beforeClassEnabled]),
     beforeClassMinutes: raw[KEYS.beforeClassMinutes] === null ? undefined : Number(raw[KEYS.beforeClassMinutes]),
-    bannerEnabled: parseBool(raw[KEYS.bannerEnabled]),
-    fluidEnabled: parseBool(raw[KEYS.fluidEnabled]),
+    bannerEnabled: !fluid,
+    fluidEnabled: fluid,
     fluidPrimary: (raw[KEYS.fluidPrimary] as FluidPrimary | null) ?? undefined,
   })
 }
@@ -126,6 +153,11 @@ export function loadReminderPrefs(): ReminderPrefs {
 export function persistReminderPrefs(p: ReminderPrefs): void {
   if (typeof localStorage === 'undefined') return
   try {
+    localStorage.setItem(KEYS.dateRulesEnabled, String(p.dateRulesEnabled))
+    localStorage.setItem(KEYS.publicHolidayReminder, String(p.publicHolidayReminder))
+    localStorage.setItem(KEYS.transferHolidayReminder, String(p.transferHolidayReminder))
+    localStorage.setItem(KEYS.makeupWorkdayReminder, String(p.makeupWorkdayReminder))
+    localStorage.setItem(KEYS.ordinaryWeekendReminder, String(p.ordinaryWeekendReminder))
     localStorage.setItem(KEYS.masterEnabled, String(p.masterEnabled))
     localStorage.setItem(KEYS.dailyEnabled, String(p.dailyEnabled))
     localStorage.setItem(KEYS.todayEnabled, String(p.todayEnabled))
@@ -134,6 +166,7 @@ export function persistReminderPrefs(p: ReminderPrefs): void {
     localStorage.setItem(KEYS.tomorrowTime, p.tomorrowTime)
     localStorage.setItem(KEYS.beforeClassEnabled, String(p.beforeClassEnabled))
     localStorage.setItem(KEYS.beforeClassMinutes, String(p.beforeClassMinutes))
+    localStorage.setItem('sleepy_before_class_mode', p.fluidEnabled ? 'fluid' : 'banner')
     localStorage.setItem(KEYS.bannerEnabled, String(p.bannerEnabled))
     localStorage.setItem(KEYS.fluidEnabled, String(p.fluidEnabled))
     localStorage.setItem(KEYS.fluidPrimary, p.fluidPrimary)
@@ -146,6 +179,12 @@ export function persistReminderPrefs(p: ReminderPrefs): void {
 export function clampReminderPrefs(patch: Partial<ReminderPrefs>): ReminderPrefs {
   const d = DEFAULT_REMINDER_PREFS
   return {
+    dateRulesEnabled: typeof patch.dateRulesEnabled === 'boolean' ? patch.dateRulesEnabled : d.dateRulesEnabled,
+    publicHolidayReminder: typeof patch.publicHolidayReminder === 'boolean' ? patch.publicHolidayReminder : d.publicHolidayReminder,
+    transferHolidayReminder: typeof patch.transferHolidayReminder === 'boolean' ? patch.transferHolidayReminder : d.transferHolidayReminder,
+    makeupWorkdayReminder: typeof patch.makeupWorkdayReminder === 'boolean' ? patch.makeupWorkdayReminder : d.makeupWorkdayReminder,
+    ordinaryWeekendReminder: typeof patch.ordinaryWeekendReminder === 'boolean' ? patch.ordinaryWeekendReminder : d.ordinaryWeekendReminder,
+
     masterEnabled: typeof patch.masterEnabled === 'boolean' ? patch.masterEnabled : d.masterEnabled,
     dailyEnabled: typeof patch.dailyEnabled === 'boolean' ? patch.dailyEnabled : d.dailyEnabled,
     todayEnabled: typeof patch.todayEnabled === 'boolean' ? patch.todayEnabled : d.todayEnabled,

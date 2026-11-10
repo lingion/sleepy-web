@@ -105,7 +105,7 @@ describe('每日/明日摘要 (tick → fireSummary)', () => {
     await tick()
     expect(posted).toHaveLength(1)
     expect(posted[0].tag).toBe('sleepy-daily-tomorrow-2026-09-02')
-    expect(posted[0].title).toContain('3') // 明天=9月3日(周四)
+    expect(posted[0].title).toBe(i18next.t('notif_tomorrow_title', { v1: 1 }))
     expect(posted[0].body).toContain('体育')
   })
 
@@ -181,7 +181,7 @@ describe('课前提醒 (fireBeforeClass)', () => {
 
     localStorage.setItem(
       `sleepy_holiday_transfers_${tableId}`,
-      JSON.stringify([{ sourceDate: '2026-09-02', targetDate: '2026-09-01', segmentId: 's1' }])
+      JSON.stringify([{ sourceDate: '2026-09-01', targetDate: '2026-09-02', segmentId: 's1' }])
     )
     await fireBeforeClass(new Date(2026, 8, 2, 9, 50), p())
     expect(posted).toHaveLength(1)
@@ -208,7 +208,9 @@ describe('课前提醒 (fireBeforeClass)', () => {
 describe('每表独立提醒 (reminderEnabled, ref #143)', () => {
   /** 副表: 周三(3) 大学物理 node2 08:55 (与主表高数 08:00 同日重叠) */
   async function seedSecondTable(name: string, reminderEnabled: 0 | 1): Promise<number> {
+    await db.timetables.update(1, { reminderOverride: true })
     const id = await insertTable({
+      reminderOverride: reminderEnabled === 1,
       name, startDate: '2026-09-01', maxWeek: 20, nodeCount: 12, reminderEnabled,
       timeJson: JSON.stringify([
         { node: 1, start: '08:00', end: '08:45' },
@@ -233,10 +235,11 @@ describe('每表独立提醒 (reminderEnabled, ref #143)', () => {
     vi.setSystemTime(new Date(2026, 8, 2, 7, 0)) // 周三: 主表高数 + 副表物理
 
     await tick()
-    // 两表同日有课 → 各发一条, 均带课表名前缀 (activeTables>1)
-    expect(posted).toHaveLength(2)
-    expect(posted[0].title).toContain('主表')
-    expect(posted[1].title).toContain('副表')
+    // 1.0.64: a single aggregate with source labels.
+    expect(posted).toHaveLength(1)
+    expect(posted[0].title).toBe(i18next.t('notif_daily_title', { v1: 2 }))
+    expect(posted[0].body).toContain('主表')
+    expect(posted[0].body).toContain('副表')
     const bodies = posted.map((p) => p.body).join(' ')
     expect(bodies).toContain('高等数学')
     expect(bodies).toContain('大学物理')
@@ -286,7 +289,8 @@ describe('每表独立提醒 (reminderEnabled, ref #143)', () => {
 
     await tick()
     expect(posted).toHaveLength(1)
-    expect(posted[0].title).toContain('主表 ·')
+    expect(posted[0].title).toBe(i18next.t('notif_daily_title', { v1: 1 }))
+    expect(posted[0].body).toContain('〔主表〕')
   })
 
   it('课前提醒跨表扫描: 后台表(非默认表)的课也命中', async () => {
@@ -300,7 +304,7 @@ describe('每表独立提醒 (reminderEnabled, ref #143)', () => {
     expect(posted[0].title).toBe(i18next.t('notif_before_class_title')) // 课前不加表名前缀 (Android receiver 同)
   })
 
-  it('课前提醒同分钟多表命中 → 取最早开始的一节', async () => {
+  it('课前提醒同分钟多表命中 → 每课分别发送并保持稳定顺序', async () => {
     await seed()
     const id = await seedSecondTable('副表', 1)
     // 副表再加一节 08:00 (node1) 与主表高数同刻 → 两节都在 [07:50,07:51) 命中
@@ -313,8 +317,8 @@ describe('每表独立提醒 (reminderEnabled, ref #143)', () => {
     })
     setPrefs({ masterEnabled: true, beforeClassEnabled: true, beforeClassMinutes: 10 })
     await fireBeforeClass(new Date(2026, 8, 2, 7, 50), p())
-    expect(posted).toHaveLength(1)
-    // 同为 08:00 开始: 按表 id 序稳定取主表高数 (先扫先得, startAt 相同)
+    expect(posted).toHaveLength(2)
+    expect(posted[1].body).toContain('早课物理')
     expect(posted[0].body).toContain('高等数学')
   })
 

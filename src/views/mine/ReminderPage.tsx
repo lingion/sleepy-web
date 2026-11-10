@@ -19,6 +19,8 @@ import { DialogActionButtons } from '../../components/DialogActionButtons'
 import { IconExpandMore, IconNotifications, IconSchedule, IconSchool } from '../../components/icons'
 import { postNotify } from '../../domain/reminders/notify'
 import { SettingsScaffold, Switch } from './shared'
+import { EntryRow } from './GeneralSettingsPage'
+import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
 import {
   FLUID_PRIMARY_OPTIONS,
   MINUTES_DEBOUNCE_MS,
@@ -39,7 +41,7 @@ import {
 
 type NotifyState = 'unsupported' | NotificationPermission
 
-export function ReminderPage({ onBack }: { onBack: () => void }) {
+export function ReminderPage({ onBack, onOpenTableReminder = () => {}, onOpenHoliday = () => {} }: { onBack: () => void; onOpenTableReminder?: () => void; onOpenHoliday?: () => void }) {
   const { t } = useTranslation()
   const prefs = useReminderStore((s) => s.prefs)
   const update = useReminderStore((s) => s.update)
@@ -163,72 +165,7 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
         )}
       </ReminderCard>
 
-      {/* Sub-settings — only visible when master is on.
-          v1.0.57 PR48: 每日提醒卡改单卡母子结构 — 卡头总开关 + 今日摘要子项(开关+时间+预览)
-          + 明日预告子项(开关+时间+预览), 全在 if (dailyEnabled) 内。 */}
-      {vis.dailyCard && (
-        <ReminderCard>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 4 }}>
-            <IconTitleSub
-              icon={<IconSchedule size={20} />}
-              title={t('reminder_daily_title')}
-              sub={t('reminder_daily_sub')}
-            />
-            <Switch checked={prefs.dailyEnabled} onChange={(v) => update({ dailyEnabled: v })} />
-          </div>
-
-          {vis.dailyTimeRow && (
-            <>
-              <SubDivider />
-              <ReminderToggleRow
-                title={t('reminder_daily_today_toggle_title')}
-                subtitle={t('reminder_daily_today_toggle_sub')}
-                checked={prefs.todayEnabled}
-                onChange={(v) => update({ todayEnabled: v })}
-              />
-              {/* 今日摘要时间行 */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setShowTimePicker('today')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') setShowTimePicker('today')
-                }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', cursor: 'pointer' }}
-              >
-                <span className="m3-body-medium" style={{ color: 'var(--md-on-surface)' }}>{t('reminder_daily_time_label')}</span>
-                <span className="m3-body-large" style={{ fontWeight: 500, color: 'var(--md-primary)' }}>{prefs.dailyTime}</span>
-              </div>
-              <p className="m3-body-small" style={{ margin: '8px 4px 8px 4px', color: 'var(--md-on-surface-variant)' }}>
-                {todayPreviewText}
-              </p>
-              <SubDivider />
-              <ReminderToggleRow
-                title={t('reminder_tomorrow_toggle_title')}
-                subtitle={t('reminder_tomorrow_toggle_sub')}
-                checked={prefs.tomorrowEnabled}
-                onChange={(v) => update({ tomorrowEnabled: v })}
-              />
-              {/* 明日预告时间行 */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setShowTimePicker('tomorrow')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') setShowTimePicker('tomorrow')
-                }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', cursor: 'pointer' }}
-              >
-                <span className="m3-body-medium" style={{ color: 'var(--md-on-surface)' }}>{t('reminder_tomorrow_time_label')}</span>
-                <span className="m3-body-large" style={{ fontWeight: 500, color: 'var(--md-primary)' }}>{prefs.tomorrowTime}</span>
-              </div>
-              <p className="m3-body-small" style={{ margin: '8px 4px 8px 4px', color: 'var(--md-on-surface-variant)' }}>
-                {tomorrowPreviewText}
-              </p>
-            </>
-          )}
-        </ReminderCard>
-      )}
+      <EntryRow title={t('settings_table_reminder_scope')} onClick={onOpenTableReminder} />
 
       {vis.beforeClassCard && (
         <ReminderCard>
@@ -265,20 +202,12 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
                 {beforeClassPreviewText}
               </p>
               <SubDivider />
-              <ReminderToggleRow
-                title={t('reminder_banner_title')}
-                subtitle={t('reminder_banner_sub')}
-                checked={prefs.bannerEnabled}
-                onChange={(v) => update({ bannerEnabled: v })}
-              />
-              <SubDivider />
-              <ReminderToggleRow
-                title={t('reminder_fluid_title')}
-                subtitle={t('reminder_fluid_sub')}
-                tag={t('reminder_experimental_tag')}
-                checked={prefs.fluidEnabled}
-                onChange={(v) => update({ fluidEnabled: v })}
-              />
+              <div style={{ padding: '8px 4px', display: 'grid', gap: 8 }}>
+                <span className="m3-body-medium">{t('reminder_mode_label')}</span>
+                <SegmentedSwitcher options={[t('reminder_mode_banner'), t('reminder_mode_fluid')]} selected={prefs.fluidEnabled ? 1 : 0} onSelect={index => update({ bannerEnabled: index === 0, fluidEnabled: index === 1 })} />
+                <p className="m3-body-small" style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>{t(prefs.fluidEnabled ? 'reminder_mode_fluid_sub' : 'reminder_mode_banner_sub')}</p>
+                {prefs.fluidEnabled && <p className="m3-label-small" style={{ margin: 0, color: 'var(--md-primary)' }}>{t('reminder_experimental_tag')} · {t('reminder_fluid_unavailable_web')}</p>}
+              </div>
               {vis.fluidFields && (
                 <>
                   <SubDivider />
@@ -361,6 +290,86 @@ export function ReminderPage({ onBack }: { onBack: () => void }) {
           )}
         </ReminderCard>
       )}
+
+      {/* Sub-settings — only visible when master is on.
+          v1.0.57 PR48: 每日提醒卡改单卡母子结构 — 卡头总开关 + 今日摘要子项(开关+时间+预览)
+          + 明日预告子项(开关+时间+预览), 全在 if (dailyEnabled) 内。 */}
+      {vis.dailyCard && (
+        <ReminderCard>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 4 }}>
+            <IconTitleSub
+              icon={<IconSchedule size={20} />}
+              title={t('reminder_daily_title')}
+              sub={t('reminder_daily_sub')}
+            />
+            <Switch checked={prefs.dailyEnabled} onChange={(v) => update({ dailyEnabled: v })} />
+          </div>
+
+          {vis.dailyTimeRow && (
+            <>
+              <SubDivider />
+              <ReminderToggleRow
+                title={t('reminder_daily_today_toggle_title')}
+                subtitle={t('reminder_daily_today_toggle_sub')}
+                checked={prefs.todayEnabled}
+                onChange={(v) => update({ todayEnabled: v })}
+              />
+              {/* 今日摘要时间行 */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowTimePicker('today')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') setShowTimePicker('today')
+                }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', cursor: 'pointer' }}
+              >
+                <span className="m3-body-medium" style={{ color: 'var(--md-on-surface)' }}>{t('reminder_daily_time_label')}</span>
+                <span className="m3-body-large" style={{ fontWeight: 500, color: 'var(--md-primary)' }}>{prefs.dailyTime}</span>
+              </div>
+              <p className="m3-body-small" style={{ margin: '8px 4px 8px 4px', color: 'var(--md-on-surface-variant)' }}>
+                {todayPreviewText}
+              </p>
+              <SubDivider />
+              <ReminderToggleRow
+                title={t('reminder_tomorrow_toggle_title')}
+                subtitle={t('reminder_tomorrow_toggle_sub')}
+                checked={prefs.tomorrowEnabled}
+                onChange={(v) => update({ tomorrowEnabled: v })}
+              />
+              {/* 明日预告时间行 */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowTimePicker('tomorrow')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') setShowTimePicker('tomorrow')
+                }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 4px', cursor: 'pointer' }}
+              >
+                <span className="m3-body-medium" style={{ color: 'var(--md-on-surface)' }}>{t('reminder_tomorrow_time_label')}</span>
+                <span className="m3-body-large" style={{ fontWeight: 500, color: 'var(--md-primary)' }}>{prefs.tomorrowTime}</span>
+              </div>
+              <p className="m3-body-small" style={{ margin: '8px 4px 8px 4px', color: 'var(--md-on-surface-variant)' }}>
+                {tomorrowPreviewText}
+              </p>
+            </>
+          )}
+        </ReminderCard>
+      )}
+
+      <ReminderCard>
+        <ReminderToggleRow title={t('reminder_date_rules_title')} subtitle={t('reminder_date_rules_subtitle')} checked={prefs.dateRulesEnabled} onChange={dateRulesEnabled => update({ dateRulesEnabled })} />
+        {!prefs.dateRulesEnabled ? <p className="m3-body-small">{t('reminder_date_rules_inactive')}</p> : <>
+          <SubDivider />
+          <p className="m3-body-small">{t('reminder_date_rules_advanced_subtitle')}</p>
+          {([
+            ['publicHolidayReminder', 'public_holiday'], ['transferHolidayReminder', 'transfer_holiday'],
+            ['makeupWorkdayReminder', 'makeup_workday'], ['ordinaryWeekendReminder', 'ordinary_weekend'],
+          ] as const).map(([key, label]) => <ReminderToggleRow key={key} title={t(`reminder_date_rules_${label}`)} subtitle="" checked={prefs[key]} onChange={value => update({ [key]: value })} />)}
+          <button type="button" className="m3-button-tonal" onClick={onOpenHoliday}>{t('reminder_date_rules_advanced_button')}</button>
+        </>}
+      </ReminderCard>
 
       {/* Time picker dialog — DailyReminderTimeTarget.Today/Tomorrow 分流落库 */}
       {showTimePicker !== null && (

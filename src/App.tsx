@@ -25,6 +25,8 @@ import { MineView } from './views/MineView'
 import { publicScheduleEnabled } from './publicSchedule'
 import { startReminderEngine, stopReminderEngine } from './domain/reminders/scheduler'
 import { useReminderStore } from './state/reminderStore'
+import { DailyAgendaPage } from './views/DailyAgendaPage'
+import { agendaDateFromHash } from './domain/reminders/agenda'
 
 type Tab = TabKey
 
@@ -51,6 +53,7 @@ export function App() {
   const uiStyle = usePrefsStore((s) => (s.prefs as { uiStyle?: 'classic' | 'liquid_glass' }).uiStyle ?? 'classic')
   const publicSchedule = publicScheduleEnabled()
   const [tab, setTab] = useState<Tab>(() => publicSchedule ? 'schedule' : tabFromHash(window.location.hash))
+  const [agendaDate, setAgendaDate] = useState(() => agendaDateFromHash(window.location.hash))
   const [dockExtra, setDockExtra] = useState(76)
   const pushTab = useBackStack((s) => s.pushTab)
   const replaceTab = useBackStack((s) => s.replaceTab)
@@ -84,7 +87,23 @@ export function App() {
       // 二级层由其所在视图处理;退回 tab 层时 hash 直接决定当前 tab。
       const next = tabFromHash(hash)
       setTab(next)
+      setAgendaDate(agendaDateFromHash(hash))
     })
+  }, [])
+
+  useEffect(() => {
+    const openAgenda = (event: Event) => {
+      const hash = (event as CustomEvent<unknown>).detail
+      if (typeof hash !== 'string') return
+      const date = agendaDateFromHash(hash)
+      if (!date) return
+      useBackStack.getState().pushTab('today')
+      useBackStack.getState().push('dailyAgenda', hash)
+      setTab('today')
+      setAgendaDate(date)
+    }
+    window.addEventListener('sleepy:open-agenda', openAgenda)
+    return () => window.removeEventListener('sleepy:open-agenda', openAgenda)
   }, [])
 
   const selectTab = (next: Tab) => {
@@ -132,6 +151,8 @@ export function App() {
         ['manage', t('tab_manage', '课表管理')],
         ['mine', t('tab_mine', '我的')],
       ]
+
+  if (agendaDate && stack.includes('dailyAgenda')) return <><GlassControls style={uiStyle} /><DailyAgendaPage date={agendaDate} onBack={() => { useBackStack.getState().pop(); setAgendaDate(null) }} /></>
 
   // ── 平板横屏 Master-Detail (SleepyNavHost.kt:494-657) ─────────────────
   // 左 50% = 课表永久固定; 右 50% = Today/Manage/Mine 跟 rail 切;

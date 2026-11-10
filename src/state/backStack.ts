@@ -14,8 +14,10 @@
  */
 
 import { create } from 'zustand'
+import { agendaDateFromHash } from '../domain/reminders/agenda'
 
 export type BackKey =
+  | 'dailyAgenda'
   | 'addCourse'
   | 'allTables'
   | 'editTable'
@@ -23,6 +25,8 @@ export type BackKey =
   | 'general'
   | 'backup'
   | 'widgets'
+  | 'widgetManagement'
+  | 'widgetGallery'
   | 'holiday'
   | 'export'
   | 'reminder'
@@ -49,6 +53,7 @@ export type TabKey = 'schedule' | 'today' | 'manage' | 'mine'
 
 /** 每层 hash 常量表 — push 缺省按 key 推导;斜杠分层 (#/我的/通用设置) */
 export const HASH_BY_KEY: Record<BackKey, string> = {
+  dailyAgenda: '#/今日/课程汇总',
   addCourse: '#/课表/添加课程',
   allTables: '#/管理/全部课表',
   editTable: '#/管理/编辑课表',
@@ -56,6 +61,8 @@ export const HASH_BY_KEY: Record<BackKey, string> = {
   general: '#/我的/通用设置',
   backup: '#/我的/备份',
   widgets: '#/我的/桌面小组件',
+  widgetManagement: '#/我的/桌面小组件/管理',
+  widgetGallery: '#/我的/桌面小组件/管理/添加',
   holiday: '#/我的/节假日',
   export: '#/管理/导出',
   reminder: '#/我的/提醒',
@@ -120,6 +127,8 @@ const SUB_CHAINS: { hash: string; chain: BackKey[] }[] = [
   { hash: '#/我的/作息表/编辑', chain: ['periodTables', 'periodTableEdit'] },
   { hash: '#/我的/作息表', chain: ['periodTables'] },
   { hash: '#/我的/备份', chain: ['backup'] },
+  { hash: '#/我的/桌面小组件/管理/添加', chain: ['widgets', 'widgetManagement', 'widgetGallery'] },
+  { hash: '#/我的/桌面小组件/管理', chain: ['widgets', 'widgetManagement'] },
   { hash: '#/我的/桌面小组件', chain: ['widgets'] },
   { hash: '#/我的/节假日', chain: ['holiday'] },
   { hash: '#/我的/通用设置/节次表头', chain: ['appearance', 'scheduleDisplay', 'periodHeader'] },
@@ -140,6 +149,7 @@ const SUB_CHAINS: { hash: string; chain: BackKey[] }[] = [
 export function chainFromHash(hash: string): BackKey[] {
   if (!hash) return []
   const h = pageHash(hash)
+  if (agendaDateFromHash(h)) return ['dailyAgenda']
   for (const e of SUB_CHAINS) if (h === e.hash) return [...e.chain]
   return []
 }
@@ -153,7 +163,7 @@ export function restoreChain(chain: BackKey[], hash: string): void {
   const tab = tabFromHash(hash)
   try {
     history.replaceState({ sleepyTab: true, tab }, '', HASH_BY_TAB[tab])
-    for (const key of chain) history.pushState({ sleepyBack: true, key }, '', HASH_BY_KEY[key])
+    for (const key of chain) history.pushState({ sleepyBack: true, key }, '', key === 'dailyAgenda' ? hash : HASH_BY_KEY[key])
   } catch {
     /* 非浏览器环境 (单测) */
   }
