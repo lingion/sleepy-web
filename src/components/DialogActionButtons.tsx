@@ -101,6 +101,8 @@ function BlockButton({
   return (
     <button
       type="button"
+      data-glass-role="tinted"
+      data-glass-tint={container}
       disabled={!enabled}
       onClick={onClick}
       className="m3-label-large"

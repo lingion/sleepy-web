@@ -9,7 +9,9 @@
 
 import { useEffect, useRef, type ReactNode } from 'react'
 
-export function AlertDialog({ title, onDismiss, children, buttons }: { title: string; onDismiss: () => void; children: ReactNode; buttons?: ReactNode }) {
+export type OverlayGlassRole = 'regular' | 'tinted' | 'pill' | 'menu' | 'alert' | false
+
+export function AlertDialog({ title, onDismiss, children, buttons, glassRole = 'alert' }: { title: string; onDismiss: () => void; children: ReactNode; buttons?: ReactNode; glassRole?: OverlayGlassRole }) {
   const dialog=useRef<HTMLDivElement>(null)
   const dismiss=useRef(onDismiss)
   dismiss.current=onDismiss
@@ -28,6 +30,9 @@ export function AlertDialog({ title, onDismiss, children, buttons }: { title: st
     >
       <div
         role="dialog"
+        data-glass-role={glassRole || undefined}
+        data-glass-motion={glassRole ? 'static' : undefined}
+        data-glass-plain={glassRole === false ? true : undefined}
         ref={dialog}
         tabIndex={-1}
         aria-modal="true"
@@ -49,10 +54,12 @@ export function AlertDialog({ title, onDismiss, children, buttons }: { title: st
 }
 
 /** M3 TextButton — 最小 58×40, 内边距 12×8, 全圆角, labelLarge primary */
-export function TextButton({ label, onClick }: { label: string; onClick: () => void }) {
+export function TextButton({ label, onClick, glassRole = 'regular' }: { label: string; onClick: () => void; glassRole?: 'regular' | false }) {
   return (
     <button
       type="button"
+      data-glass-role={glassRole || undefined}
+      data-glass-plain={glassRole === false ? true : undefined}
       onClick={onClick}
       className="m3-label-large"
       style={{
