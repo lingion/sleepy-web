@@ -1,25 +1,23 @@
-import { sessionPreferences } from './storage'
-import { runtimeMode } from './runtimeMode'
 const ACCESS_HASH = import.meta.env.VITE_PUBLIC_ACCESS_KEY_HASH?.trim().toLowerCase() || ''
 const SESSION_KEY = 'sleepy-public-access'
 
 export function publicAccessRequired(): boolean {
-  return !runtimeMode.demo && Boolean(ACCESS_HASH)
+  return Boolean(ACCESS_HASH)
 }
 
 export function publicAccessGranted(): boolean {
-  return runtimeMode.demo || !ACCESS_HASH || sessionPreferences.getItem(SESSION_KEY) === ACCESS_HASH
+  return !ACCESS_HASH || sessionStorage.getItem(SESSION_KEY) === ACCESS_HASH
 }
 
 export async function grantPublicAccess(key: string): Promise<boolean> {
-  if (runtimeMode.demo || !ACCESS_HASH) return true
+  if (!ACCESS_HASH) return true
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))
   const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
   if (hash !== ACCESS_HASH) return false
-  sessionPreferences.setItem(SESSION_KEY, hash)
+  sessionStorage.setItem(SESSION_KEY, hash)
   return true
 }
 
 export function revokePublicAccess(): void {
-  sessionPreferences.removeItem(SESSION_KEY)
+  sessionStorage.removeItem(SESSION_KEY)
 }

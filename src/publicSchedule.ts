@@ -1,11 +1,10 @@
 import { db } from './data/db'
 import type { Course, Table } from './data/types'
 import { parseSchedule } from './domain/import/scheduleParser'
-import { runtimeMode } from './runtimeMode'
 
 /** Build-time opt-in for a static, read-only family schedule deployment. */
 export function publicScheduleEnabled(): boolean {
-  return !runtimeMode.demo && import.meta.env.VITE_PUBLIC_SCHEDULE_PATH !== undefined
+  return import.meta.env.VITE_PUBLIC_SCHEDULE_PATH !== undefined
 }
 
 export function publicSchedulePath(): string {

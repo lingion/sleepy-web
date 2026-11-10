@@ -1,4 +1,3 @@
-import { localPreferences } from '../storage'
 /**
  * 提醒设置 store — AppPrefs.kt「提醒」8 keys 的 Web 同构 (ReminderScreen.kt 581 行消费)。
  * Zustand 内存镜像 + localStorage 写穿 (holidayStore 同构模式), 键名沿用 Android + sleepy_ 前缀。
@@ -99,11 +98,11 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
 
 /** 读 localStorage → 钳制后的完整配置 (缺键/坏值逐字段回落 Android 兜底) */
 export function loadReminderPrefs(): ReminderPrefs {
-  if (typeof window === 'undefined') return { ...DEFAULT_REMINDER_PREFS }
+  if (typeof localStorage === 'undefined') return { ...DEFAULT_REMINDER_PREFS }
   const raw: Record<string, string | null> = {}
   for (const key of Object.values(KEYS)) {
     try {
-      raw[key] = localPreferences.getItem(key)
+      raw[key] = localStorage.getItem(key)
     } catch {
       raw[key] = null
     }
@@ -125,19 +124,19 @@ export function loadReminderPrefs(): ReminderPrefs {
 
 /** 写穿 localStorage — 配额/隐私模式失败静默 (holidayStore 同) */
 export function persistReminderPrefs(p: ReminderPrefs): void {
-  if (typeof window === 'undefined') return
+  if (typeof localStorage === 'undefined') return
   try {
-    localPreferences.setItem(KEYS.masterEnabled, String(p.masterEnabled))
-    localPreferences.setItem(KEYS.dailyEnabled, String(p.dailyEnabled))
-    localPreferences.setItem(KEYS.todayEnabled, String(p.todayEnabled))
-    localPreferences.setItem(KEYS.dailyTime, p.dailyTime)
-    localPreferences.setItem(KEYS.tomorrowEnabled, String(p.tomorrowEnabled))
-    localPreferences.setItem(KEYS.tomorrowTime, p.tomorrowTime)
-    localPreferences.setItem(KEYS.beforeClassEnabled, String(p.beforeClassEnabled))
-    localPreferences.setItem(KEYS.beforeClassMinutes, String(p.beforeClassMinutes))
-    localPreferences.setItem(KEYS.bannerEnabled, String(p.bannerEnabled))
-    localPreferences.setItem(KEYS.fluidEnabled, String(p.fluidEnabled))
-    localPreferences.setItem(KEYS.fluidPrimary, p.fluidPrimary)
+    localStorage.setItem(KEYS.masterEnabled, String(p.masterEnabled))
+    localStorage.setItem(KEYS.dailyEnabled, String(p.dailyEnabled))
+    localStorage.setItem(KEYS.todayEnabled, String(p.todayEnabled))
+    localStorage.setItem(KEYS.dailyTime, p.dailyTime)
+    localStorage.setItem(KEYS.tomorrowEnabled, String(p.tomorrowEnabled))
+    localStorage.setItem(KEYS.tomorrowTime, p.tomorrowTime)
+    localStorage.setItem(KEYS.beforeClassEnabled, String(p.beforeClassEnabled))
+    localStorage.setItem(KEYS.beforeClassMinutes, String(p.beforeClassMinutes))
+    localStorage.setItem(KEYS.bannerEnabled, String(p.bannerEnabled))
+    localStorage.setItem(KEYS.fluidEnabled, String(p.fluidEnabled))
+    localStorage.setItem(KEYS.fluidPrimary, p.fluidPrimary)
   } catch {
     /* 忽略 */
   }

@@ -11,7 +11,6 @@
  */
 
 import Dexie, { type Table as DexieTable } from 'dexie'
-import { DEMO_DATABASE_NAME, runtimeMode } from '../runtimeMode'
 import type { Course, ImportDraft, PeriodTable, Table as TimetableEntity, Prefs } from './types'
 import { DEFAULT_PREFS } from './types'
 import { normalizePeriodHeaderLayout, normalizePeriodHeaderStyle, clampPeriodHeaderHanging } from '../components/schedule/periodHeader'
@@ -30,7 +29,7 @@ export class SleepyDatabase extends Dexie {
   prefs!: DexieTable<PrefsRow, string>
 
   constructor() {
-    super(runtimeMode.demo ? DEMO_DATABASE_NAME : 'sleepy')
+    super('sleepy')
     // Room schema: courses 索引 tableId/day/(startWeek,endWeek); FK tableId CASCADE
     this.version(1).stores({
       timetables: 'id, isDefault',

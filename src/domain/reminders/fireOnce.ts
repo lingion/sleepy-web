@@ -1,4 +1,3 @@
-import { localPreferences } from '../../storage'
 /**
  * 提醒 fired-once 台账 — localStorage 持久化, key → "yyyy-MM-dd"。
  * 页内定时器 (scheduler) 每次触发前查/写: 同一天同一提醒只发一次,
@@ -9,7 +8,7 @@ const KEY = 'sleepy_reminder_fired'
 
 function load(): Record<string, string> {
   try {
-    const raw = localPreferences.getItem(KEY)
+    const raw = localStorage.getItem(KEY)
     if (!raw) return {}
     const parsed = JSON.parse(raw) as Record<string, string>
     return typeof parsed === 'object' && parsed !== null ? parsed : {}
@@ -31,7 +30,7 @@ export function markFired(key: string, dayIso: string): void {
     if (!keep.has(map[k])) delete map[k]
   }
   try {
-    localPreferences.setItem(KEY, JSON.stringify(map))
+    localStorage.setItem(KEY, JSON.stringify(map))
   } catch {
     /* 配额/隐私模式静默 (persistReminderPrefs 同) */
   }

@@ -12,14 +12,6 @@ body,
   height: 100%;
 }
 
-html[data-embed='true'],
-html[data-embed='true'] body,
-html[data-embed='true'] #root {
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-
 body {
   background: var(--md-background);
   color: var(--md-on-background);

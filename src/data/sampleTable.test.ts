@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import 'fake-indexeddb/auto'
 import { db } from './db'
-import { seedDemoTable, seedSampleTable } from './sampleTable'
+import { seedSampleTable } from './sampleTable'
 
 beforeEach(async () => {
   await db.timetables.clear()
@@ -10,11 +10,6 @@ beforeEach(async () => {
 })
 
 describe('seedSampleTable — 首次打开默认示例课表', () => {
-  it('普通模式拒绝写入演示种子', async () => {
-    await expect(seedDemoTable()).rejects.toThrow('isolated demo database')
-    expect(await db.timetables.count()).toBe(0)
-    expect(await db.courses.count()).toBe(0)
-  })
   it('空库首调: seed 一张默认表 + 9 门示例课 + 打防重标记', async () => {
     await seedSampleTable()
 
