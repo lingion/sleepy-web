@@ -285,10 +285,17 @@ export function ToggleRow({
 export function Switch({
   checked, onChange, uncheckedTrack = 'var(--md-surface-container-highest)', compact = false,
 }: { checked: boolean; onChange: (v: boolean) => void; uncheckedTrack?: string; compact?: boolean }) {
+  const [held, setHeld] = useState(false)
+  const drag = useRef<{ x: number; changed: boolean } | null>(null)
   return (
     <button
+      className="switch-track"
+      data-held={held}
+      onPointerDown={(e) => { if (e.button !== 0) return; drag.current = { x: e.clientX, changed: false }; setHeld(true); e.currentTarget.setPointerCapture?.(e.pointerId) }}
+      onPointerMove={(e) => { if (!drag.current || Math.abs(e.clientX - drag.current.x) < 8) return; drag.current.changed = true; onChange(e.clientX > drag.current.x) }}
+      onPointerUp={() => setHeld(false)} onPointerCancel={() => { drag.current = null; setHeld(false) }}
       type="button"
-      onClick={() => onChange(!checked)}
+      onClick={() => { if (!drag.current?.changed) onChange(!checked); drag.current = null }}
       role="switch"
       aria-checked={checked}
       style={{
@@ -301,6 +308,7 @@ export function Switch({
       }}
     >
       <div
+        className="switch-thumb"
         style={{
           width: checked ? 24 : 16, height: checked ? 24 : 16, borderRadius: 16,
           background: checked ? 'var(--md-on-primary)' : 'var(--md-outline)',

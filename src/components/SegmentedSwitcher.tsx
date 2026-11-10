@@ -22,6 +22,8 @@ export function SegmentedSwitcher({
   fit?: boolean
   style?: CSSProperties
 }) {
+  const [held, setHeld] = useState(false)
+  const dragSelect = (x: number) => { const r = rootRef.current?.getBoundingClientRect(); if (r && r.width > 0) onSelect(Math.max(0, Math.min(options.length - 1, Math.floor((x - r.left) / r.width * options.length)))) }
   const count = Math.max(1, options.length)
   const index = Math.min(Math.max(0, selected), count - 1)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -31,6 +33,11 @@ export function SegmentedSwitcher({
   return (
     <div
       ref={rootRef}
+      className="segmented-track"
+      data-held={held}
+      onPointerDown={(e) => { if (e.button !== 0) return; setHeld(true); e.currentTarget.setPointerCapture?.(e.pointerId); dragSelect(e.clientX) }}
+      onPointerMove={(e) => { if (held) dragSelect(e.clientX) }}
+      onPointerUp={() => setHeld(false)} onPointerCancel={() => setHeld(false)}
       style={{
         position: 'relative', display: 'grid', gridAutoFlow: 'column', gridAutoColumns: '1fr',
         width, height, flexShrink: 0, boxSizing: 'border-box', padding: 4, borderRadius: 14,
@@ -40,6 +47,7 @@ export function SegmentedSwitcher({
     >
       <div
         aria-hidden
+        className="segment-lens"
         style={{
           position: 'absolute', top: 4, bottom: 4, borderRadius: 12, background: 'var(--md-secondary-container)',
           left: `calc(4px + ${index} * (100% - 8px) / ${count})`, width: `calc((100% - 8px) / ${count})`,
