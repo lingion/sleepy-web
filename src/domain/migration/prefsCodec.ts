@@ -96,6 +96,7 @@ const PrefsFieldMap: PrefsFieldMap[] = [
   { field: 'periodHeaderStyle', key: 'period_header_style', type: 'STRING' },
   { field: 'periodHeaderHanging', key: 'period_header_hanging', type: 'FLOAT' },
   { field: 'periodHeaderShowX', key: 'period_header_show_x', type: 'BOOL' },
+  { field: 'periodHeaderHideTime', key: 'period_header_hide_time', type: 'BOOL' },
   { field: 'gridShowSeparators', key: 'grid_show_separators', type: 'BOOL' },
   { field: 'gridLongBreakSpacing', key: 'grid_long_break_spacing', type: 'BOOL' },
   { field: 'calendarImportRange', key: 'calendar_import_range', type: 'STRING' },

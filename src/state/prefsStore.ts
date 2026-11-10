@@ -54,6 +54,7 @@ function clampPrefs(p: Prefs): Prefs {
     weekScale: cl(p.weekScale, 0.7, 1.3),
     gridCornerRatio: cl(p.gridCornerRatio, 0, 2),
     periodHeaderHanging: cl(p.periodHeaderHanging, -1, 1),
+    periodHeaderHideTime: p.periodHeaderHideTime === true,
     conflictStackInset: cl(p.conflictStackInset, 4, 20),
     conflictRailInset: cl(p.conflictRailInset, 4, 20),
     conflictFoldSize: cl(p.conflictFoldSize, 8, 28),

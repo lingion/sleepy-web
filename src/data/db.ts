@@ -108,6 +108,7 @@ export async function loadPrefs(): Promise<Prefs> {
       periodHeaderStyle: normalizePeriodHeaderStyle(parsed.periodHeaderStyle),
       periodHeaderHanging: clampPeriodHeaderHanging(Number(parsed.periodHeaderHanging)),
       periodHeaderShowX: parsed.periodHeaderShowX === true,
+      periodHeaderHideTime: parsed.periodHeaderHideTime === true,
       gridRowScale: Math.min(1.8, Math.max(0.7, Number(parsed.gridRowScale) || DEFAULT_PREFS.gridRowScale)),
       nearestBusyDay: parsed.nearestBusyDay === true,
     }

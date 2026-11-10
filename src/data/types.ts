@@ -289,6 +289,8 @@ export interface Prefs {
   periodHeaderHanging: number
   /** 单节时显示完整“第 X 节” */
   periodHeaderShowX: boolean
+  /** 旧式节次表头隐藏时间；三行布局保留此偏好但不应用。 */
+  periodHeaderHideTime: boolean
   /** 旧式两行表头时间轴对齐: dash=连字符字形中心轴 / center=卡片中心 (AppPrefs KEY_PERIOD_HEADER_TIME_ALIGNMENT, ref sleepy#259) */
   periodHeaderTimeAlignment: 'dash' | 'center'
   /** 实验室: 网格视图额外分隔线 — 默认 false (AppPrefs KEY_GRID_SHOW_SEPARATORS) */
@@ -360,6 +362,7 @@ export const DEFAULT_PREFS: Prefs = {
   periodHeaderStyle: 'arabic',
   periodHeaderHanging: 0,
   periodHeaderShowX: false,
+  periodHeaderHideTime: false,
   periodHeaderTimeAlignment: 'dash',
   gridShowSeparators: false,
   gridLongBreakSpacing: false,
