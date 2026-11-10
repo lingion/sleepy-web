@@ -34,7 +34,7 @@ export function AlertDialog({ title, onDismiss, children, buttons }: { title: st
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
         style={{
-          minWidth: 280, maxWidth: 560, width: '100%', maxHeight: '100%', overflowY: 'auto', boxSizing: 'border-box',
+          minWidth: 0, maxWidth: 560, width: '100%', maxHeight: '100%', overflowY: 'auto', boxSizing: 'border-box',
           padding: 24, borderRadius: 28, background: 'var(--md-surface-container-high)',
         }}
       >
