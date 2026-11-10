@@ -74,3 +74,11 @@ describe('FormatDetailDialog', () => {
     expect(second).toHaveBeenCalledTimes(1)
   })
 })
+
+it('剪贴板拒绝时保留复制按钮并显示失败', async () => {
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:vi.fn(async()=>{throw Error('denied')})}})
+  render(<FormatDetailDialog format="PLAIN" onDismiss={()=>{}} />)
+  await act(async()=>{fireEvent.click(screen.getByText('复制 Prompt'))})
+  expect(screen.queryByText('已复制')).toBeNull()
+  expect(screen.getByRole('alert').textContent).toContain('复制失败')
+})
