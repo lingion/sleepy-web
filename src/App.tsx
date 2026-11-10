@@ -18,7 +18,7 @@ import { chainFromHash, installBackHandler, restoreChain, tabFromHash, useBackSt
 import { useTabletLayout } from './state/tabletLayout'
 import { TabletNavRail } from './components/TabletNavRail'
 import { abandonPendingTable } from './state/pendingTable'
-import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/icons'
+import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/startupIcons'
 // The default route is part of the HTML's static modulepreload graph. Its
 // editors stay lazy, so it no longer starts a second request waterfall at boot.
 import { ScheduleView } from './views/ScheduleView'

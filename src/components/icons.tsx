@@ -7,46 +7,13 @@
  * 记忆铁律: 禁 emoji 当图标 (2026-09-12 用户怒斥)。
  */
 
-import type { CSSProperties } from 'react'
-
-interface IconProps {
-  size?: number
-  color?: string
-  style?: CSSProperties
-}
-
-/** Canonical Sleepy brand mark — 位图组件已移除 (2026-10-27 定案):
- * 顶栏左缘对齐安卓 ScheduleScreen.kt:512 WeekNavButton(CalendarMonth), 用下方
- * IconCalendarMonth 矢量; 位图 src 运行时拼接绝对路径, 在官网 /preview 反代
- * 前缀下解析到 Pages 根 404, 线上呈挂断破图。favicon 仍由 index.html 静态引用。 */
-
-// ── 官方 Material Outlined 24px 图标 (google/material-design-icons outlined 变体)
-// 几何逐字节来自官方 SVG path 数据;fill=currentColor 描出轮廓,非 stroke 近似
-function outlineSvg(path: string): (props: IconProps) => JSX.Element {
-  return function Icon({ size = 24, color, style }: IconProps) {
-    return (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        style={{ display: 'block', color, ...style }}
-        aria-hidden="true"
-      >
-        <path d={path} />
-      </svg>
-    )
-  }
-}
+import { outlineSvg } from './iconFactory'
+export { IconCalendarMonth, IconToday, IconSettings, IconPerson, IconChevronLeft, IconChevronRight, IconAdd, IconIosShare, IconCheck, IconClose } from './startupIcons'
 
 // ── Tab 图标 (MainActivity.kt:193-196 Tab 枚举 Icons.Outlined.*) ──────
-export const IconCalendarMonth = outlineSvg('M19,4h-1V2h-2v2H8V2H6v2H5C3.89,4,3.01,4.9,3.01,6L3,20c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V6C21,4.9,20.1,4,19,4z M19,20 H5V10h14V20z M19,8H5V6h14V8z M9,14H7v-2h2V14z M13,14h-2v-2h2V14z M17,14h-2v-2h2V14z M9,18H7v-2h2V18z M13,18h-2v-2h2V18z M17,18 h-2v-2h2V18z')
 
-export const IconToday = outlineSvg('M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V9h14v10zm0-12H5V5h14v2zM7 11h5v5H7z')
 
-export const IconSettings = outlineSvg('M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.09-.16-.26-.25-.44-.25-.06 0-.12.01-.17.03l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.06-.02-.12-.03-.18-.03-.17 0-.34.09-.43.25l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.09.16.26.25.44.25.06 0 .12-.01.17-.03l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.06.02.12.03.18.03.17 0 .34-.09.43-.25l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zm-1.98-1.71c.04.31.05.52.05.73 0 .21-.02.43-.05.73l-.14 1.13.89.7 1.08.84-.7 1.21-1.27-.51-1.04-.42-.9.68c-.43.32-.84.56-1.25.73l-1.06.43-.16 1.13-.2 1.35h-1.4l-.19-1.35-.16-1.13-1.06-.43c-.43-.18-.83-.41-1.23-.71l-.91-.7-1.06.43-1.27.51-.7-1.21 1.08-.84.89-.7-.14-1.13c-.03-.31-.05-.54-.05-.74s.02-.43.05-.73l.14-1.13-.89-.7-1.08-.84.7-1.21 1.27.51 1.04.42.9-.68c.43-.32.84-.56 1.25-.73l1.06-.43.16-1.13.2-1.35h1.39l.19 1.35.16 1.13 1.06.43c.43.18.83.41 1.23.71l.91.7 1.06-.43 1.27-.51.7 1.21-1.07.85-.89.7.14 1.13zM12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z')
 
-export const IconPerson = outlineSvg('M12 6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2m0 10c2.7 0 5.8 1.29 6 2H6c.23-.72 3.31-2 6-2m0-12C9.79 4 8 5.79 8 8s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 10c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z')
 
 // ── Mine 页 SettingsItem (MineScreen.kt:115-125) ──────────────────────
 export const IconEdit = outlineSvg('m14.06 9.02.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83a.996.996 0 0 0 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z')
@@ -64,8 +31,6 @@ export const IconTune = outlineSvg('M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h
 export const IconInfo = outlineSvg('M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z')
 
 // ── 管理页/课程操作 (ManagementPage.kt) ───────────────────────────────
-export const IconAdd = outlineSvg('M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z')
-
 export const IconFileUpload = outlineSvg('M18,15v3H6v-3H4v3c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2v-3H18z M7,9l1.41,1.41L11,7.83V16h2V7.83l2.59,2.58L17,9l-5-5L7,9z')
 export const IconDownload = outlineSvg('M19,9h-4V3H9v6H5l7,7L19,9z M5,18v2h14v-2H5z')
 
@@ -78,10 +43,6 @@ export const IconClass = outlineSvg('M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-
 export const IconRefresh = outlineSvg('M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z')
 
 // ── 通用操作 ──────────────────────────────────────────────────────────
-export const IconCheck = outlineSvg('M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z')
-
-export const IconClose = outlineSvg('M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z')
-
 export const IconGridView = outlineSvg('M3 3v8h8V3H3zm6 6H5V5h4v4zm-6 4v8h8v-8H3zm6 6H5v-4h4v4zm4-16v8h8V3h-8zm6 6h-4V5h4v4zm-6 4v8h8v-8h-8zm6 6h-4v-4h4v4z')
 
 export const IconViewList = outlineSvg('M3,5v14h18V5H3z M7,7v2H5V7H7z M5,13v-2h2v2H5z M5,15h2v2H5V15z M19,17H9v-2h10V17z M19,13H9v-2h10V13z M19,9H9V7h10V9z')
@@ -103,11 +64,8 @@ export const IconArrowForward = outlineSvg('M12 4l-1.41 1.41L16.17 11H4v2h12.17l
 export const IconArrowDropDown = outlineSvg('M7 10l5 5 5-5z')
 
 // ── 课表顶栏 (ScheduleScreen.kt) ──────────────────────────────────────
-export const IconChevronLeft = outlineSvg('M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59z')
 
-export const IconChevronRight = outlineSvg('M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6z')
 
-export const IconIosShare = outlineSvg('m16 5-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6a2 2 0 0 1-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3a2 2 0 0 1 2 2z')
 
 export const IconSchedule = outlineSvg('M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z')
 
