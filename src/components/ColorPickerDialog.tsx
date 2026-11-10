@@ -1,5 +1,5 @@
 import './ColorPickerDialog.css'
-import { useRef,useState,type PointerEvent } from 'react'
+import { useRef,useState,type CSSProperties,type PointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { parseHex,rgbToHex } from '../domain/courseColor'
 import { AlertDialog } from './AlertDialog'
@@ -28,7 +28,7 @@ export function ColorPickerDialog({initialHex,onConfirm,onDismiss}:{initialHex:s
  const [initial]=useState(()=>rgbToHsv(parseHex(initialHex) ?? [103,80,164]))
  const [[hue,saturation,value],setHsv]=useState<RGB>(initial)
  const svPointer=useRef<number|null>(null),huePointer=useRef<number|null>(null)
- const hueTrack=useRef<HTMLDivElement>(null),lens=useGlassLens(hueTrack)
+ const hueTrack=useRef<HTMLDivElement>(null),lens=useGlassLens(hueTrack,{kind:'slider',index:hue/360})
  const currentHex=`#FF${rgbToHex(hsvToRgb(hue,saturation,value)).slice(1).toUpperCase()}`
  const changeSV=(event:PointerEvent<HTMLElement>)=>{const p=point(event);setHsv(([h])=>[h,p.x,1-p.y])}
  const changeHue=(event:PointerEvent<HTMLElement>)=>{const p=point(event);setHsv(([,s,v])=>[p.x*360,s,v])}
@@ -53,7 +53,7 @@ export function ColorPickerDialog({initialHex,onConfirm,onDismiss}:{initialHex:s
      if(next!==null){event.preventDefault();setHsv(([,s,v])=>[next,s,v])}
     }}>
     {Math.abs(hue-initial[0])>.5 && <span aria-hidden data-hue-ghost className="color-hue-ghost" style={{left:`${initial[0]/360*100}%`}}/>}
-    <span aria-hidden className="color-hue-thumb" style={{left:`${hue/360*100}%`,backgroundColor:rgbToHex(hsvToRgb(hue,1,1))}}/>
+    <span aria-hidden className="color-hue-thumb single-glass-thumb" style={{left:`${hue/360*100}%`,'--slider-thumb-color':rgbToHex(hsvToRgb(hue,1,1))} as CSSProperties}/>
    </div>
    <div className="color-picker-preview"><span aria-hidden style={{backgroundColor:rgbToHex(hsvToRgb(hue,saturation,value))}}/><output>{currentHex}</output></div>
    <DialogActionButtons confirmText={t('ok')} onConfirm={()=>onConfirm(currentHex)} dismissText={t('cancel')} onDismiss={onDismiss}/>

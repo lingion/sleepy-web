@@ -18,6 +18,11 @@ describe('Android 颜色对话框',()=>{
   fireEvent.keyDown(hue,{key:'ArrowRight'});expect(document.querySelector('[data-hue-ghost]')).not.toBeNull()
   fireEvent.keyDown(hue,{key:'Home'});expect(document.querySelector('[data-hue-ghost]')).toBeNull()
   fireEvent.keyDown(hue,{key:'End'});expect(screen.getByText('#FFFF0000')).toBeTruthy()
+  const thumb=document.querySelector<HTMLElement>('.color-hue-thumb')!
+  expect(thumb.classList.contains('single-glass-thumb')).toBe(true)
+  expect(thumb.style.getPropertyValue('--slider-thumb-color')).toBe('#ff0000')
+  fireEvent.keyDown(hue,{key:'Home'});for(let i=0;i<6;i++)fireEvent.keyDown(hue,{key:'PageUp'})
+  expect(thumb.style.getPropertyValue('--slider-thumb-color')).toBe('#ffff00')
  })
  it('updates saturation and value continuously during captured pointer movement',()=>{
   vi.stubGlobal('PointerEvent',MouseEvent)
