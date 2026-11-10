@@ -476,13 +476,13 @@ export async function insertCourses(courses: Omit<Course, 'id'>[]): Promise<numb
  *  按规范化课名分 key 共享 groupId; 原值非空保留, 空则生成随机 UUID。
  *  同名不同 token 的分区靠 sleepy-v1 authoritative 路径 (insertCoursesKeepingGroups)
  *  绕过本函数保留 — 与 Android 双路径分流同构。 */
-export function assignGroupIds(courses: Omit<Course, 'id'>[]): Omit<Course, 'id'>[] {
+export function assignGroupIds(courses: Omit<Course, 'id'>[], knownNameToGroup: ReadonlyMap<string, string> = new Map()): Omit<Course, 'id'>[] {
   const nameToGroupId = new Map<string, string>()
   return courses.map((c) => {
     const key = c.courseName.trim().replace(/\s+/g, ' ').toLowerCase()
     let gid = nameToGroupId.get(key)
     if (gid === undefined) {
-      gid = c.groupId.trim() !== '' ? c.groupId : randomUuid()
+      gid = knownNameToGroup.get(key) ?? (c.groupId.trim() !== '' ? c.groupId : randomUuid())
       nameToGroupId.set(key, gid)
     }
     return { ...c, groupId: gid }
@@ -607,16 +607,92 @@ export async function applyDiff(
   await pruneDefaultTopPrefs()
 }
 
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return item
+    return Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+  })
+}
+
+function rowsKey(rows: Course[]): string {
+  return canonical([...rows].sort((a, b) => a.id - b.id).map(row => ({ ...row, fixedDate: row.fixedDate ?? null })))
+}
+
+/** Android RowKey: display metadata changes update in place; room/teacher are identity. */
+function courseRowKey(row: Course): string {
+  return JSON.stringify([row.groupId, row.day, row.startNode, row.step, row.startWeek,
+    row.endWeek, row.type, row.room, row.teacher, row.fixedDate ?? null])
+}
+
+/** Commit the exact approved draft, including edge slots, as one undoable transaction. */
+export async function saveCourseDraft(
+  drafts: Course[], replacingGroupId: string | null, expectedCourses: Course[],
+  expectedTable: Table, draftTimeJson: string, expectedTransfers: HolidayTransferEntry[],
+  replacingCourseId?: number,
+): Promise<boolean> {
+  const result = await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
+    const rawTable = await db.timetables.get(expectedTable.id)
+    if (!rawTable) return { saved: false, changed: false }
+    const period = rawTable.periodTableId == null ? undefined : await db.periodTables.get(rawTable.periodTableId)
+    const table = hydratedWith(rawTable, period)
+    const stored = await getCourses(table.id)
+    if (canonical(table) !== canonical(expectedTable) || rowsKey(stored) !== rowsKey(expectedCourses) ||
+        canonical(getHolidayTransfers(table.id)) !== canonical(expectedTransfers)) return { saved: false, changed: false }
+
+    let nextId = await nextCourseId()
+    let nextRows: Course[]
+    if (replacingGroupId === null) {
+      const roster = new Map<string, string>()
+      for (const row of await db.courses.orderBy('id').toArray()) {
+        const key = row.courseName.trim().replace(/\s+/g, ' ').toLowerCase()
+        if (key && row.groupId.trim() && !roster.has(key)) roster.set(key, row.groupId)
+      }
+      const added = assignGroupIds(drafts, roster).map(row => ({ ...row, id: nextId++, tableId: table.id }))
+      nextRows = [...stored, ...added]
+    } else if (!replacingGroupId.trim()) {
+      // A legacy empty group is not a group of all empty-group courses in the table.
+      const original = stored.find(row => row.id === replacingCourseId && !row.groupId.trim())
+      if (!original) return { saved: false, changed: false }
+      nextRows = [...stored.filter(row => row.id !== original.id), ...drafts.map(row => ({ ...row, id: nextId++, tableId: table.id, groupId: original.groupId }))]
+    } else {
+      const group = stored.filter(row => row.groupId === replacingGroupId)
+      const serverByKey = new Map(group.map(row => [courseRowKey(row), row]))
+      const draftByKey = new Map(drafts.map(row => [courseRowKey(row), row]))
+      const deleted = new Set([...serverByKey].filter(([key]) => !draftByKey.has(key)).map(([, row]) => row.id))
+      const updates = new Map<number, Course>()
+      const additions: Course[] = []
+      for (const [key, draft] of draftByKey) {
+        const server = serverByKey.get(key)
+        const row = { ...draft, id: server?.id ?? nextId++, tableId: table.id }
+        if (server) updates.set(server.id, row)
+        else additions.push(row)
+      }
+      const patched = [...group.filter(row => !deleted.has(row.id)).map(row => updates.get(row.id) ?? row), ...additions]
+      nextRows = [...stored.filter(row => row.groupId !== replacingGroupId), ...mergeMatchingRows(patched)]
+    }
+
+    if (rowsKey(stored) === rowsKey(nextRows) && table.timeJson === draftTimeJson) return { saved: true, changed: false }
+    await undoManager.capture('saveCourseDraft')
+    if (table.timeJson !== draftTimeJson) {
+      if (period) await db.periodTables.put({ ...period, timeJson: draftTimeJson })
+      else await db.timetables.put({ ...rawTable, timeJson: draftTimeJson })
+    }
+    const kept = new Set(nextRows.map(row => row.id))
+    await db.courses.bulkDelete(stored.filter(row => !kept.has(row.id)).map(row => row.id))
+    const updates = nextRows.filter(row => rowsKey([row]) !== rowsKey(stored.filter(old => old.id === row.id)))
+    if (updates.length) await db.courses.bulkPut(updates)
+    await reclaimUnusedEdgeNodesForTable(table.id)
+    return { saved: true, changed: true }
+  })
+  if (result.changed) await pruneDefaultTopPrefs()
+  return result.saved
+}
+
 /** Save one occurrence against the exact table/course/transfer snapshot shown in the editor. */
 export async function saveOccurrence(
   occurrence: CourseOccurrence, replacement: Course | null, expectedCourses: Course[],
   expectedTable: Table, expectedTransfers: HolidayTransferEntry[],
 ): Promise<boolean> {
-  const canonical = (value: unknown): string => JSON.stringify(value, (_key, item) => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) return item
-    return Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
-  })
-  const rowsKey = (rows: Course[]) => canonical([...rows].sort((a, b) => a.id - b.id).map(row => ({ ...row, fixedDate: row.fixedDate ?? null })))
   const saved = await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
     const rawTable = await db.timetables.get(expectedTable.id)
     if (!rawTable) return false
@@ -671,14 +747,20 @@ async function reassignDefaultIfEmpty(): Promise<void> {
 async function reclaimUnusedEdgeNodesForTable(tableId: number): Promise<void> {
   const table = await db.timetables.get(tableId)
   if (!table) return
-  const courses = await getCourses(tableId)
+  const period = table.periodTableId == null ? undefined : await db.periodTables.get(table.periodTableId)
+  const timeJson = period?.timeJson ?? table.timeJson
+  const owners = period ? await db.timetables.where('periodTableId').equals(period.id).toArray() : [table]
+  const courses = (await Promise.all(owners.map(owner => getCourses(owner.id)))).flat()
   const usedNodes = new Set<number>()
   for (const c of courses) {
+    const effectiveStart = c.ownTime ? timeToNode(c.startTime, c.endTime, timeJson)?.[0] ?? c.startNode : c.startNode
+    for (let n = effectiveStart; n < effectiveStart + c.step; n++) usedNodes.add(n)
     for (let n = c.startNode; n <= c.startNode + c.step - 1; n++) usedNodes.add(n)
   }
-  const cleaned = reclaimUnusedEdgeNodes(table.timeJson, usedNodes)
-  if (cleaned !== table.timeJson) {
-    await db.timetables.put({ ...table, timeJson: cleaned })
+  const cleaned = reclaimUnusedEdgeNodes(timeJson, usedNodes)
+  if (cleaned !== timeJson) {
+    if (period) await db.periodTables.put({ ...period, timeJson: cleaned })
+    else await db.timetables.put({ ...table, timeJson: cleaned })
   }
 }
 
