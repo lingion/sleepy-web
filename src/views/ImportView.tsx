@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { IconDescription, IconExpandLess, IconExpandMore, IconFileUpload, IconInfo, IconQrCode2 } from '../components/icons'
+import { IconAdd, IconArrowBack, IconDescription, IconExpandLess, IconExpandMore, IconFileUpload, IconInfo, IconQrCode2 } from '../components/icons'
 import { FormatDetailDialog } from '../components/FormatDetailDialog'
 import { FORMAT_KEYS, IMPORT_FORMATS, type ImportFormat } from '../components/formatHelp'
 import { db } from '../data/db'
@@ -18,6 +18,7 @@ import { parseTimeSlotRows, buildTimeJsonFromRows, mergeMostComplete } from '../
 import { inferSmartConfig, encodeSmartConfig } from '../domain/smartPeriod'
 import { TimeSlotEditor } from './jw/TimeSlotEditor'
 import { JwImportView } from './jw/JwImportView'
+import { localizedDay } from '../components/schedule/CardsGridView'
 import type { Course, PeriodTable } from '../data/types'
 
 type ApplyMode = 'ImportAsNew' | 'AppendNonConflict' | 'AppendAll'
@@ -31,15 +32,19 @@ interface ImportPreview {
   multiLocationWarnings: string[]
 }
 
-export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourses = false }: {
+export function ImportView({ onDone, onBack, onManualAdd, onJwImport, targetTableId = 0, addingCourses = false }: {
   onDone: () => void
+  onBack?: () => void
+  onManualAdd?: () => void
   onJwImport?: () => void
   targetTableId?: number
   addingCourses?: boolean
 }) {
   const { t } = useTranslation()
-  const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) ?? []
-  const periodTables = useLiveQuery(() => db.periodTables.toArray(), []) ?? []
+  const tableRows = useLiveQuery(() => db.timetables.orderBy('id').toArray(), [])
+  const periodRows = useLiveQuery(() => db.periodTables.toArray(), [])
+  const tables = tableRows ?? []
+  const periodTables = periodRows ?? []
   const periodTableNames = periodTables.map(p => p.name)
   const previewRef = useRef<ImportPreview | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -66,7 +71,7 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
   async function stagePreview(result: ParseResult) {
     const id = addingCourses ? targetTableId : 0
     const target = id ? await getTable(id) : undefined
-    if (addingCourses && !target) throw Error(t('manage_no_table'))
+    if (addingCourses && !target) throw Error(t('import_target_missing'))
     const existingCourses = id ? await getCourses(id) : []
     const effective = target ? await effectiveImportTable(target) : undefined
     const timeJson = timeJsonForAppend(effective?.timeJson ?? '', result.timeJson, result.nodesPerDay, target?.periodTableId != null)
@@ -96,7 +101,8 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
       setSelection(result)
     } else if (!result.courses.length && result.periodTable) {
       previewRef.current = {targetTableId:0,targetTableName:'',parseResult:result,existingCourses:[],conflicts:[],multiLocationWarnings:[]}
-      setPurePeriodName(suggestUniqueName(result.periodTable.name, tables.map(t => t.name), periodTableNames, t('period_table_new')))
+      const [currentTables,currentPeriods] = await Promise.all([db.timetables.toArray(),db.periodTables.toArray()])
+      setPurePeriodName(suggestUniqueName(result.periodTable.name, currentTables.map(t => t.name), currentPeriods.map(p => p.name), t('period_table_new')))
     } else await stagePreview(result)
   }
 
@@ -107,6 +113,7 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
     const request = new AbortController()
     controller.current = request
     try {
+      if (addingCourses && !await getTable(targetTableId)) throw Error(t('import_target_missing'))
       const payload = looksLikeWakeupShareCode(text) ? await resolveWakeupShare(text, globalThis.fetch, {signal:request.signal}) : text
       if (request.signal.aborted) return
       const result = parseSchedule(payload, addingCourses ? targetTableId : 0)
@@ -140,23 +147,27 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
   }
 
   const hasTables = addingCourses && tables.some(t => t.id === targetTableId)
+  const canImport = !isLoading && tableRows !== undefined && periodRows !== undefined && (!addingCourses || hasTables)
 
   if (showSchoolDirectory) return <JwImportView onBack={() => setShowSchoolDirectory(false)} />
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <h1 className="m3-title-large" style={{ margin: 0 }}>{t('import_title')}</h1>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <button type="button" aria-label={t('back')} onClick={onBack ?? onDone} disabled={isLoading} style={{background:'transparent',border:'none',padding:12,color:'var(--md-on-surface)',cursor:'pointer'}}><IconArrowBack size={20}/></button>
+        <h1 className="m3-title-large" style={{ margin: 0 }}>{t(addingCourses ? 'add_course_title' : 'import_title')}</h1>
+      </div>
       <p className="m3-body-medium" style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>
-        {t('import_preview_sub')}
+        {t(addingCourses ? 'import_append_hint' : 'import_preview_sub')}
       </p>
 
-      {addingCourses && <ImportMethodRow icon={IconDescription} label={t('add_course_from_existing', '从已有课表选择')} onClick={() => setShowSources(true)} disabled={isLoading} />}
+      {addingCourses && <ImportMethodRow icon={IconDescription} label={t('add_course_from_existing', '从已有课表选择')} onClick={() => setShowSources(true)} disabled={!canImport} />}
 
       {/* 行 1：教务直连 — ImportSheet.kt:221-229 (关弹窗 → 拉起教务导入) */}
       <ImportMethodRow
         icon={IconQrCode2}
         label={t('import_jw')}
-        onClick={() => onJwImport ? onJwImport() : setShowSchoolDirectory(true)} disabled={isLoading}
+        onClick={() => onJwImport ? onJwImport() : setShowSchoolDirectory(true)} disabled={!canImport}
       />
 
       {/* 行 2：从文本导入 (可折叠) — ImportSheet.kt:232-287, 展开内容 padding-start 56 */}
@@ -165,6 +176,7 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
         label={t('import_paste')}
         trailing={textExpanded ? IconExpandLess : IconExpandMore}
         onClick={() => setTextExpanded((v) => !v)}
+        disabled={!canImport}
       />
       {textExpanded && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 4px 8px 56px' }}>
@@ -172,7 +184,7 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder={t('import_paste_hint')}
-            disabled={isLoading}
+            disabled={!canImport}
             aria-label={t('import_paste')}
             style={{
               width: '100%', minHeight: 160, boxSizing: 'border-box', resize: 'vertical',
@@ -183,7 +195,7 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
           />
           <button
             onClick={() => { setIsLoading(true); void buildPreview(inputText).finally(() => setIsLoading(false)) }}
-            disabled={isLoading || inputText.trim() === ''}
+            disabled={!canImport || inputText.trim() === ''}
             style={{
               padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
               background: 'var(--md-primary)', color: 'var(--md-on-primary)',
@@ -195,11 +207,14 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
         </div>
       )}
 
+      {/* Android ImportSheet.kt:402: 手动入口固定在粘贴文本之后、文件导入之前。 */}
+      {addingCourses && onManualAdd && <ImportMethodRow icon={IconAdd} label={t('add_course_manual')} onClick={onManualAdd} disabled={!canImport} />}
+
       {/* 行 3：从文件导入 — ImportSheet.kt:290-297 (触发系统选择器) */}
       <ImportMethodRow
         icon={IconFileUpload}
         label={t('import_file')}
-        onClick={() => fileInputRef.current?.click()} disabled={isLoading}
+        onClick={() => fileInputRef.current?.click()} disabled={!canImport}
       />
       <input
         ref={fileInputRef}
@@ -277,9 +292,9 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
           {errorMsg}
         </div>
       )}
-      {!hasTables && (
+      {addingCourses && !hasTables && (
         <p className="m3-body-small" style={{ color: 'var(--md-primary)', margin: 0 }}>
-          {t('import_new_table_hint')}
+          {t('import_target_missing')}
         </p>
       )}
 
@@ -445,7 +460,7 @@ function PreviewDialog({
   onApply: (mode: ApplyMode, backupOriginal?: boolean) => void
   isApplying: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const p = preview.parseResult
   const [backupOriginal, setBackupOriginal] = useState(true)
   const [appendConflicts, setAppendConflicts] = useState(false)
@@ -509,7 +524,8 @@ function PreviewDialog({
           fg="var(--md-on-surface-variant)"
           title={t('import_conflicts')}
           items={preview.conflicts.slice(0, 3).map(
-            (c) => `• ${c.incoming.courseName} ↔ ${c.existing.courseName}（周${c.incoming.day} 第${c.incoming.startNode}-${c.incoming.startNode + c.incoming.step - 1}节）`,
+            (c) => t('import_conflict_detail', {v1:c.incoming.courseName,v2:c.existing.courseName,
+              v3:c.incoming.fixedDate || localizedDay(c.incoming.day,i18n.language),v4:c.incoming.startNode,v5:c.incoming.startNode+c.incoming.step-1}),
           )}
           more={preview.conflicts.length - 3}
         />
@@ -560,7 +576,7 @@ function ConfirmDialog({startDate,tableName,timeJson,courses,periodTables,bindin
     if (isApplying) return
     if (!tableName.trim()) {setError(t('import_table_name','课表名称'));return}
     if (!validFixedDate(startDate)) {setError(t('start_date_format'));return}
-    if (binding != null && !bound) {setError('所选作息表已不存在');return}
+    if (binding != null && !bound) {setError(t('import_bound_period_missing'));return}
     const effective=bound ? parseTimeSlotRows(bound.timeJson) : rows
     const json=buildTimeJsonFromRows(effective)
     const missing=firstMissingCourseNode(courses,json)
@@ -580,7 +596,7 @@ function ConfirmDialog({startDate,tableName,timeJson,courses,periodTables,bindin
       {periodTables.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}
     </select></label>
     {error && <p role="alert" style={{color:'var(--md-error)'}}>{error}</p>}
-    {bound ? <p>{bound.name}，{bound.nodesPerDay} 节/天</p> : <TimeSlotEditor rows={rows} onRowsChange={next => {setRows(next);onTimeJsonChange(buildTimeJsonFromRows(next))}} smartConfig={smart} onSmartConfigChange={config => {setSmart(config);onSmartConfigChange(encodeSmartConfig(config))}} />}
+    {bound ? <p>{t('import_period_summary',{v1:bound.name,v2:bound.nodesPerDay})}</p> : <TimeSlotEditor rows={rows} onRowsChange={next => {setRows(next);onTimeJsonChange(buildTimeJsonFromRows(next))}} smartConfig={smart} onSmartConfigChange={config => {setSmart(config);onSmartConfigChange(encodeSmartConfig(config))}} />}
     <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
       <GhostBtn label={t('back')} onClick={onDismiss} />
       <button type="button" className="m3-btn-regular" disabled={isApplying} onClick={confirm}>{t('import_confirm')}</button>
@@ -598,7 +614,7 @@ function CourseSelectionDialog({result,onDismiss,onConfirm}:{result:ParseResult;
     <button type="button" className="m3-btn-regular" onClick={() => setSelected(selected.size === groups.size ? new Set() : new Set(groups.keys()))}>{selected.size === groups.size ? t('deselect_all','取消全选') : t('select_all','全选')}</button>
     {[...groups].map(([key,cs]) => <label key={key} style={{display:'flex',gap:12,padding:12}}>
       <input type="checkbox" checked={selected.has(key)} onChange={e => setSelected(old => {const next=new Set(old);if(e.target.checked)next.add(key);else next.delete(key);return next})} />
-      <span>{cs[0].courseName}（{cs.length}）</span>
+      <span>{t('import_course_group_count',{v1:cs[0].courseName,v2:cs.length})}</span>
     </label>)}
     {!selected.size && <p role="alert">{t('import_selection_empty','请至少选择一门课程')}</p>}
     <button type="button" className="m3-btn-regular" disabled={!selected.size} onClick={() => onConfirm(result.courses.filter(c => selected.has(importCourseGroupKey(c))))}>{t('confirm','确定')}</button>

@@ -69,13 +69,16 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
 
   // 浏览器返回时同步本地 page state (popstate 广播 popped key → 收回本视图的层)。
   useEffect(() => installBackHandler((key) => {
-    if (key === 'addCourse') { setImporting(false); setAddingCourse(false) }
+    if (key === 'addCourse') {
+      if (addingCourse && importing) setAddingCourse(false)
+      else { setImporting(false); setAddingCourse(false) }
+    }
     else if (key === 'jwImport') setJwImporting(false)
     else if (key === 'export') setExporting(false)
     else if (key === 'editTable') setEditingId(null)
     else if (key === 'periodTableEdit') setEditingPeriodId(null)
     else if (key === 'allTables') setAllTablesOpen(false)
-  }), [])
+  }), [addingCourse, importing])
 
   // 二级页 push 入栈 (带 hash 地址, 浏览器返回可弹); 返回按钮 pop 出栈。
   // 🚫 渲染期 push: 视图每次重渲染都会再入一层 (导入写库 → liveQuery 重渲染 →
@@ -89,27 +92,22 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   if (jwImporting) {
     return <JwImportView onBack={() => { leave(); setJwImporting(false) }} />
   }
+  if (addingCourse) {
+    return <AddCourseView targetTableId={importTargetId ?? undefined}
+      onBack={() => { leave(); setAddingCourse(false) }}
+      onSaved={() => { leave(); setAddingCourse(false) }} />
+  }
   if (importing) {
     return (
       <ImportView
         addingCourses={importTargetId !== null} targetTableId={importTargetId ?? 0}
+        onManualAdd={() => open('addCourse', () => setAddingCourse(true))}
         onDone={() => { leave(); setImporting(false) }}
         // 教务直连 — Android「关 sheet + startActivity」: 导入层原地换成教务层,
         // 历史条目不新增 → 教务页返回直达管理页 (不会退回导入页)。
         onJwImport={() => { replace('jwImport'); setImporting(false); setJwImporting(true) }}
       />
     )
-  }
-  if (addingCourse) {
-    return <>
-      {defaultTable && <div style={{padding:'16px 16px 0'}}><button type="button" className="m3-btn-regular" onClick={() => {
-        setImportTargetId(defaultTable.id);setAddingCourse(false);setImporting(true)
-      }}>{t('import_add_courses','从课表或文件导入课程')}</button></div>}
-      <AddCourseView
-        onBack={() => { leave(); setAddingCourse(false) }}
-        onSaved={() => { leave(); setAddingCourse(false) }}
-      />
-    </>
   }
   if (exporting) {
     return <ExportView onBack={() => { leave(); setExporting(false) }} />
@@ -248,7 +246,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
           icon={IconAdd}
           title={t('manage_manual_add')}
           subtitle={t('manage_manual_add_sub')}
-          onClick={() => open('addCourse', () => setAddingCourse(true))}
+          onClick={() => open('addCourse', () => {setImportTargetId(defaultTable?.id ?? 0);setImporting(true)})}
         />
         <ManageCard
           icon={IconEdit}

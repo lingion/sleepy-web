@@ -126,6 +126,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   const [adding, setAdding] = useState(false)
   const [quickAdd, setQuickAdd] = useState<QuickAddSeed | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importTargetId, setImportTargetId] = useState<number | null>(null)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
   const [editingTableId, setEditingTableId] = useState<number | null>(null)
   const [showSwitcher, setShowSwitcher] = useState(false)
@@ -138,13 +139,16 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
 
   // 浏览器返回时同步本地 page state (popstate 广播 popped key → 收回本视图的层)。
   useEffect(() => installBackHandler((key) => {
-    if (key === 'addCourse') { setAdding(false); setImporting(false); setEditingCourse(null) }
+    if (key === 'addCourse') {
+      if (adding && importing) setAdding(false)
+      else { setAdding(false); setImporting(false); setEditingCourse(null); setQuickAdd(null) }
+    }
     else if (key === 'editTable') setEditingTableId(null)
     else if (key === 'courseDetail') setDetailCourse(null)
     else if (key === 'weekSwitcher') setShowSwitcher(false)
     else if (key === 'weekJump') setJumpOpen(false)
     else if (key === 'shareSheet') setShowShare(false)
-  }), [])
+  }), [adding, importing])
 
   // 入栈只在事件处理器里做 (带 hash 地址, 浏览器返回可弹), 返回按钮 pop 出栈。
   // 🚫 渲染期 push: 每次重渲染都会再入一层, 返回一次弹不干净 (底栏卡在隐藏态)。
@@ -312,19 +316,22 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     dismissed: (await db.prefs.get('sampleBannerDismissed'))?.value,
   }))
 
-  if (importing) {
-    return <ImportView onDone={() => { leave(); setImporting(false) }} />
-  }
-
   if (adding || editingCourse) {
     return (
       <AddCourseView
         editingCourse={editingCourse}
         quickAdd={quickAdd}
+        targetTableId={importing ? importTargetId ?? undefined : undefined}
         onBack={() => { leave(); setAdding(false); setEditingCourse(null); setQuickAdd(null) }}
         onSaved={() => { leave(); setAdding(false); setEditingCourse(null); setQuickAdd(null) }}
       />
     )
+  }
+
+  if (importing) {
+    return <ImportView addingCourses={importTargetId !== null} targetTableId={importTargetId ?? 0}
+      onManualAdd={() => open('addCourse', () => { setQuickAdd(null); setAdding(true) })}
+      onDone={() => { leave(); setImporting(false) }} />
   }
 
   // 建表流 (EmptyState 副按钮) — 插表后进 EditTableView (Android onCreateTable 同语义)
@@ -485,7 +492,8 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             <div className="toolbar-end">
               {!readOnly && <NavCircleBtn
                 title={t('schedule_add_course', { defaultValue: '添加课程' })}
-                onClick={() => open('addCourse', () => setAdding(true))}
+                disabled={!defaultTable}
+                onClick={() => open('addCourse', () => { setImportTargetId(defaultTable?.id ?? 0); setImporting(true) })}
               >
                 <IconAdd size={18} />
               </NavCircleBtn>}
@@ -567,7 +575,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             }}
           >
             <EmptyStateCard
-              onGoImport={() => open('addCourse', () => setImporting(true))}
+              onGoImport={() => open('addCourse', () => { setImportTargetId(null); setImporting(true) })}
               onCreateTable={createFirstTable}
             />
           </div>
@@ -575,8 +583,8 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           // 有表无课 (ScheduleScreen.kt:615-660 NoCourseState)
           <NoCourseCard
             tableName={defaultTable?.name ?? ''}
-            onAddCourse={() => open('addCourse', () => setAdding(true))}
-            onImport={() => open('addCourse', () => setImporting(true))}
+            onAddCourse={() => { if (defaultTable) open('addCourse', () => { setImportTargetId(defaultTable.id); setImporting(true) }) }}
+            onImport={() => open('addCourse', () => { setImportTargetId(null); setImporting(true) })}
           />
         ) : defaultTable ? (
           <div

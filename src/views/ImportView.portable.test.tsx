@@ -11,7 +11,7 @@ afterEach(async()=>{cleanup();vi.restoreAllMocks();useUndoStore.setState({undoSt
 const times='[{"node":1,"start":"08:00","end":"08:45"}]'
 const json=JSON.stringify({name:'导入来源',startDate:'2026-09-07',tableInfo:{time:times,importSourceJson:'{ "校区": "Ａ" }'},courses:[{name:'数学',day:1,startNode:1,step:1,startWeek:1,endWeek:20,type:0,fixedDate:'2026-09-15'},{name:'英语',day:2,startNode:1,step:1,startWeek:1,endWeek:20,type:0}]})
 async function seed(){await db.timetables.put({id:1,name:'原课表',startDate:'2026-09-07',maxWeek:20,nodeCount:1,timeJson:times,smartConfigJson:'',isDefault:1,createdAt:0})}
-async function paste(){fireEvent.click(screen.getByText('粘贴课表文本'));fireEvent.change(screen.getByLabelText('粘贴课表文本'),{target:{value:json}});fireEvent.click(screen.getByRole('button',{name:'预览导入'}))}
+async function paste(){await waitFor(()=>expect((screen.getByRole('button',{name:'粘贴课表文本'}) as HTMLButtonElement).disabled).toBe(false));fireEvent.click(screen.getByText('粘贴课表文本'));fireEvent.change(screen.getByLabelText('粘贴课表文本'),{target:{value:json}});fireEvent.click(screen.getByRole('button',{name:'预览导入'}))}
 
 it('new-table import saves the confirmed date and metadata once without touching the existing default',async()=>{
   await seed();const done=vi.fn();render(<ImportView onDone={done} />);await paste()
@@ -56,6 +56,7 @@ it('failed persistence remains in the confirmation dialog, displays its error, a
 
 it('callers without a school navigation callback still open the complete guarded directory',async()=>{
   const done=vi.fn();render(<ImportView onDone={done}/>)
+  await waitFor(()=>expect((screen.getByRole('button',{name:'教务直连'}) as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(screen.getByRole('button',{name:'教务直连'}))
   const search=await screen.findByRole('searchbox')
   fireEvent.change(search,{target:{value:'哈尔滨工程大学'}})

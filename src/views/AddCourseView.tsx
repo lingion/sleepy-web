@@ -64,17 +64,23 @@ import {
 export function AddCourseView({
   editingCourse,
   quickAdd,
+  targetTableId,
   onBack,
   onSaved,
 }: {
   editingCourse?: Course | null
   quickAdd?: QuickAddSeed | null
+  targetTableId?: number
   onBack: () => void
   onSaved: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const tables = useLiveQuery(async () => Promise.all((await db.timetables.orderBy('id').toArray()).map(async (table) => hydratedWith(table,table.periodTableId ? await db.periodTables.get(table.periodTableId) : null))), []) ?? []
-  const defaultTable = tables.find((x) => x.isDefault === 1) ?? tables[0]
+  const tableRows = useLiveQuery(async () => Promise.all((await db.timetables.orderBy('id').toArray()).map(async (table) => hydratedWith(table,table.periodTableId ? await db.periodTables.get(table.periodTableId) : null))), [])
+  const tables = tableRows ?? []
+  const selectedTableId = editingCourse?.tableId ?? targetTableId ?? quickAdd?.tableId
+  const defaultTable = selectedTableId != null
+    ? tables.find(table => table.id === selectedTableId)
+    : tables.find(table => table.isDefault === 1) ?? tables[0]
 
   const isEditing = editingCourse != null
   const [compact, setCompact] = useState(!!quickAdd)
@@ -183,7 +189,7 @@ export function AddCourseView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, blocksSynced, meetingBlocks.length, editingCourse?.id])
 
-  const canSave = courseName.trim() !== '' && meetingBlocks.length > 0
+  const canSave = tableRows !== undefined && courseName.trim() !== '' && meetingBlocks.length > 0
 
   function updateBlock(id: number, patch: Partial<MeetingBlockDraft>) {
     setMeetingBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)))
@@ -218,6 +224,7 @@ export function AddCourseView({
     try {
       let table:Table|undefined=defaultTable
       if(!table) {
+        if(selectedTableId != null) throw new Error(t('import_target_missing'))
         const { createEmptyTable }=await import('../data/repository')
         const id=await createEmptyTable()
         table=await getTable(id)

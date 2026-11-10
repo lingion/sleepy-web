@@ -62,6 +62,7 @@ function mkCourse(p: Partial<Course> & { courseName: string }): Course {
 /** 打开粘贴区 + 填文本 + 点「预览导入」 */
 async function paste(text: string, onDone?: () => void) {
   render(<ImportView onDone={onDone ?? vi.fn()} />)
+  await waitFor(() => expect((screen.getByRole('button',{name:'粘贴课表文本'}) as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(screen.getByText('粘贴课表文本'))
   const ta = screen.getByLabelText('粘贴课表文本') as HTMLTextAreaElement
   fireEvent.change(ta, { target: { value: text } })
