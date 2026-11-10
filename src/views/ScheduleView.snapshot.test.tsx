@@ -10,6 +10,8 @@ import { usePrefsStore } from '../state/prefsStore'
 import { useScheduleSessionStore } from '../state/scheduleSessionStore'
 import { discardInitialScheduleData, getInitialScheduleData, prepareInitialScheduleData } from '../startup/scheduleData'
 import { buildGridGeometry } from '../components/schedule/gridGeometry'
+import { CardsGridView } from '../components/schedule/CardsGridView'
+import { configureCourseHues } from '../data/courseHueCache'
 import { ScheduleView } from './ScheduleView'
 
 const queried = vi.hoisted(() => ({ snapshots: [] as unknown[] }))
@@ -29,6 +31,14 @@ vi.mock('../components/schedule/gridGeometry', async importOriginal => {
   const actual = await importOriginal<typeof import('../components/schedule/gridGeometry')>()
   return { ...actual, buildGridGeometry: vi.fn(actual.buildGridGeometry) }
 })
+vi.mock('../components/schedule/CardsGridView', async importOriginal => {
+  const actual = await importOriginal<typeof import('../components/schedule/CardsGridView')>()
+  return { ...actual, CardsGridView: vi.fn(actual.CardsGridView) }
+})
+
+const observers: Array<{ callback: ResizeObserverCallback; element: Element }> = []
+let viewportWidth = 402
+let isDark = false
 
 const times = '[{"node":1,"start":"08:00","end":"08:45"},{"node":2,"start":"08:50","end":"09:35"}]'
 const table: Table = { id: 1, name: 'First timetable', isDefault: 1, startDate: '2026-11-02', timeJson: times, nodeCount: 2, maxWeek: 20, createdAt: 0, smartConfigJson: '', periodTableId: 7 }
@@ -40,12 +50,21 @@ const course: Course = {
 
 beforeEach(async () => {
   initI18n('zh-CN')
-  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
-  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }))
+  observers.length = 0
+  viewportWidth = 402
+  isDark = false
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(private callback: ResizeObserverCallback) {}
+    observe(element: Element) { observers.push({ callback: this.callback, element }) }
+    unobserve() {}
+    disconnect() {}
+  })
+  vi.stubGlobal('matchMedia', () => ({ matches: isDark, addEventListener() {}, removeEventListener() {} }))
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
-    return this.hasAttribute('data-schedule-scroll') ? 402 : 386
+    return this.hasAttribute('data-schedule-scroll') ? viewportWidth : viewportWidth - 16
   })
   vi.spyOn(useHolidayStore.getState(), 'load').mockResolvedValue(undefined)
+  useHolidayStore.setState({ entries: {}, status: {}, overrides: [] })
   usePrefsStore.setState({ prefs: { ...DEFAULT_PREFS, startView: 'cards' }, loaded: true })
   useScheduleSessionStore.getState().setWeek(2)
   await db.periodTables.put({ id: 7, name: 'Shared periods', nodesPerDay: 2, timeJson: times, createdAt: 0, smartConfigJson: '', updatedAt: 0 })
@@ -55,10 +74,12 @@ beforeEach(async () => {
   await prepareInitialScheduleData()
   queried.snapshots.length = 0
   vi.mocked(buildGridGeometry).mockClear()
+  vi.mocked(CardsGridView).mockClear()
 })
 
 afterEach(async () => {
   cleanup()
+  configureCourseHues(0, {})
   discardInitialScheduleData()
   useBackStack.getState().reset()
   useScheduleSessionStore.getState().setWeek(null)
@@ -129,4 +150,148 @@ it('does not keep a mounted view snapshot after leaving and switching the defaul
   expect(screen.queryByText('First course')).toBeNull()
   await waitFor(() => expect(screen.getAllByText('Second course')).toHaveLength(3))
   expect(screen.queryByText('First course')).toBeNull()
+})
+
+it('ignores a fractional observer report for the same client width and still resizes all three pages', async () => {
+  const { container } = render(<ScheduleView />)
+  await firstLiveResult()
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  const scroll = container.querySelector('[data-schedule-scroll]')!
+  const observer = observers.find(item => item.element === scroll)!
+  act(() => observer.callback([{ contentRect: { width: 401.984375 } } as ResizeObserverEntry], {} as ResizeObserver))
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  expect(buildGridGeometry).toHaveBeenCalledTimes(3)
+
+  viewportWidth = 360
+  act(() => observer.callback([{ contentRect: { width: 359.984375 } } as ResizeObserverEntry], {} as ResizeObserver))
+  expect([...container.querySelectorAll<HTMLElement>('[data-grid-week]')].map(grid => Number(grid.dataset.gridWeek))).toEqual([1, 2, 3])
+  for (const grid of container.querySelectorAll<HTMLElement>('[data-grid-week]')) {
+    const used = Number(grid.dataset.gridTime) + Number(grid.dataset.gridCol) * 7 + Number(grid.dataset.gridGap) * 8
+    expect(used).toBeCloseTo(viewportWidth - 32, 6)
+  }
+  const wheel = new WheelEvent('wheel', { deltaX: 200, deltaY: 0, bubbles: true, cancelable: true })
+  act(() => scroll.dispatchEvent(wheel))
+  expect(wheel.defaultPrevented).toBe(true)
+  await waitFor(() => expect(useScheduleSessionStore.getState().week).toBe(3))
+  expect([...container.querySelectorAll<HTMLElement>('[data-grid-week]')].map(grid => Number(grid.dataset.gridWeek))).toEqual([2, 3, 4])
+})
+
+it.each([0, 6, 15])('reserves a %ipx scrollbar gutter before measuring the empty pager and keeps all seven lanes', async scrollbarWidth => {
+  // jsdom has no scrollbar layout. Model the browser transition in the trace:
+  // before the pages mount there is no overflow; after mounting, a classic
+  // scrollbar reduces the client width unless its gutter was reserved already.
+  let overflowing = true
+  const scrollMeasurements: Array<{ width: number; hasPages: boolean }> = []
+  const availableWidth = (scroll: HTMLElement) => viewportWidth -
+    (scroll.style.scrollbarGutter === 'stable' || overflowing && !!scroll.querySelector('[data-schedule-week]') ? scrollbarWidth : 0)
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+    if (this.hasAttribute('data-schedule-scroll')) {
+      const width = availableWidth(this)
+      scrollMeasurements.push({ width, hasPages: !!this.querySelector('[data-schedule-week]') })
+      return width
+    }
+    const scroll = this.closest<HTMLElement>('[data-schedule-scroll]')
+    return scroll ? availableWidth(scroll) - 16 : viewportWidth - 16
+  })
+  const { container } = render(<ScheduleView />)
+  const scroll = container.querySelector<HTMLElement>('[data-schedule-scroll]')!
+  const width = viewportWidth - scrollbarWidth
+  // Assert the geometry inputs and number of layouts before checking CSS.
+  // Without reservation the first three inputs are 370px, then each grid
+  // corrects to 364px with a 6px scrollbar, matching the production trace.
+  expect(vi.mocked(buildGridGeometry).mock.calls.map(call => call[3])).toEqual([width - 32, width - 32, width - 32])
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  expect(scrollMeasurements[0]).toEqual({ width, hasPages: false })
+  expect(scroll.style.scrollbarGutter).toBe('stable')
+  expect(scroll.style.overflowY).toBe('auto')
+  expect(scroll.style.overflowX).toBe('hidden')
+  expect(container.querySelectorAll('[style*="scrollbar-gutter"]')).toHaveLength(1)
+
+  const pages = [...scroll.querySelectorAll<HTMLElement>('[data-schedule-week]')]
+  expect(pages.map(page => Number(page.dataset.scheduleWeek))).toEqual([1, 2, 3])
+  expect(pages[0].parentElement!.style.width).toBe('300%')
+  for (const page of pages) {
+    expect(parseFloat(page.style.width)).toBeCloseTo(100 / 3, 6)
+    expect(page.style.flexShrink).toBe('0')
+    const grid = page.querySelector<HTMLElement>('[data-grid-week]')!
+    expect(JSON.parse(grid.dataset.gridDays!)).toEqual([1, 2, 3, 4, 5, 6, 7])
+    const used = Number(grid.dataset.gridTime) + Number(grid.dataset.gridCol) * 7 + Number(grid.dataset.gridGap) * 8
+    expect(used + 32).toBeCloseTo(width, 6)
+  }
+  await firstLiveResult()
+  const observer = observers.find(item => item.element === scroll)!
+  act(() => observer.callback([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver))
+  overflowing = false
+  act(() => observer.callback([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver))
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  expect(buildGridGeometry).toHaveBeenCalledTimes(3)
+
+  const wheel = new WheelEvent('wheel', { deltaX: 200, deltaY: 0, bubbles: true, cancelable: true })
+  act(() => scroll.dispatchEvent(wheel))
+  expect(wheel.defaultPrevented).toBe(true)
+  const track = pages[0].parentElement!
+  expect(track.style.transform).toContain(`${-width}px`)
+  await waitFor(() => expect(useScheduleSessionStore.getState().week).toBe(3))
+  expect([...scroll.querySelectorAll<HTMLElement>('[data-schedule-week]')].map(page => Number(page.dataset.scheduleWeek))).toEqual([2, 3, 4])
+})
+
+it('supplies scaled content width before mounting each grid instead of correcting three layouts', async () => {
+  usePrefsStore.setState({ prefs: { ...DEFAULT_PREFS, gridScale: 1.3 }, loaded: true })
+  const { container } = render(<ScheduleView />)
+  await firstLiveResult()
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  expect(buildGridGeometry).toHaveBeenCalledTimes(3)
+  for (const grid of container.querySelectorAll<HTMLElement>('[data-grid-week]')) {
+    const used = Number(grid.dataset.gridTime) + Number(grid.dataset.gridCol) * 7 + Number(grid.dataset.gridGap) * 8
+    expect(used).toBeCloseTo(viewportWidth - 16 - 16 * 1.3, 6)
+  }
+})
+
+it('keeps grid bodies and geometry on a hue notification while subscribed course colors still change', async () => {
+  configureCourseHues(1, { first: 20 })
+  usePrefsStore.setState({ prefs: { ...DEFAULT_PREFS, courseColorMode: 1 }, loaded: true })
+  const { container } = render(<ScheduleView />)
+  await firstLiveResult()
+  const card = container.querySelector<HTMLElement>('[data-grid-week="2"] [data-course-id="1"] > div')!
+  const before = card.style.background
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  act(() => {
+    configureCourseHues(1, { first: 220 })
+    usePrefsStore.setState({ prefs: { ...usePrefsStore.getState().prefs } })
+  })
+  expect(card.style.background).not.toBe(before)
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  expect(buildGridGeometry).toHaveBeenCalledTimes(3)
+
+  const light = card.style.background
+  act(() => {
+    isDark = true
+    usePrefsStore.setState({ prefs: { ...usePrefsStore.getState().prefs } })
+  })
+  expect(card.style.background).not.toBe(light)
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+
+  act(() => usePrefsStore.setState({ prefs: { ...usePrefsStore.getState().prefs, gridScale: 1.3, gridSubInfo: 'none' } }))
+  expect(vi.mocked(CardsGridView).mock.calls.slice(3).map(([props]) => props.currentWeek)).toEqual(expect.arrayContaining([1, 2, 3]))
+  expect(container.querySelector<HTMLElement>('[data-grid-week="2"] [data-course-id="1"]')!.style.padding).toBe('2.6px')
+})
+
+it('reuses equivalent grey days after holiday fetch but redraws the affected week and range overrides', async () => {
+  const { container } = render(<ScheduleView />)
+  await firstLiveResult()
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  act(() => useHolidayStore.setState({ entries: { 2026: [{ date: '2026-01-01', name: 'Outside pager', type: 'public_holiday' }] } }))
+  expect(CardsGridView).toHaveBeenCalledTimes(3)
+  vi.mocked(CardsGridView).mockClear()
+  act(() => useHolidayStore.setState({ entries: { 2026: [{ date: '2026-11-09', name: 'Visible holiday', type: 'public_holiday' }] } }))
+  expect(CardsGridView).toHaveBeenCalled()
+  expect(new Set(vi.mocked(CardsGridView).mock.calls.map(([props]) => props.currentWeek))).toEqual(new Set([2]))
+  const card = container.querySelector<HTMLElement>('[data-grid-week="2"] [data-course-id="1"] > div')!
+  expect(card.style.opacity).toBe('0.6')
+  vi.mocked(CardsGridView).mockClear()
+  act(() => useHolidayStore.setState({ overrides: [{ id: 'remove-holiday', name: '', startDate: '2026-11-09', endDate: '2026-11-09', type: 'removed', sourceKey: 'holiday:2026-11-09' }] }))
+  expect(card.style.opacity).toBe('1')
+  expect(CardsGridView).toHaveBeenCalled()
+  expect(new Set(vi.mocked(CardsGridView).mock.calls.map(([props]) => props.currentWeek))).toEqual(new Set([2]))
+  expect(buildGridGeometry).toHaveBeenCalledTimes(3)
 })
