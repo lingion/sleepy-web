@@ -6,42 +6,19 @@
  */
 
 import type { Lang } from '../index'
+import { calendarExportExtra as locale0 } from './locales/en'
+import { calendarExportExtra as locale1 } from './locales/zh-CN'
+import { calendarExportExtra as locale2 } from './locales/zh-TW'
+import { calendarExportExtra as locale3 } from './locales/ja'
+import { calendarExportExtra as locale4 } from './locales/es'
+import { calendarExportExtra as locale5 } from './locales/en-GB'
 
+// Each language is stored independently so startup can load only its resources.
 export const calendarExportExtra: Record<Lang, Record<string, string>> = {
-  'zh-CN': {
-    ics_export_options_title: 'ICS 导出方式',
-    ics_recurring_label: '循环事件（整学期，标准 RRULE）',
-    ics_dated_label: '逐日事件（按范围）',
-    ics_dated_note: '逐日事件，可导入任意日历应用；范围外课程不导出。',
-  },
-  'zh-TW': {
-    ics_export_options_title: 'ICS 匯出方式',
-    ics_recurring_label: '循環事件（整學期，標準 RRULE）',
-    ics_dated_label: '逐日事件（按範圍）',
-    ics_dated_note: '逐日事件，可匯入任意日曆應用；範圍外課程不匯出。',
-  },
-  en: {
-    ics_export_options_title: 'ICS export format',
-    ics_recurring_label: 'Recurring events (full semester, standard RRULE)',
-    ics_dated_label: 'Dated events (within range)',
-    ics_dated_note: 'Dated events, importable into any calendar app; courses outside the range are skipped.',
-  },
-  'en-GB': {
-    ics_export_options_title: 'ICS export format',
-    ics_recurring_label: 'Recurring events (full semester, standard RRULE)',
-    ics_dated_label: 'Dated events (within range)',
-    ics_dated_note: 'Dated events, importable into any calendar app; courses outside the range are skipped.',
-  },
-  ja: {
-    ics_export_options_title: 'ICS export format',
-    ics_recurring_label: 'Recurring events (full semester, standard RRULE)',
-    ics_dated_label: 'Dated events (within range)',
-    ics_dated_note: 'Dated events, importable into any calendar app; courses outside the range are skipped.',
-  },
-  es: {
-    ics_export_options_title: 'ICS export format',
-    ics_recurring_label: 'Recurring events (full semester, standard RRULE)',
-    ics_dated_label: 'Dated events (within range)',
-    ics_dated_note: 'Dated events, importable into any calendar app; courses outside the range are skipped.',
-  },
+  'en': locale0,
+  'zh-CN': locale1,
+  'zh-TW': locale2,
+  'ja': locale3,
+  'es': locale4,
+  'en-GB': locale5,
 }

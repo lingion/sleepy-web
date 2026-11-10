@@ -5,12 +5,19 @@
  */
 
 import type { Lang } from '../index'
+import { timeslotExtra as locale0 } from './locales/en'
+import { timeslotExtra as locale1 } from './locales/zh-CN'
+import { timeslotExtra as locale2 } from './locales/zh-TW'
+import { timeslotExtra as locale3 } from './locales/ja'
+import { timeslotExtra as locale4 } from './locales/es'
+import { timeslotExtra as locale5 } from './locales/en-GB'
 
+// Each language is stored independently so startup can load only its resources.
 export const timeslotExtra: Record<Lang, Record<string, string>> = {
-  'zh-CN': { timeslot_editor_title: '节次时间' },
-  'zh-TW': { timeslot_editor_title: '節次時間' },
-  en: { timeslot_editor_title: 'Class Time Slots' },
-  'en-GB': { timeslot_editor_title: 'Class Time Slots' },
-  ja: { timeslot_editor_title: 'Class Time Slots' },
-  es: { timeslot_editor_title: 'Class Time Slots' },
+  'en': locale0,
+  'zh-CN': locale1,
+  'zh-TW': locale2,
+  'ja': locale3,
+  'es': locale4,
+  'en-GB': locale5,
 }
