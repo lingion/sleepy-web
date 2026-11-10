@@ -29,6 +29,7 @@ import {
 } from '../../domain/smartPeriod'
 import { previewPeriodTableChange } from '../../domain/periodTablePreview'
 import { validatePeriodRows, periodValidationMessage } from '../../domain/periodValidation'
+import { resolveAutoPeriodConfig } from '../../domain/periodEditor'
 import { suggestUniqueName } from './periodTableNames'
 import { TimeSlotSection } from './TimeSlotSection'
 import { SettingsScaffold } from './shared'
@@ -80,7 +81,7 @@ export function PeriodTableEditView({
   if (periodTable && rowsDraft === null) setRowsDraft(parseTimeSlotRows(periodTable.timeJson))
   if (periodTable && smartConfig === null) {
     setSmartConfig(
-      decodeSmartConfig(periodTable.smartConfigJson) ?? inferSmartConfig(parseTimeSlotRows(periodTable.timeJson))
+      resolveAutoPeriodConfig(parseTimeSlotRows(periodTable.timeJson), decodeSmartConfig(periodTable.smartConfigJson)) ?? inferSmartConfig(parseTimeSlotRows(periodTable.timeJson))
     )
   }
 
@@ -185,7 +186,10 @@ export function PeriodTableEditView({
         expanded={timeSlotsExpanded}
         onToggle={() => setTimeSlotsExpanded((v) => !v)}
         rows={rowsDraft}
-        onRowsChange={setRowsDraft}
+        onRowsChange={(rows) => {
+          setRowsDraft(rows)
+          setSmartConfig(resolveAutoPeriodConfig(rows, smartConfig) ?? smartConfig)
+        }}
         smartConfig={smartConfig}
         onSmartConfigChange={setSmartConfig}
       />
