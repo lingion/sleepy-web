@@ -122,24 +122,34 @@ export function periodHeaderColumnPlacements(
 
 const measuredWidths = new Map<string, number>()
 let textContext: CanvasRenderingContext2D | null | undefined
-/** Match the actual system font and labelSmall tracking; use a deterministic SSR fallback. */
-export function estimatePeriodHeaderTextWidth(text: string, size: number, weight = 500, tracking = 0.5): number {
+/** Resolve the rendered font once per geometry pass, then measure its whole column. */
+export function createPeriodTextMeasurer(): (text: string, size: number, weight?: number, tracking?: number) => number {
+  let context: CanvasRenderingContext2D | null | undefined
+  let family = ''
   if (typeof document !== 'undefined' && !/jsdom/i.test(navigator.userAgent)) {
     textContext ??= document.createElement('canvas').getContext('2d')
-    if (textContext) {
-      const family = getComputedStyle(document.body).fontFamily || 'sans-serif'
+    context = textContext
+    if (context) family = getComputedStyle(document.body).fontFamily || 'sans-serif'
+  }
+  return (text, size, weight = 500, tracking = 0.5) => {
+    if (context) {
       const key = `${family}|${weight}|${size}|${tracking}|${text}`
       const cached = measuredWidths.get(key)
       if (cached !== undefined) return cached
-      textContext.font = `${weight} ${size}px ${family}`
-      const width = textContext.measureText(text).width + text.length * tracking
-      measuredWidths.set(key,width)
+      context.font = `${weight} ${size}px ${family}`
+      const width = context.measureText(text).width + text.length * tracking
+      measuredWidths.set(key, width)
       return width
     }
+    let width = 0
+    for (const char of text) width += /[0-9:]/.test(char) ? size * 0.58 : char === '-' ? size * 0.4 : size
+    return width
   }
-  let width = 0
-  for (const char of text) width += /[0-9:]/.test(char) ? size * 0.58 : char === '-' ? size * 0.4 : size
-  return width
+}
+
+/** Match the current system font; standalone consumers retain the same API. */
+export function estimatePeriodHeaderTextWidth(text: string, size: number, weight = 500, tracking = 0.5): number {
+  return createPeriodTextMeasurer()(text, size, weight, tracking)
 }
 
 /**
@@ -234,13 +244,14 @@ export function legacyRowInk(
   slot: { label: string; displayStart: string; displayEnd: string; nodeStart?: number; nodeEnd?: number },
   style: PeriodHeaderStyle,
   showX: boolean,
+  measure = createPeriodTextMeasurer(),
 ): LegacyDashRowInk {
   const lines = periodHeaderLines(slot, 'legacy', style, showX)
   return {
-    labelPx: estimatePeriodHeaderTextWidth(lines[0], LEGACY_BASE_LABEL,600),
-    timeLeftPx: estimatePeriodHeaderTextWidth(slot.displayStart, LEGACY_BASE_TIME),
-    dashPx: estimatePeriodHeaderTextWidth('-', LEGACY_BASE_TIME),
-    timeRightPx: estimatePeriodHeaderTextWidth(slot.displayEnd, LEGACY_BASE_TIME),
+    labelPx: measure(lines[0], LEGACY_BASE_LABEL,600),
+    timeLeftPx: measure(slot.displayStart, LEGACY_BASE_TIME),
+    dashPx: measure('-', LEGACY_BASE_TIME),
+    timeRightPx: measure(slot.displayEnd, LEGACY_BASE_TIME),
   }
 }
 
@@ -365,8 +376,9 @@ export function fitPeriodHeaderColumn(
   const pad = 3 * scale
   const contentW = Math.max(0, width - 2 * pad)
   const contentH = Math.max(0, height - 2 * pad)
+  const measureText = createPeriodTextMeasurer()
   const measure = (text: string, size: number, label = false) =>
-    estimatePeriodHeaderTextWidth(text, size, label ? 600 : 500, 0.5 * scale)
+    measureText(text, size, label ? 600 : 500, 0.5 * scale)
   const labels = slots.map(slot => periodHeaderLines(slot, 'legacy', options.style, options.showX)[0])
   const hidden = options.layout === 'legacy' && options.hideTime
   const rows = slots.map((slot, i) => ({

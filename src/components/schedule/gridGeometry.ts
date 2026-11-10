@@ -7,7 +7,7 @@ import type { Course } from '../../data/types'
 import type { RenderSlotPlan, TimeSlot } from '../../domain/timeTable'
 import { buildRenderSlotPlan, parseHM, timeToFractionalRows } from '../../domain/timeTable'
 import {
-  estimatePeriodHeaderTextWidth,
+  createPeriodTextMeasurer,
   legacyDashColumn,
   legacyRowInk,
   periodHeaderHangingPlacement,
@@ -123,15 +123,16 @@ function resolveTimeColumnWidth(
     periodHeaderShowX?: boolean
   },
 ): number {
+  const measure = createPeriodTextMeasurer()
   const style = options.periodHeaderStyle ?? 'arabic'
   const showX = options.periodHeaderShowX ?? false
   if (options.periodHeaderLayout !== 'three_line') {
-    if(options.periodHeaderHideTime) return Math.max(36,...slots.filter(slot=>!slot.isPlaceholder).map(slot=>estimatePeriodHeaderTextWidth(periodHeaderLines(slot,'legacy',style,showX)[0],12,600)+6))
+    if(options.periodHeaderHideTime) return Math.max(36,...slots.filter(slot=>!slot.isPlaceholder).map(slot=>measure(periodHeaderLines(slot,'legacy',style,showX)[0],12,600)+6))
     // 定令 (老式表头同三行式统一, ref #102): 列宽 = dash 轴几何
     // (所有行 dash 同一 X, 列宽含最宽行两侧余量), 不再硬钉 68。
     const rows = slots
       .filter((slot) => !slot.isPlaceholder)
-      .map((slot) => legacyRowInk(slot, style, showX))
+      .map((slot) => legacyRowInk(slot, style, showX, measure))
     return Math.max(46, legacyDashColumn(rows, 3, options.periodHeaderTimeAlignment).columnWidth)
   }
   const hanging = options.periodHeaderHanging ?? 0
@@ -140,10 +141,10 @@ function resolveTimeColumnWidth(
     .map((slot) => {
       const lines = periodHeaderLines(slot, 'three_line', style, showX)
       const timeWidth = Math.max(
-        estimatePeriodHeaderTextWidth(lines[0], 11),
-        estimatePeriodHeaderTextWidth(lines[2], 11),
+        measure(lines[0], 11),
+        measure(lines[2], 11),
       )
-      const labelWidth = estimatePeriodHeaderTextWidth(lines[1], 12)
+      const labelWidth = measure(lines[1], 12)
       const placement = periodHeaderHangingPlacement(timeWidth, labelWidth, hanging)
       return placement.contentWidth * (16 / 12) + 6
     })

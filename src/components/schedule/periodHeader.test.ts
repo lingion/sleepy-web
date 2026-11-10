@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   normalizePeriodHeaderLayout,
   periodHeaderLabel,
@@ -303,5 +303,28 @@ describe('bounded period header ink', () => {
     expect(fitPeriodHeaderColumn(slots, 33, 52, 1, options)[0].map(line => line.text)).toEqual(['8:00', '1', '08:45'])
     expect(fitPeriodHeaderColumn(slots, 33, 52, 1, { ...options, hideTime: true })[0].map(line => line.kind)).toEqual(['label'])
     expect(fitPeriodHeaderColumn(slots, 33, 52, 1, { ...options, layout: 'three_line', hideTime: true })[0].map(line => line.kind)).toEqual(['start', 'label', 'end'])
+  })
+})
+
+
+describe('batched period text measurement', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('reads the current font once for a column and observes a changed font on the next column', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Chrome')
+    const context = {
+      font: '',
+      measureText(text: string) { return { width: text.length * (this.font.includes('wide') ? 9 : 5) } },
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D)
+    const style = vi.spyOn(window, 'getComputedStyle').mockReturnValue({ fontFamily: 'batch-narrow' } as CSSStyleDeclaration)
+    const slots = Array.from({ length: 12 }, (_, i) => ({ label: String(i + 1), displayStart: '08:00', displayEnd: '08:45' }))
+    const options = { layout: 'legacy' as const, style: 'arabic' as const, hanging: 0, showX: false }
+    const narrow = fitPeriodHeaderColumn(slots, 42, 52, 1, options)
+    expect(style).toHaveBeenCalledTimes(1)
+    style.mockReturnValue({ fontFamily: 'batch-wide' } as CSSStyleDeclaration)
+    const wide = fitPeriodHeaderColumn(slots, 42, 52, 1, options)
+    expect(style).toHaveBeenCalledTimes(2)
+    expect(wide[0].find(line => line.kind === 'label')!.size).toBeLessThan(narrow[0].find(line => line.kind === 'label')!.size)
   })
 })
