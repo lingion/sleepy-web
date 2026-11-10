@@ -172,7 +172,7 @@ export function CustomThemeEditorView({
       )}
 
       {/* ── 保存 ── */}
-      <button
+      <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
         onClick={onSave}
         style={{
           width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -185,7 +185,7 @@ export function CustomThemeEditorView({
 
       {/* ── 删除区(仅微调既有主题; errorContainer 整宽色块, 禁描边) ── */}
       {editing && (
-        <button
+        <button data-glass-role="tinted" data-glass-tint="var(--md-error-container)"
           onClick={() => setShowDeleteConfirm(true)}
           style={{
             width: '100%', height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -219,7 +219,7 @@ export function CustomThemeEditorView({
 /** 动作入口卡 — 图标 + 标题 + 说明, 整卡可点 (ActionEntry 同构) */
 function ActionEntry({ icon, title, desc, onClick }: { icon: JSX.Element; title: string; desc: string; onClick: () => void }) {
   return (
-    <div
+    <div data-glass-plain
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -241,7 +241,7 @@ function ActionEntry({ icon, title, desc, onClick }: { icon: JSX.Element; title:
 /** 角色行 — 角色名 + 说明 + 当前色块, 点击弹取色器 (RoleRow 同构) */
 function RoleRow({ title, desc, swatch, onClick }: { title: string; desc: string; swatch: string; onClick: () => void }) {
   return (
-    <div
+    <div data-glass-plain
       role="button"
       tabIndex={0}
       onClick={onClick}

@@ -94,6 +94,27 @@ describe('主题网格 (cells.chunked(2))', () => {
   })
 })
 
+describe('原生玻璃调用边界', () => {
+  it('keeps theme cards and swatches ordinary while marking only the central new-theme circle and edit icon', () => {
+    addCustom('boundary', '边界主题')
+    render(<AppearancePage onBack={() => {}} />)
+    const preset = screen.getByText(PRESET_NAMES[0]).closest('[role="button"]') as HTMLElement
+    const custom = screen.getByText('边界主题').closest('[role="button"]') as HTMLElement
+    const create = screen.getByLabelText('新建主题')
+    expect(preset.hasAttribute('data-glass-role')).toBe(false)
+    expect(custom.hasAttribute('data-glass-role')).toBe(false)
+    expect(create.hasAttribute('data-glass-role')).toBe(false)
+    expect(create.style.height).toBe('112px')
+    expect(create.querySelector<HTMLElement>('[data-glass-role="regular"]')!.style.width).toBe('40px')
+    const edit = screen.getByLabelText('编辑主题')
+    expect(edit.dataset.glassIcon).toBe('true')
+    expect(edit.style.width).toBe('48px')
+    expect(preset.firstElementChild!.getAttribute('style')).toContain('min-height: 48px')
+    expect(custom.firstElementChild!.getAttribute('style')).toContain('min-height: 48px')
+    expect((preset.firstElementChild!.firstElementChild as HTMLElement).style.width).toBe('28px')
+  })
+})
+
 describe('外观深浅 + 节次表头', () => {
   it('点非当前模式写入, aria-pressed 跟随', async () => {
     render(<AppearancePage onBack={() => {}} />)
