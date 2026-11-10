@@ -56,9 +56,9 @@ export function WidgetSettingsPage({ onBack, onOpenScheduleDisplay = () => {}, o
     {gallery && <section style={{ display: 'grid', gap: 12 }}>
       <SegmentedSwitcher options={[t('tab_today'), t('settings_start_view_full'), t('settings_start_view_cards')]} selected={mode} onSelect={setMode} />
       {mode !== 0 && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <button type="button" className="m3-button-tonal" disabled={week <= 1} onClick={() => setOffset(offset - 1)} aria-label={t('schedule_prev_week')}>‹</button>
+        <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" type="button" className="m3-button-tonal" disabled={week <= 1} onClick={() => setOffset(offset - 1)} aria-label={t('schedule_prev_week')}>‹</button>
         <span>{t('schedule_week_prefix', { v1: week })}</span>
-        <button type="button" className="m3-button-tonal" disabled={!data || week >= data.table.maxWeek} onClick={() => setOffset(offset + 1)} aria-label={t('schedule_next_week')}>›</button>
+        <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" type="button" className="m3-button-tonal" disabled={!data || week >= data.table.maxWeek} onClick={() => setOffset(offset + 1)} aria-label={t('schedule_next_week')}>›</button>
       </div>}
       <div data-widget-preview={['today', 'week', 'grid'][mode]} style={{ padding: 12, borderRadius: 20, background: 'var(--md-surface-container)', display: 'grid', gridTemplateColumns: mode === 2 ? `repeat(${Math.max(1, days.length)}, minmax(0, 1fr))` : '1fr', gap: 6, minHeight: 160 }}>
         {days.map(day => {
