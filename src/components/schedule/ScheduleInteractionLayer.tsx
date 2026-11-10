@@ -43,7 +43,7 @@ export function boxForTarget(root: HTMLElement, target: OccurrenceTarget): GridH
 export function ScheduleInteractionLayer({ rootRef, table, courses, week, readOnly, onWeek, onMove, onDelete, onEdit, onQuickAdd }: {
   rootRef: RefObject<HTMLDivElement>; table: Table | undefined; courses: Course[]; week: number; readOnly: boolean
   onWeek: (week:number) => void; onMove: (course:Course, sourceWeek:number, target:OccurrenceTarget, resize:boolean) => Promise<boolean>
-  onDelete: (course:Course, week:number) => Promise<boolean>; onEdit: (course:Course, week:number) => void; onQuickAdd: (seed:QuickAddSeed) => void
+  onDelete: (course:Course, week:number) => Promise<boolean>; onEdit: (course:Course, week:number, startInEdit?:boolean) => void; onQuickAdd: (seed:QuickAddSeed) => void
 }) {
   const [floating, setFloating] = useState<FloatState | null>(null)
   const state = useRef<FloatState | null>(null)
@@ -195,7 +195,7 @@ export function ScheduleInteractionLayer({ rootRef, table, courses, week, readOn
       <button className="float-resize bottom" aria-label="调整结束节次" onPointerDown={(e) => startDrag(e,'end')} data-glass-plain><span /></button>
     </div>
     {!floating.dragging && <div className="float-actions" data-float-ui style={{ top:Math.max(8,Math.min(window.innerHeight-64,floating.y-60)),left:Math.max(8,Math.min(window.innerWidth-288,floating.x+floating.width/2-144)) }}>
-      {floating.course ? <><button disabled={floating.busy} onClick={() => { latest.current.onEdit(floating.course!,floating.sourceWeek); set(null) }}>调整本次</button><button disabled={floating.busy} onClick={async () => { if (await latest.current.onDelete(floating.course!,floating.sourceWeek)) set(null) }}>删除本次</button><button disabled={floating.busy} onClick={() => floating.resized ? void commit(true) : set(null)}>{floating.resized ? '确认调整' : '完成'}</button></> : <button onClick={() => set(null)}>取消添加</button>}
+      {floating.course ? <><button disabled={floating.busy} onClick={() => { latest.current.onEdit(floating.course!,floating.sourceWeek,true); set(null) }}>调整本次</button><button disabled={floating.busy} onClick={async () => { if (await latest.current.onDelete(floating.course!,floating.sourceWeek)) set(null) }}>删除本次</button><button disabled={floating.busy} onClick={() => floating.resized ? void commit(true) : set(null)}>{floating.resized ? '确认调整' : '完成'}</button></> : <button onClick={() => set(null)}>取消添加</button>}
     </div>}
     {floating.dragging && <div data-float-ui className="float-week-hint">第 {floating.target.week} 周，拖到左右边缘可跨周</div>}
   </>

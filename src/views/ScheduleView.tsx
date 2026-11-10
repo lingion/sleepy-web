@@ -647,7 +647,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
       </div>
 
       <ScheduleInteractionLayer rootRef={containerRef} table={defaultTable} courses={allCourses ?? []} week={currentWeek} readOnly={readOnly}
-        onWeek={(next) => setWeek(next)} onMove={occurrenceActions.move} onDelete={occurrenceActions.remove} onEdit={(course,week) => { void occurrenceActions.openEdit(course,week) }}
+        onWeek={(next) => setWeek(next)} onMove={occurrenceActions.move} onDelete={occurrenceActions.remove} onEdit={(course,week,startInEdit) => { void occurrenceActions.openEdit(course,week,false,startInEdit) }}
         onQuickAdd={(seed) => { setQuickAdd(seed); open('addCourse', () => setAdding(true)) }} />
       {occurrenceActions.overlays}
 
