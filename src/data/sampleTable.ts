@@ -7,7 +7,7 @@
  * seed 不走 undo capture — 动作发生在用户任何操作之前, 无"动作前状态"可回。
  */
 
-import { db, nextTableId, loadPrefs } from './db'
+import { db } from './db'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import i18next from 'i18next'
 import type { Course, Table } from './types'
@@ -29,39 +29,38 @@ const SAMPLE_ROWS: SampleRow[] = [
 
 /** 空库时 seed 示例课表 — Bootstrap 挂载前 await 一次 */
 export async function seedSampleTable(): Promise<void> {
-  const flag = await db.prefs.get('sampleTableSeeded')
-  if (flag) return
-  await db.prefs.put({ key: 'sampleTableSeeded', value: '1' })
-  // 用户已有表 (老版本升级) — 只打标记不塞数据
-  if ((await db.timetables.count()) > 0) return
-
-  const tableId = await nextTableId()
-  const table: Table = {
-    id: tableId,
-    // i18next 未初始化 (单测) 时 t() 返回 key/undefined — 兜底中文真值
-    name: i18next.t('sample_table_name') || '示例课表',
-    startDate: lastMondayIso(),
-    timeJson: DEFAULT_TIME_JSON,
-    isDefault: 1,
-    maxWeek: 20,
-    createdAt: Date.now(),
-    smartConfigJson: '',
-    nodeCount: 12,
-  }
-  let cidBase = 1
-  const existingCourses = await db.courses.count()
-  if (existingCourses > 0) {
-    cidBase = (await db.courses.orderBy('id').last())!.id + 1
-  }
+  // 标记与数据一起提交；任何写入失败都回滚，下一次启动仍可重试。
   await db.transaction('rw', db.timetables, db.courses, db.prefs, async () => {
-    await db.timetables.put(table)
-    let cid = cidBase
-    for (const r of SAMPLE_ROWS) {
-      const course = courseOf(r, cid++, tableId)
-      await db.courses.put(course)
+    const flag = await db.prefs.get('sampleTableSeeded')
+    if (flag) return
+    const [tableCount] = await Promise.all([
+      db.timetables.count(),
+      db.prefs.put({ key: 'sampleTableSeeded', value: '1' }),
+    ])
+    // 用户已有表 (老版本升级) — 只打标记不塞数据
+    if (tableCount > 0) return
+
+    // 同一读写事务内已确认课表为空，无需再整表查询下一个 ID。
+    const tableId = 1
+    const cidBase = ((await db.courses.orderBy('id').last())?.id ?? 0) + 1
+    const table: Table = {
+      id: tableId,
+      // 调用者已准备语言；单测未初始化 i18next 时兜底中文真值。
+      name: i18next.t('sample_table_name') || '示例课表',
+      startDate: lastMondayIso(),
+      timeJson: DEFAULT_TIME_JSON,
+      isDefault: 1,
+      maxWeek: 20,
+      createdAt: Date.now(),
+      smartConfigJson: '',
+      nodeCount: 12,
     }
-    // 记下示例表 id — ScheduleView 据此显示"这是示例"提示条
-    await db.prefs.put({ key: 'sampleTableId', value: String(tableId) })
+    await Promise.all([
+      db.timetables.put(table),
+      db.courses.bulkPut(SAMPLE_ROWS.map((row, index) => courseOf(row, cidBase + index, tableId))),
+      // 记下示例表 id — ScheduleView 据此显示"这是示例"提示条
+      db.prefs.put({ key: 'sampleTableId', value: String(tableId) }),
+    ])
   })
 }
 
@@ -103,6 +102,3 @@ function lastMondayIso(): string {
   const p = (x: number) => String(x).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
-
-// loadPrefs 引用保留 — 防止未来 seed 判定改走 Prefs 契约时遗漏导入
-void loadPrefs
