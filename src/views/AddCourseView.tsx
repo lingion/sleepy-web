@@ -25,6 +25,7 @@ import {
   getCourses,
   getGroupCourses,
   deleteCourseGroup,
+  deleteCourse,
 } from '../data/repository'
 import { hydratedWith, type Course, type Table, type WeekType, type ColorMode } from '../data/types'
 import type { HolidayTransferEntry } from '../domain/holiday/transfers'
@@ -234,9 +235,9 @@ export function AddCourseView({
       const details=occurrenceConflictDetails(resolved,existing,{...table,timeJson:effectiveTimeJson},transfers,[1,2,3,4,5,6,7].map((day)=>localizedDay(day,i18n.language)),t('conflict_detail_line'))
       if(details.length && await ask(t('conflict_detail_title'),details.join('\n'),[t('conflict_detail_save_anyway')],true)===null) return
       const repository=await import('../data/repository') as typeof import('../data/repository') & {
-        saveCourseDraft:(drafts:Course[],replacingGroupId:string|null,expectedCourses:Course[],expectedTable:Table,draftTimeJson:string,expectedTransfers:HolidayTransferEntry[])=>Promise<boolean>
+        saveCourseDraft:(drafts:Course[],replacingGroupId:string|null,expectedCourses:Course[],expectedTable:Table,draftTimeJson:string,expectedTransfers:HolidayTransferEntry[],replacingCourseId?:number)=>Promise<boolean>
       }
-      if(!await repository.saveCourseDraft(resolved,isEditing ? editingCourse!.groupId : null,snapshot,expectedTable,effectiveTimeJson,transfers)) throw new Error('课表或调休已变化，请重新打开编辑页')
+      if(!await repository.saveCourseDraft(resolved,isEditing ? editingCourse!.groupId : null,snapshot,expectedTable,effectiveTimeJson,transfers,isEditing && !editingCourse!.groupId ? editingCourse!.id : undefined)) throw new Error('课表或调休已变化，请重新打开编辑页')
       onSaved()
     } catch(error) {setSaveError(error instanceof Error ? error.message : '保存失败，请重试')}
     finally {savingRef.current=false;setSaving(false)}
@@ -244,7 +245,8 @@ export function AddCourseView({
 
   async function handleDeleteGroup() {
     if (!editingCourse || !defaultTable) return
-    await deleteCourseGroup(defaultTable.id, editingCourse.groupId)
+    if(editingCourse.groupId) await deleteCourseGroup(defaultTable.id, editingCourse.groupId)
+    else await deleteCourse(editingCourse.id)
     onSaved()
   }
 
