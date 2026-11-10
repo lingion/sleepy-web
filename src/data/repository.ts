@@ -6,15 +6,31 @@
 import { db, nextTableId, nextCourseId, nextPeriodTableId } from './db'
 import { undoManager } from './undoStore'
 import type { Course, ImportDraft, PeriodTable, Table } from './types'
-import { restoredForUnbind, snapshotForBind } from './types'
+import { hydratedWith, restoredForUnbind, snapshotForBind } from './types'
 import { DEFAULT_TIME_JSON, reclaimUnusedEdgeNodes, remapCourseNodes, timeToNode } from '../domain/timeTable'
 import i18next from 'i18next'
 import { pruneConflictDefaultTop } from '../domain/conflictLayout'
 import { loadPrefs, savePrefs } from './db'
 import { suggestUniqueName } from '../views/mine/periodTableNames'
-import { clearHolidayTransfers } from '../state/holidayStore'
+import { clearHolidayTransfers, getHolidayTransfers } from '../state/holidayStore'
+import { resolveReminderTableScope } from '../domain/reminders/tableScope'
+import { withoutOccurrence, mergeMatchingRows, type CourseOccurrence } from '../domain/courseOccurrence'
+import type { HolidayTransferEntry } from '../domain/holiday/transfers'
 
 // ---- 读 ---------------------------------------------------------------
+
+export async function setTableReminderEnabled(id: number, enabled: boolean): Promise<void> {
+  await db.transaction('rw', db.timetables, db.periodTables, db.courses, async () => {
+    const tables = await db.timetables.toArray()
+    const effective = resolveReminderTableScope(tables)
+    if (!effective.some(table => table.id === id && (table.reminderEnabled !== 0) !== enabled)) return
+    await undoManager.capture('setTableReminderEnabled')
+    if (!tables.some(table => table.reminderOverride != null)) {
+      for (const table of effective) await db.timetables.update(table.id, { reminderOverride: table.reminderEnabled !== 0 })
+    }
+    await db.timetables.update(id, { reminderOverride: enabled })
+  })
+}
 
 export async function observeAllTables(): Promise<Table[]> {
   return db.timetables.toArray()
@@ -78,14 +94,18 @@ export async function updatePeriodTable(pt: PeriodTable): Promise<void> {
   await db.periodTables.put({ ...pt, updatedAt: Date.now() })
 }
 
-/** 17. deletePeriodTable — 删除。被课表绑定时拒绝 (Android 返回 false + blocked 提示,
- *  禁止产生悬空引用; 撤回可回滚删除)。返回 true = 已删。 */
-export async function deletePeriodTable(id: number): Promise<boolean> {
-  const bound = await db.timetables.where('periodTableId').equals(id).count()
-  if (bound > 0) return false
-  await undoManager.capture('deletePeriodTable')
-  await db.periodTables.delete(id)
-  return true
+/** Freeze shared timing into every bound timetable before deleting the source. */
+export async function deletePeriodTable(id: number, onlyIfUnbound = false): Promise<boolean> {
+  return db.transaction('rw', db.periodTables, db.timetables, db.courses, async () => {
+    const period = await db.periodTables.get(id)
+    if (!period) return false
+    const bound = await db.timetables.where('periodTableId').equals(id).toArray()
+    if (onlyIfUnbound && bound.length) return false
+    await undoManager.capture('deletePeriodTable')
+    for (const table of bound) await db.timetables.put({ ...hydratedWith(table, period), periodTableId: null, preBindSnapshotJson: '' })
+    await db.periodTables.delete(id)
+    return true
+  })
 }
 
 /** 18. bindPeriodTable — 课表绑定独立作息表 (Android bindPeriodTable C2 语义 1:1):
@@ -587,6 +607,43 @@ export async function applyDiff(
   await pruneDefaultTopPrefs()
 }
 
+/** Save one occurrence against the exact table/course/transfer snapshot shown in the editor. */
+export async function saveOccurrence(
+  occurrence: CourseOccurrence, replacement: Course | null, expectedCourses: Course[],
+  expectedTable: Table, expectedTransfers: HolidayTransferEntry[],
+): Promise<boolean> {
+  const canonical = (value: unknown): string => JSON.stringify(value, (_key, item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return item
+    return Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+  })
+  const rowsKey = (rows: Course[]) => canonical([...rows].sort((a, b) => a.id - b.id).map(row => ({ ...row, fixedDate: row.fixedDate ?? null })))
+  const saved = await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
+    const rawTable = await db.timetables.get(expectedTable.id)
+    if (!rawTable) return false
+    const table = hydratedWith(rawTable, rawTable.periodTableId ? await db.periodTables.get(rawTable.periodTableId) : null)
+    const stored = await getCourses(table.id)
+    const original = stored.find(row => row.id === occurrence.course.id)
+    if (canonical(table) !== canonical(expectedTable) || rowsKey(stored) !== rowsKey(expectedCourses) ||
+        canonical(getHolidayTransfers(table.id)) !== canonical(expectedTransfers) ||
+        !original || rowsKey([original]) !== rowsKey([occurrence.course])) return false
+    let next = await nextCourseId()
+    const remaining = withoutOccurrence(original, occurrence.sourceDate, table.startDate)
+    const fragments = remaining.map(row => ({ ...row, id: row.id || next++ }))
+    if (replacement) fragments.push({ ...replacement, id: fragments.length ? next++ : original.id, tableId: table.id, groupId: original.groupId })
+    const unchanged = stored.filter(row => row.id !== original.id)
+    const merged = replacement ? mergeMatchingRows([...unchanged, ...fragments]) : [...unchanged, ...fragments]
+    if (rowsKey(stored) === rowsKey(merged)) return true
+    await undoManager.capture('saveOccurrence')
+    const kept = new Set(merged.map(row => row.id))
+    await db.courses.bulkDelete(stored.filter(row => !kept.has(row.id)).map(row => row.id))
+    await db.courses.bulkPut(merged)
+    await reclaimUnusedEdgeNodesForTable(table.id)
+    return true
+  })
+  if (saved) await pruneDefaultTopPrefs()
+  return saved
+}
+
 /** 14b. replaceCourses */
 export async function replaceCourses(tableId: number, courses: Omit<Course, 'id'>[]): Promise<void> {
   await undoManager.capture('replaceCourses')
@@ -640,7 +697,7 @@ async function pruneDefaultTopPrefs(): Promise<void> {
 /** duplicateTable — Android ScheduleViewModel.duplicateTable (v7.10.15/16w) 1:1
  *  全量复制表配置+课程; 副本不接管默认表不切选中; 命名去重 原名+"2"/"3"...;
  *  建表+插课一个撤回动作 (beginBatch 保首快照); groupId 整组映射新 UUID */
-export async function duplicateTable(id: number): Promise<number> {
+export async function duplicateTable(id: number, requestedName?: string): Promise<number> {
   const source = await getTable(id)
   if (!source) return -1
   const courses = await getCourses(id)
@@ -649,6 +706,10 @@ export async function duplicateTable(id: number): Promise<number> {
   let index = 2
   let name = `${source.name}2`
   while (existingNames.has(name)) { index++; name = `${source.name}${index}` }
+  if (requestedName !== undefined) {
+    if (!requestedName.trim()) throw new Error('Timetable name is required')
+    name = requestedName.trim()
+  }
   const { beginBatch, endBatch } = undoManager
   let newId = -1
   beginBatch()

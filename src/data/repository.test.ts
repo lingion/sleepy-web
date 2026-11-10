@@ -339,7 +339,7 @@ describe('作息表 PeriodTable (issue#40 v8) — 6 方法 + undo 覆盖', () =>
     expect(after && after.updatedAt >= 999).toBe(true) // updatedAt 刷新为当前时刻 (Date.now())
   })
 
-  it('deletePeriodTable: 被绑定时拒绝 (Android 悬空引用守卫), 解绑后可删', async () => {
+  it('deletePeriodTable: 丢弃未保存表守卫绑定，主动删除冻结共享作息并可撤回', async () => {
     const ptId = await insertPeriodTable(mkPT())
     const tId = await insertTable({
       name: 'A', timeJson: '[]', smartConfigJson: '', isDefault: 1,
@@ -347,17 +347,25 @@ describe('作息表 PeriodTable (issue#40 v8) — 6 方法 + undo 覆盖', () =>
     })
     await insertCourse(mkCourse({ tableId: tId, courseName: '保留' }))
     expect((await db.timetables.get(tId))?.periodTableId).toBe(ptId)
-    // 被绑定 → 拒绝删除, PT 与绑定都原样 (Android ScheduleRepository.deletePeriodTable 同)
-    expect(await deletePeriodTable(ptId)).toBe(false)
+    // 丢弃未保存的作息表时，不得影响已经绑定的课表。
+    expect(await deletePeriodTable(ptId, true)).toBe(false)
     expect(await getPeriodTable(ptId)).toBeDefined()
-    // 解绑 → 可删
-    await bindPeriodTable(tId, null)
+    const before = await getPeriodTable(ptId)
+    const coursesBefore = await getCourses(tId)
+    const historyBefore = useUndoStore.getState().undoStack.length
+    // 主动删除时保存当前生效时间，不恢复绑定前的空时间表。
     expect(await deletePeriodTable(ptId)).toBe(true)
     expect(await getPeriodTable(ptId)).toBeUndefined()
-    // 课表与其课程原样保留
     const t = await db.timetables.get(tId)
-    expect(t).toBeDefined()
-    expect((await db.courses.toArray()).find((c) => c.courseName === '保留')).toBeDefined()
+    expect(t?.periodTableId).toBeNull()
+    expect(t?.preBindSnapshotJson).toBe('')
+    expect(t?.timeJson).toBe(before?.timeJson)
+    expect(t?.nodeCount).toBe(before?.nodesPerDay)
+    expect(await getCourses(tId)).toEqual(coursesBefore)
+    expect(useUndoStore.getState().undoStack).toHaveLength(historyBefore + 1)
+    expect(await useUndoStore.getState().undo()).toBe(true)
+    expect(await getPeriodTable(ptId)).toBeDefined()
+    expect((await db.timetables.get(tId))?.periodTableId).toBe(ptId)
   })
 
   it('bindPeriodTable 单向写: 改 periodTableId 不动节点数据/课程', async () => {
