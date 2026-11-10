@@ -1,4 +1,3 @@
-import { localPreferences } from '../storage'
 /**
  * 自定义主题存储 — CustomThemeStore.kt + CustomThemeCore 1:1。
  *
@@ -120,15 +119,15 @@ export function getById(list: CustomTheme[], id: string): CustomTheme | undefine
 // ── localStorage 门面 (Android CustomThemeStore 薄桥接同构) ──
 
 function loadAll(): CustomTheme[] {
-  if (typeof window === 'undefined') return []
-  const json = localPreferences.getItem(KEY_THEMES)
+  if (typeof localStorage === 'undefined') return []
+  const json = localStorage.getItem(KEY_THEMES)
   if (json == null) return []
   return parse(json)
 }
 
 function saveAll(themes: CustomTheme[]): void {
-  if (typeof window === 'undefined') return
-  localPreferences.setItem(KEY_THEMES, toJson(themes))
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(KEY_THEMES, toJson(themes))
 }
 
 export function getAllThemes(): CustomTheme[] {

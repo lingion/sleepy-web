@@ -1,4 +1,3 @@
-import { localPreferences } from '../storage'
 /**
  * 节假日数据 store — HolidayManager web 同构。
  * 网络逐日条目 (unpkg holiday-calendar CN) + 用户范围化覆盖 (KEY_HOLIDAY_OVERRIDES)。
@@ -48,7 +47,7 @@ interface HolidayState {
 
 function loadOverrides(): HolidayRange[] {
   try {
-    return decodeOverrides(localPreferences.getItem(OVERRIDES_KEY) ?? '[]')
+    return decodeOverrides(localStorage.getItem(OVERRIDES_KEY) ?? '[]')
   } catch {
     return []
   }
@@ -56,7 +55,7 @@ function loadOverrides(): HolidayRange[] {
 
 function persistOverrides(ranges: HolidayRange[]): void {
   try {
-    localPreferences.setItem(OVERRIDES_KEY, encodeOverrides(ranges))
+    localStorage.setItem(OVERRIDES_KEY, encodeOverrides(ranges))
   } catch {
     /* 配额/隐私模式失败忽略 */
   }
@@ -70,11 +69,11 @@ function transferKey(tableId: number): string {
 /** 旧版单表模式曾把映射写进无后缀键; 当时只有一张表, 由首个读取的表接管 (表键已有则以表键为准) */
 function adoptLegacyTransfers(tableId: number): void {
   try {
-    const legacy = localPreferences.getItem(TRANSFERS_KEY)
+    const legacy = localStorage.getItem(TRANSFERS_KEY)
     if (legacy === null) return
-    localPreferences.removeItem(TRANSFERS_KEY)
-    if (localPreferences.getItem(transferKey(tableId)) === null && decodeTransfers(legacy).length > 0) {
-      localPreferences.setItem(transferKey(tableId), legacy)
+    localStorage.removeItem(TRANSFERS_KEY)
+    if (localStorage.getItem(transferKey(tableId)) === null && decodeTransfers(legacy).length > 0) {
+      localStorage.setItem(transferKey(tableId), legacy)
     }
   } catch {
     /* 忽略 */
@@ -86,7 +85,7 @@ export function getHolidayTransfers(tableId: number | null): HolidayTransferEntr
   if (tableId === null) return []
   adoptLegacyTransfers(tableId)
   try {
-    return decodeTransfers(localPreferences.getItem(transferKey(tableId)) ?? '[]')
+    return decodeTransfers(localStorage.getItem(transferKey(tableId)) ?? '[]')
   } catch {
     return []
   }
@@ -94,7 +93,7 @@ export function getHolidayTransfers(tableId: number | null): HolidayTransferEntr
 
 function setHolidayTransfers(tableId: number, transfers: HolidayTransferEntry[]): void {
   try {
-    localPreferences.setItem(transferKey(tableId), encodeTransfers(transfers))
+    localStorage.setItem(transferKey(tableId), encodeTransfers(transfers))
   } catch {
     /* 配额/隐私模式失败忽略 */
   }
@@ -103,7 +102,7 @@ function setHolidayTransfers(tableId: number, transfers: HolidayTransferEntry[])
 /** AppPrefs.clearHolidayTransfers: 删表时清掉该表映射 */
 export function clearHolidayTransfers(tableId: number): void {
   try {
-    localPreferences.removeItem(transferKey(tableId))
+    localStorage.removeItem(transferKey(tableId))
   } catch {
     /* 忽略 */
   }
@@ -115,7 +114,7 @@ function diskKey(year: number): string {
 
 function readDisk(year: number): HolidayEntry[] | null {
   try {
-    const raw = localPreferences.getItem(diskKey(year))
+    const raw = localStorage.getItem(diskKey(year))
     if (raw === null) return null
     return parseEntries(raw)
   } catch {
@@ -125,7 +124,7 @@ function readDisk(year: number): HolidayEntry[] | null {
 
 function writeDisk(year: number, entries: HolidayEntry[]): void {
   try {
-    localPreferences.setItem(diskKey(year), JSON.stringify({ dates: entries }))
+    localStorage.setItem(diskKey(year), JSON.stringify({ dates: entries }))
   } catch {
     /* 忽略 */
   }

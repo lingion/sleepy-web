@@ -1,4 +1,3 @@
-import { localPreferences } from '../../storage'
 /**
  * preferences 模块 codec — MigrationPrefsCodec.kt 1:1。
  * web 的偏好分散在 Dexie prefs 行 + 若干 localStorage 键; 这里聚合成 Android
@@ -128,7 +127,7 @@ const LOCAL_KEYS: Array<{ local: string; key: string; type: PrefType; isJson?: b
 
 function lsGet(key: string): string | null {
   try {
-    return typeof window === 'undefined' ? null : localPreferences.getItem(key)
+    return typeof localStorage === 'undefined' ? null : localStorage.getItem(key)
   } catch {
     return null
   }
@@ -212,9 +211,9 @@ async function encodePrefsFilesAsync(): Promise<PrefsFileSnapshot> {
 // 调休映射按表存 sleepy_holiday_transfers_<tableId> (holidayStore, AppPrefs.transferKey 同构); 键存在即导出。
 function activeTableIds(): number[] {
   const ids: number[] = []
-  if (typeof window === 'undefined') return ids
-  for (let i = 0; i < localPreferences.length; i++) {
-    const k = localPreferences.key(i)
+  if (typeof localStorage === 'undefined') return ids
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
     if (k && k.startsWith('sleepy_holiday_transfers_')) {
       const tid = Number(k.slice('sleepy_holiday_transfers_'.length))
       if (Number.isFinite(tid)) ids.push(tid)
@@ -257,17 +256,17 @@ export async function applyPrefsFiles(snapshot: PrefsSnapshot, overwrite: boolea
     // 提醒/节假日/主题键: 先按 overwrite 清旧, 再逐键写
     if (overwrite) {
       for (const lk of LOCAL_KEYS) {
-        if (lsGet(lk.local) !== null) localPreferences.removeItem(lk.local)
+        if (lsGet(lk.local) !== null) localStorage.removeItem(lk.local)
       }
       clearHolidayTransferKeys()
-      if (lsGet('custom_themes') !== null) localPreferences.removeItem('custom_themes')
+      if (lsGet('custom_themes') !== null) localStorage.removeItem('custom_themes')
     }
     writeLocalEntries(main.entries, false)
   }
   const themes = snapshot.files['custom_themes']
   if (themes) {
     for (const [, value] of Object.entries(themes.entries)) {
-      if (value.type === 'STRING') localPreferences.setItem('custom_themes', value.string ?? '')
+      if (value.type === 'STRING') localStorage.setItem('custom_themes', value.string ?? '')
     }
   }
 }
@@ -307,18 +306,18 @@ function writeLocalEntries(entries: Record<string, PrefValue>, _overwrite: boole
   for (const [key, value] of Object.entries(entries)) {
     const local = localStorageKeyFor(key)
     if (local === null) continue
-    localPreferences.setItem(local, stringifyForLocal(key, value))
+    localStorage.setItem(local, stringifyForLocal(key, value))
   }
 }
 
 function clearHolidayTransferKeys(): void {
-  if (typeof window === 'undefined') return
+  if (typeof localStorage === 'undefined') return
   const keys: string[] = []
-  for (let i = 0; i < localPreferences.length; i++) {
-    const k = localPreferences.key(i)
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
     if (k !== null && (k === 'sleepy_holiday_transfers' || k.startsWith('sleepy_holiday_transfers_'))) keys.push(k)
   }
-  for (const k of keys) localPreferences.removeItem(k)
+  for (const k of keys) localStorage.removeItem(k)
 }
 
 function stringifyForLocal(_key: string, v: PrefValue): string {

@@ -2,14 +2,11 @@ import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { App } from './App'
 import { initI18n } from './i18n'
-import { seedDemoTable, seedSampleTable } from './data/sampleTable'
+import { seedSampleTable } from './data/sampleTable'
 import { usePrefsStore } from './state/prefsStore'
 import { loadPublicSchedule, publicScheduleEnabled } from './publicSchedule'
 import { publicAccessGranted, publicAccessRequired, grantPublicAccess } from './publicAccess'
-import { runtimeMode } from './runtimeMode'
 import './theme/global.css'
-
-if (runtimeMode.embed) document.documentElement.dataset.embed = 'true'
 
 function PublicAccessGate({ onGranted }: { onGranted: () => void }) {
   const [key, setKey] = useState('')
@@ -31,13 +28,13 @@ function Bootstrap() {
   const load = usePrefsStore((s) => s.load)
   const loaded = usePrefsStore((s) => s.loaded)
   const [authorized, setAuthorized] = useState(!publicAccessRequired() || publicAccessGranted())
-  const [publicLoaded, setPublicLoaded] = useState(false)
+  const [publicLoaded, setPublicLoaded] = useState(!publicScheduleEnabled())
   const [publicError, setPublicError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authorized) return
     initI18n('system')
-    const prepare = runtimeMode.demo ? seedDemoTable() : publicScheduleEnabled() ? loadPublicSchedule() : seedSampleTable()
+    const prepare = publicScheduleEnabled() ? loadPublicSchedule() : seedSampleTable()
     // 公开课表或示例课表落库后再载入偏好，首屏只读取完整状态。
     void prepare
       .catch((error) => {
@@ -54,7 +51,7 @@ function Bootstrap() {
       <main style={{ minHeight: '100%', display: 'grid', placeItems: 'center', padding: 24, background: 'var(--md-background)' }}>
         <div role="alert" className="m3-card" style={{ maxWidth: 520, padding: 24 }}>
           <h2 className="m3-headline-small">课表加载失败</h2>
-          <p className="m3-body-medium">{runtimeMode.demo ? '请允许此页面使用浏览器本地存储后重试。' : '请检查部署中的 schedule.sleepy 文件和访问路径。'}</p>
+          <p className="m3-body-medium">请检查部署中的 schedule.sleepy 文件和访问路径。</p>
           <p className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)', wordBreak: 'break-word' }}>{publicError}</p>
           <button type="button" className="m3-button-filled" onClick={() => window.location.reload()}>重新加载</button>
         </div>
@@ -66,7 +63,7 @@ function Bootstrap() {
 }
 
 // 通知点击聚焦等事件由 SW 承接; https/localhost 才注册 (http 局域网调试跳过)。
-if (!runtimeMode.demo && !runtimeMode.embed && 'serviceWorker' in navigator && (window.isSecureContext || import.meta.env.DEV)) {
+if ('serviceWorker' in navigator && (window.isSecureContext || import.meta.env.DEV)) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
       /* 注册失败不影响课表主功能 */

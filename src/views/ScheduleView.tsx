@@ -37,7 +37,6 @@ import type { Course, Table } from '../data/types'
 import { pagerTrackWeeks, PAGER_SETTLE_MS, useWeekPager } from '../components/schedule/useWeekSwipe'
 import { SegmentedSwitcher } from '../components/SegmentedSwitcher'
 import { normalizeStartDateToMonday } from './importExportUtils'
-import { runtimeMode } from '../runtimeMode'
 
 /** 周次计算 — 与 Android DateUtils 一致，先将任意起始日归一到周一。 */
 export function computeCurrentWeek(startDate: string, maxWeek: number): number {
@@ -513,12 +512,12 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
               >
                 <IconAdd size={18} />
               </NavCircleBtn>}
-              {!runtimeMode.demo && <NavCircleBtn
+              <NavCircleBtn
                 title={t('schedule_share_table', { defaultValue: '分享课表' })}
                 onClick={() => open('shareSheet', () => setShowShare(true))}
               >
                 <IconIosShare size={18} />
-              </NavCircleBtn>}
+              </NavCircleBtn>
             </div>
           </div>
 
@@ -545,7 +544,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
           }}
         >
-          <span className="m3-body-small" style={{ flex: 1 }}>{runtimeMode.demo ? '体验课表：可切换周次，点击课程查看详情。' : t('sample_table_banner')}</span>
+          <span className="m3-body-small" style={{ flex: 1 }}>{t('sample_table_banner')}</span>
           <button
             onClick={() => {
               setSampleBannerOff(true)
@@ -617,9 +616,6 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             {trackWeeks.map((w) => (
               <div
                 key={w}
-                role={runtimeMode.demo ? 'region' : undefined}
-                aria-label={runtimeMode.demo ? `第 ${w} 周课表` : undefined}
-                aria-hidden={runtimeMode.demo ? w !== currentWeek : undefined}
                 style={{
                   width: `${100 / trackWeeks.length}%`,
                   flexShrink: 0,
