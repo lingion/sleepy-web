@@ -75,7 +75,7 @@ export function LicensePage({ onBack }: { onBack: () => void }) {
 function ExpandButton({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
   const Icon = expanded ? IconExpandLess : IconExpandMore
   return (
-    <button
+    <button data-glass-role="regular" data-glass-icon="true"
       type="button"
       aria-label={expanded ? 'collapse' : 'expand'}
       aria-expanded={expanded}

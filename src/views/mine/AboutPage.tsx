@@ -266,7 +266,7 @@ export function AboutPage({ onBack, onOpenLicense }: { onBack: () => void; onOpe
               </FilledButton>
               <div style={{ display: 'flex', gap: 8 }}>
                 {ALL_ABIS.map((a) => (
-                  <button
+                  <button data-glass-plain
                     key={a}
                     type="button"
                     onClick={() => setAbi(a)}
@@ -353,7 +353,7 @@ function CardRow({
 /** IconButton — 48dp 触达区, primary tint; 阻止冒泡避免与可点卡片重复触发 */
 function IconBtn({ children, onClick, label }: { children: ReactNode; onClick: () => void; label?: string }) {
   return (
-    <button
+    <button data-glass-role="regular" data-glass-icon="true"
       type="button"
       aria-label={label}
       onClick={(e) => { e.stopPropagation(); onClick() }}
@@ -384,8 +384,8 @@ function FilledButton({
     color: disabled ? 'color-mix(in srgb, var(--md-on-surface) 38%, transparent)' : 'var(--md-on-primary)',
     cursor: disabled ? 'default' : 'pointer',
   }
-  if (href) return <a href={href} className="m3-label-large" style={style}>{children}</a>
-  return <button type="button" disabled={disabled} onClick={onClick} className="m3-label-large" style={style}>{children}</button>
+  if (href) return <a data-glass-role="tinted" data-glass-tint="var(--md-primary)" href={href} className="m3-label-large" style={style}>{children}</a>
+  return <button data-glass-role="tinted" data-glass-tint="var(--md-primary)" type="button" disabled={disabled} onClick={onClick} className="m3-label-large" style={style}>{children}</button>
 }
 
 function UpdateBanner({
@@ -403,7 +403,7 @@ function UpdateBanner({
         background: 'color-mix(in srgb, var(--md-primary) 12%, transparent)', color: 'var(--md-primary)',
       }}
     >
-      <button
+      <button data-glass-plain
         type="button"
         onClick={onOpen}
         style={{

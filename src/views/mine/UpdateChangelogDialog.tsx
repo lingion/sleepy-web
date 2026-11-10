@@ -35,7 +35,7 @@ export function UpdateChangelogDialog({
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
       }}
     >
-      <div
+      <div data-glass-role="alert" data-glass-motion="static"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
@@ -71,7 +71,7 @@ export function UpdateChangelogDialog({
 /** M3 Button (min 40, 24/8 内边距) + SleepyTheme.Buttons.shape 16; 次级动作 secondaryContainer 色块 */
 function DialogButton({ label, onClick, secondary = false }: { label: string; onClick: () => void; secondary?: boolean }) {
   return (
-    <button
+    <button data-glass-role="tinted" data-glass-tint={secondary ? "var(--md-secondary-container)" : "var(--md-primary)"}
       type="button"
       onClick={onClick}
       className="m3-label-large"

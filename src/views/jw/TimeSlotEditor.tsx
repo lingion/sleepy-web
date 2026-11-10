@@ -91,7 +91,7 @@ function ManualPeriodEditor({
         <span className="m3-title-small" style={{ flex: 1, fontWeight: 600 }}>
           {t('n_periods', { v1: rows.length })}
         </span>
-        <button
+        <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)"
           type="button"
           className="m3-btn-regular"
           onClick={() => onRowsChange(appendEmptyRow(rows))}
@@ -121,13 +121,13 @@ function ManualPeriodEditor({
             onChange={(e) => setTime(row.node, 'end', e.target.value)}
             style={inputStyle}
           />
-          <button
+          <button data-glass-role="regular" data-glass-icon="true"
             type="button"
             aria-label={t('delete_period')}
             disabled={rows.length <= 1}
             onClick={() => onRowsChange(removeAndRenumber(rows, row.node))}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, padding: 0, borderRadius: 24, flexShrink: 0,
               border: 'none', background: 'transparent', cursor: rows.length <= 1 ? 'default' : 'pointer',
               color: rows.length <= 1 ? 'var(--md-outline)' : 'var(--md-error)', font: 'inherit',
             }}
@@ -189,14 +189,14 @@ function SmartPeriodEditor({
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button
+        <button data-glass-role="regular"
           type="button"
           className="m3-btn-regular"
           onClick={() => set({ breaks: [...config.breaks, { minutes: 10, isLong: false }] })}
         >
           {t('add_label', { v1: t('short_break') })}
         </button>
-        <button
+        <button data-glass-role="regular"
           type="button"
           className="m3-btn-regular"
           onClick={() => set({ breaks: [...config.breaks, { minutes: 30, isLong: true }] })}
@@ -228,7 +228,7 @@ function SmartPeriodEditor({
               />
               <span className="m3-body-small">{t('unit_minutes')}</span>
               <div style={{ flex: 1 }} />
-              <button
+              <button data-glass-role="regular" data-glass-icon="true"
                 type="button"
                 aria-label={t('delete')}
                 onClick={() =>
@@ -239,7 +239,7 @@ function SmartPeriodEditor({
                     ),
                   })
                 }
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--md-error)' }}
+                style={{ width: 48, height: 48, padding: 0, borderRadius: 24, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--md-error)' }}
               >
                 <IconDelete size={16} />
               </button>

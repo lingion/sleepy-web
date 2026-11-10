@@ -87,7 +87,7 @@ export function CourseDetailSheet({
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
-      <div
+      <div data-glass-role="menu" data-glass-motion="static"
         role="dialog"
         aria-modal="true"
         aria-label={t('course_detail_title', '课程详情')}
@@ -177,11 +177,11 @@ export function CourseDetailSheet({
           )}
 
           {(onAdjustOccurrence || onDeleteOccurrence) && <div className="occurrence-inline">
-            {onAdjustOccurrence && <button className="occurrence-secondary" onClick={() => onAdjustOccurrence(course)}>调整本次</button>}
-            {onDeleteOccurrence && <button className="occurrence-danger" onClick={() => onDeleteOccurrence(course)}>删除本次</button>}
+            {onAdjustOccurrence && <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" className="occurrence-secondary" onClick={() => onAdjustOccurrence(course)}>调整本次</button>}
+            {onDeleteOccurrence && <button data-glass-role="tinted" data-glass-tint="var(--md-error-container)" className="occurrence-danger" onClick={() => onDeleteOccurrence(course)}>删除本次</button>}
           </div>}
           {onEdit && (
-            <button
+            <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
               onClick={() => onEdit(course)}
               style={{
                 // SleepyTheme.shapes.large = RoundedCornerShape(16.dp); 14px 纵向 padding 贴 M3 Button 40dp 高

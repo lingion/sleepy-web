@@ -119,7 +119,7 @@ export function GeneralSettingsPage({ onBack, backupOnly = false }: { onBack: ()
   }
 
   return (
-    <SettingsScaffold title={backupOnly ? t('settings_backup', '备份') : t('mine_general')} onBack={onBack}>
+    <SettingsScaffold title={backupOnly ? t('settings_backup', '备份') : t('mine_general')} onBack={onBack} glassNavigation={!backupOnly}>
       {backupOnly ? <>
       {/* ── 分组⑥ 数据迁移 ── */}
       <SectionHeader title={t('settings_migration')} />
@@ -165,15 +165,15 @@ export function GeneralSettingsPage({ onBack, backupOnly = false }: { onBack: ()
       </div>
       </>}
       {pendingImport && (
-        <AlertDialog
+        <AlertDialog glassRole={false}
           title={t('settings_migration_import_dialog_title')}
           onDismiss={() => setPendingImport(null)}
           buttons={
             <>
-              <TextButton label={t('cancel')} onClick={() => setPendingImport(null)} />
+              <TextButton glassRole={false} label={t('cancel')} onClick={() => setPendingImport(null)} />
               <span style={{ display: 'flex' }}>
-                <TextButton label={t('settings_migration_import_overwrite')} onClick={() => { void runMigrationImport('OVERWRITE') }} />
-                <TextButton label={t('settings_migration_import_merge')} onClick={() => { void runMigrationImport('MERGE') }} />
+                <TextButton glassRole={false} label={t('settings_migration_import_overwrite')} onClick={() => { void runMigrationImport('OVERWRITE') }} />
+                <TextButton glassRole={false} label={t('settings_migration_import_merge')} onClick={() => { void runMigrationImport('MERGE') }} />
               </span>
             </>
           }
@@ -216,7 +216,7 @@ export function SingleToggleCard({ title, subtitle, checked, onChange }: { title
 /** 二级页入口行 — 仅标题 titleSmall + ChevronRight 20 */
 export function EntryRow({ title, onClick }: { title: string; onClick: () => void }) {
   return (
-    <div
+    <div data-glass-plain
       role="button"
       tabIndex={0}
       onClick={onClick}

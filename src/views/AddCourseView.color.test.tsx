@@ -44,6 +44,18 @@ describe('课程级组色与时段三态',()=>{
   expect(mocks.setGroupSourceColor).not.toHaveBeenCalled()
   expect((await db.courses.get(1))?.color).toBe('#FF112233')
  })
+ it('uses native FilterChip and TonalButton only in the compact occurrence form',()=>{
+  render(<AddCourseView quickAdd={{tableId:1,date:'2026-09-08',week:1,day:2,startNode:1,step:1}} onBack={()=>{}} onSaved={()=>{}}/>)
+  const auto=screen.getByRole('button',{name:'自动'})
+  expect(auto.dataset.glassRole).toBe('regular')
+  expect(auto.dataset.glassSelected).toBe('true')
+  expect(auto.dataset.glassTint).toBe('var(--md-primary)')
+  expect(screen.getByRole('button',{name:'自定义'}).dataset.glassTint).toBe('var(--md-secondary-container)')
+  fireEvent.click(screen.getByRole('button',{name:'更多设置'}))
+  fireEvent.click(screen.getByRole('switch',{name:'自定义颜色'}))
+  expect(screen.getByRole('button',{name:'自动'}).hasAttribute('data-glass-role')).toBe(false)
+  expect(screen.getByRole('button',{name:'自定义'}).hasAttribute('data-glass-role')).toBe(false)
+ })
  it('keeps quick-add fields and multiline notes when opening the full editor',async()=>{
   render(<AddCourseView quickAdd={{tableId:1,date:'2026-09-08',week:1,day:2,startNode:1,step:1}} onBack={()=>{}} onSaved={()=>{}}/>)
   fireEvent.change(screen.getByLabelText(/备注/),{target:{value:'第一行\n第二行'}})

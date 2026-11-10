@@ -123,16 +123,16 @@ export function periodHeaderColumnPlacements(
 const measuredWidths = new Map<string, number>()
 let textContext: CanvasRenderingContext2D | null | undefined
 /** Match the actual system font and labelSmall tracking; use a deterministic SSR fallback. */
-export function estimatePeriodHeaderTextWidth(text: string, size: number, weight = 500): number {
+export function estimatePeriodHeaderTextWidth(text: string, size: number, weight = 500, tracking = 0.5): number {
   if (typeof document !== 'undefined' && !/jsdom/i.test(navigator.userAgent)) {
     textContext ??= document.createElement('canvas').getContext('2d')
     if (textContext) {
       const family = getComputedStyle(document.body).fontFamily || 'sans-serif'
-      const key = `${family}|${weight}|${size}|${text}`
+      const key = `${family}|${weight}|${size}|${tracking}|${text}`
       const cached = measuredWidths.get(key)
       if (cached !== undefined) return cached
       textContext.font = `${weight} ${size}px ${family}`
-      const width = textContext.measureText(text).width + text.length * 0.5
+      const width = textContext.measureText(text).width + text.length * tracking
       measuredWidths.set(key,width)
       return width
     }
@@ -325,4 +325,108 @@ export function estimateHeaderInk(lines: string[]): number {
   }).sort((a, b) => b - a)
   const envelope = widths.length >= 3 ? widths[0] + widths[1] / 2 : (widths[0] ?? 0)
   return envelope * BASE_LABEL
+}
+
+export interface PeriodHeaderOptions {
+  layout: PeriodHeaderLayout
+  style: PeriodHeaderStyle
+  hanging: number
+  showX: boolean
+  hideTime?: boolean
+  timeAlignment?: 'dash' | 'center'
+}
+
+export interface PeriodHeaderTextLine {
+  kind: 'label' | 'time' | 'start' | 'end'
+  text: string
+  left: number
+  top: number
+  size: number
+  lineHeight: number
+  tracking: number
+}
+
+type HeaderSlot = Parameters<typeof periodHeaderLines>[0]
+
+/**
+ * Fit the whole column using the actual rendered font, tracking and content box.
+ * Android's three-line order, hanging anchors, dash axis and union centering are
+ * preserved. A constrained legacy range uses that same three-line arrangement
+ * before falling below Android's legacy 0.6 font-scale guard. No preference changes.
+ * All returned positions and sizes are final CSS pixels; apply gridScale only here.
+ */
+export function fitPeriodHeaderColumn(
+  slots: HeaderSlot[],
+  width: number,
+  height: number,
+  scale: number,
+  options: PeriodHeaderOptions,
+): PeriodHeaderTextLine[][] {
+  const pad = 3 * scale
+  const contentW = Math.max(0, width - 2 * pad)
+  const contentH = Math.max(0, height - 2 * pad)
+  const measure = (text: string, size: number, label = false) =>
+    estimatePeriodHeaderTextWidth(text, size, label ? 600 : 500, 0.5 * scale)
+  const labels = slots.map(slot => periodHeaderLines(slot, 'legacy', options.style, options.showX)[0])
+  const hidden = options.layout === 'legacy' && options.hideTime
+  const rows = slots.map((slot, i) => ({
+    labelPx: measure(labels[i], 12 * scale, true),
+    timeLeftPx: measure(slot.displayStart, 11 * scale),
+    dashPx: measure('-', 11 * scale),
+    timeRightPx: measure(slot.displayEnd, 11 * scale),
+  }))
+  if (!rows.length) return []
+  const legacy = legacyDashColumn(rows, 0, options.timeAlignment)
+  const rangeWidth = Math.max(...rows.map(row => row.timeLeftPx + row.dashPx + row.timeRightPx))
+  const stacked = options.layout === 'three_line' || (!hidden && contentW < rangeWidth * 0.6)
+  let lines: PeriodHeaderTextLine[][]
+  let inkWidth: number
+  let inkHeight: number
+  const line = (kind: PeriodHeaderTextLine['kind'], text: string, left: number, top: number, size: number, lineHeight: number): PeriodHeaderTextLine =>
+    ({ kind, text, left, top, size, lineHeight, tracking: 0.5 * scale })
+  if (hidden) {
+    inkWidth = Math.max(...rows.map(row => row.labelPx))
+    inkHeight = 14 * scale
+    lines = labels.map((text, i) => [line('label', text, (inkWidth - rows[i].labelPx) / 2, 0, 12 * scale, inkHeight)])
+  } else if (stacked) {
+    const font = computeAdaptiveFont(240, contentH / scale, 0)
+    const timeSize = font.timeSize * scale
+    const labelSize = font.labelSize * scale
+    const metrics = slots.map((slot, i) => ({
+      timeWidth: Math.max(measure(slot.displayStart, timeSize), measure(slot.displayEnd, timeSize)),
+      labelWidth: measure(labels[i], labelSize, true),
+    }))
+    // A compact legacy column is centered, as in Android's three-line u=0.
+    const placements = periodHeaderColumnPlacements(metrics, options.layout === 'three_line' ? options.hanging : 0)
+    const left = Math.min(...placements.flatMap(p => [p.timeLeft, p.labelLeft]))
+    inkWidth = Math.max(...placements.map((p, i) => Math.max(p.timeLeft + metrics[i].timeWidth, p.labelLeft + metrics[i].labelWidth))) - left
+    const timeH = timeSize * 1.25
+    const labelH = labelSize * 1.25
+    inkHeight = 2 * timeH + labelH
+    lines = slots.map((slot, i) => [
+      line('start', slot.displayStart, placements[i].timeLeft - left, 0, timeSize, timeH),
+      line('label', labels[i], placements[i].labelLeft - left, timeH, labelSize, labelH),
+      line('end', slot.displayEnd, placements[i].timeLeft - left, timeH + labelH, timeSize, timeH),
+    ])
+  } else {
+    inkWidth = legacy.columnWidth
+    inkHeight = 27 * scale
+    lines = slots.map((slot, i) => [
+      line('label', labels[i], legacy.placements[i].labelLeft, 0, 12 * scale, 14 * scale),
+      line('time', `${slot.displayStart}-${slot.displayEnd}`, legacy.placements[i].timeLeft, 14 * scale, 11 * scale, 13 * scale),
+    ])
+  }
+  // Shrink the actual ink and tracking together, after consuming the legacy gap.
+  const fit = Math.min(1, contentW / Math.max(inkWidth, 0.1), contentH / Math.max(inkHeight, 0.1))
+  const gap = !hidden && !stacked ? Math.min(2 * scale, Math.max(0, contentH - inkHeight * fit)) : 0
+  const x = pad + (contentW - inkWidth * fit) / 2
+  const y = pad + (contentH - inkHeight * fit - gap) / 2
+  return lines.map(row => row.map(text => ({
+    ...text,
+    left: x + text.left * fit,
+    top: y + text.top * fit + (text.kind === 'time' ? gap : 0),
+    size: text.size * fit,
+    lineHeight: text.lineHeight * fit,
+    tracking: text.tracking * fit,
+  })))
 }

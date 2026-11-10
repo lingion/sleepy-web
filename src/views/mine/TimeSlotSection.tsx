@@ -63,7 +63,7 @@ export function TimeSlotSection({
 
   return (
     <div style={{ borderRadius: 28, background: 'var(--md-surface-container)' }}>
-      <div
+      <div data-glass-plain
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
@@ -158,7 +158,7 @@ function BindChoiceRow({
   onClick: () => void
 }) {
   return (
-    <div
+    <div data-glass-plain
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -211,7 +211,7 @@ function ManualTimeSlotEditor({
         <span className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
           {t('n_periods', { v1: rows.length })}
         </span>
-        <button
+        <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)"
           type="button"
           onClick={() => onRowsChange(appendEmptyRow(rows))}
           style={{
@@ -260,12 +260,12 @@ function ManualTimeSlotEditor({
               style={{ ...fieldStyle, flex: 1, minWidth: 0, textAlign: 'center' }}
             />
             {rows.length > 1 ? (
-              <button
+              <button data-glass-role="regular" data-glass-icon="true"
                 type="button"
                 aria-label={t('delete_period')}
                 onClick={() => onRowsChange(removeAndRenumber(rows, r.node))}
                 style={{
-                  width: 32, height: 32, padding: 0, background: 'transparent', border: 'none',
+                  width: 48, height: 48, borderRadius: 24, padding: 0, background: 'transparent', border: 'none',
                   cursor: 'pointer', color: 'var(--md-error)',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}
@@ -273,7 +273,7 @@ function ManualTimeSlotEditor({
                 <IconRemoveCircleOutline size={20} />
               </button>
             ) : (
-              <span style={{ width: 32, flexShrink: 0 }} />
+              <span style={{ width: 48, flexShrink: 0 }} />
             )}
           </div>
         ))}
@@ -409,12 +409,12 @@ function DurationGroupSection({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ flex: 1 }} className="m3-label-large">{duration.isLong ? '长课时' : '短课时'} {duration.minutes} 分钟</span>
             <NumberField label="" unit={t('unit_minutes')} value={duration.minutes} onChange={(minutes) => onChange(durations.map((d, i) => i === groupIdx ? { ...d, minutes } : d), assignments)} style={{ width: 110 }} />
-            <button type="button" aria-label={t('delete')} onClick={() => onChange(durations.filter((_, i) => i !== groupIdx), assignments.map((value) => value === groupIdx ? null : value != null && value > groupIdx ? value - 1 : value))} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--md-on-surface-variant)' }}><IconClose size={18} /></button>
+            <button data-glass-role="regular" data-glass-icon="true" type="button" aria-label={t('delete')} onClick={() => onChange(durations.filter((_, i) => i !== groupIdx), assignments.map((value) => value === groupIdx ? null : value != null && value > groupIdx ? value - 1 : value))} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, width: 48, height: 48, borderRadius: 24, flexShrink: 0, color: 'var(--md-on-surface-variant)' }}><IconClose size={18} /></button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 6 }}>
             {Array.from({ length: Math.max(0, totalPeriods) }, (_, periodIdx) => {
               const selected = assignments[periodIdx] === groupIdx
-              return <button key={periodIdx} type="button" onClick={() => { const next = [...assignments]; next[periodIdx] = selected ? null : groupIdx; onChange(durations, next) }} className="m3-label-medium" style={{ minHeight: 36, borderRadius: 8, border: 'none', cursor: 'pointer', background: selected ? 'var(--md-primary)' : 'var(--md-surface-container-high)', color: selected ? 'var(--md-on-primary)' : 'var(--md-on-surface-variant)', fontWeight: selected ? 700 : 400 }}>{periodIdx + 1}</button>
+              return <button data-glass-role="regular" data-glass-selected={selected ? "true" : undefined} data-glass-tint={selected ? duration.isLong ? "var(--md-primary)" : "var(--md-tertiary)" : undefined} key={periodIdx} type="button" onClick={() => { const next = [...assignments]; next[periodIdx] = selected ? null : groupIdx; onChange(durations, next) }} className="m3-label-medium" style={{ minHeight: 36, borderRadius: 8, border: 'none', cursor: 'pointer', background: selected ? duration.isLong ? 'var(--md-primary)' : 'var(--md-tertiary)' : 'var(--md-surface-container-high)', color: selected ? 'var(--md-on-primary)' : 'var(--md-on-surface-variant)', fontWeight: selected ? 700 : 400 }}>{periodIdx + 1}</button>
             })}
           </div>
         </div>
@@ -435,7 +435,7 @@ function BreakGroupSection({
   onDelete: () => void
 }) {
   const { t } = useTranslation()
-  const groupColor = br.isLong ? 'var(--md-primary)' : 'var(--md-on-tertiary-container)'
+  const groupColor = br.isLong ? 'var(--md-primary)' : 'var(--md-tertiary)'
   const n = Math.max(0, totalPeriods - 1)
   return (
     <div
@@ -448,12 +448,12 @@ function BreakGroupSection({
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: groupColor, flexShrink: 0 }} />
         <span className="m3-label-large" style={{ flex: 1, fontWeight: 500 }}>{breakDisplayLabel(br)}</span>
         <NumberField label="" unit={t('unit_minutes')} value={br.minutes} onChange={onMinuteChange} style={{ width: 110 }} />
-        <button
+        <button data-glass-role="regular" data-glass-icon="true"
           type="button"
           aria-label={t('delete')}
           onClick={onDelete}
           style={{
-            background: 'transparent', border: 'none', cursor: 'pointer', padding: 4,
+            background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, width: 48, height: 48, borderRadius: 24, flexShrink: 0,
             color: 'var(--md-on-surface-variant)', display: 'inline-flex',
           }}
         >
@@ -465,7 +465,7 @@ function BreakGroupSection({
           {Array.from({ length: n }, (_, posIdx) => {
             const selected = assigns[posIdx] === groupIdx
             return (
-              <button
+              <button data-glass-role="regular" data-glass-selected={selected ? "true" : undefined} data-glass-tint={selected ? groupColor : undefined}
                 key={posIdx}
                 type="button"
                 onClick={() => onToggle(posIdx)}
@@ -526,7 +526,7 @@ function PreviewList({ config }: { config: SmartPeriodConfig }) {
 
 function AddBreakChip({ label, color, bg, onAdd }: { label: string; color: string; bg: string; onAdd: () => void }) {
   return (
-    <button
+    <button data-glass-role="regular"
       type="button"
       onClick={onAdd}
       className="m3-label-large"

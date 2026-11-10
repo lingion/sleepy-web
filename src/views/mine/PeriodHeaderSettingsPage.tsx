@@ -109,7 +109,7 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
             prefs.periodHeaderTimeAlignment,
           ).dashCenter
           return (
-            <div
+            <div data-glass-role="regular" data-glass-selected={selected ? "true" : undefined} data-glass-tint={selected ? "var(--md-primary-container)" : undefined}
               key={style}
               role="button"
               tabIndex={0}

@@ -4,6 +4,8 @@ import type { Course, Table } from '../../data/types'
 import { dateOfWeekIso } from '../../domain/courseOccurrence'
 import { haptic } from '../glass/physics'
 import type { OccurrenceTarget, QuickAddSeed } from './interactionTypes'
+import { CourseOverlayCard } from './CardsGridView'
+import { usePrefsStore } from '../../state/prefsStore'
 
 interface FloatState {
   course: Course | null; sourceWeek: number; target: OccurrenceTarget; x: number; y: number; width: number; height: number
@@ -45,6 +47,7 @@ export function ScheduleInteractionLayer({ rootRef, table, courses, week, readOn
   onWeek: (week:number) => void; onMove: (course:Course, sourceWeek:number, target:OccurrenceTarget, resize:boolean) => Promise<boolean>
   onDelete: (course:Course, week:number) => Promise<boolean>; onEdit: (course:Course, week:number, startInEdit?:boolean) => void; onQuickAdd: (seed:QuickAddSeed) => void
 }) {
+  const prefs = usePrefsStore(s=>s.prefs)
   const [floating, setFloating] = useState<FloatState | null>(null)
   const state = useRef<FloatState | null>(null)
   const latest = useRef({ table, courses, week, onWeek, onMove, onDelete, onEdit, onQuickAdd })
@@ -119,7 +122,7 @@ export function ScheduleInteractionLayer({ rootRef, table, courses, week, readOn
         return
       }
       if (!current.course) return
-      const moved=Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>7
+      const moved=Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>16
       if (!current.dragging && !moved) return
       const hit=hitGrid(root,latest.current.week,e.clientX-pointer.offsetX+current.width/2,e.clientY-pointer.offsetY,current.target.step)
       set({ ...current,dragging:true,x:e.clientX-pointer.offsetX,y:e.clientY-pointer.offsetY,target:hit?.target ?? current.target,valid:!!hit })
@@ -174,9 +177,11 @@ export function ScheduleInteractionLayer({ rootRef, table, courses, week, readOn
   },[rootRef,readOnly])
   useEffect(() => {
     const root=rootRef.current
-    root?.classList.toggle('has-course-float',!!floating)
+    root?.classList.toggle('has-course-float',!!floating && !floating.dragging)
+    root?.querySelectorAll('[data-float-origin]').forEach(el=>el.removeAttribute('data-float-origin'))
+    if(floating?.course)root?.querySelector(`[data-grid-week="${floating.sourceWeek}"] [data-course-id="${floating.course.id}"]`)?.setAttribute('data-float-origin','true')
     if (root) root.dataset.floatingCourse=String(floating?.course?.id ?? '')
-    return () => { root?.classList.remove('has-course-float'); if (root) delete root.dataset.floatingCourse }
+    return () => { root?.classList.remove('has-course-float'); root?.querySelectorAll('[data-float-origin]').forEach(el=>el.removeAttribute('data-float-origin')); if (root) delete root.dataset.floatingCourse }
   },[floating,rootRef])
   if (!floating || !table) return null
   const startDrag=(e:React.PointerEvent,resize:'start'|'end'|null=null) => {
@@ -189,13 +194,13 @@ export function ScheduleInteractionLayer({ rootRef, table, courses, week, readOn
   const projected=floating.valid ? boxForTarget(rootRef.current!,floating.target) : null
   return <>
     {floating.dragging && projected && <div data-float-ui className="course-drop-preview" style={{ left:projected.box.x,top:projected.box.y,width:projected.box.width,height:projected.box.height }} />}
-    <div data-float-ui data-testid={floating.course ? 'floating-course' : 'quick-add-capsule'} className={`floating-course ${floating.dragging ? 'is-dragging' : ''}`} style={{ left:floating.x,top:floating.y,width:floating.width,height:floating.height,background:floating.background,color:floating.color }} onPointerDown={startDrag}>
+    <div data-glass-role={floating.course ? undefined : "tinted"} data-glass-tint={floating.course ? undefined : "var(--md-primary-container)"} data-glass-group={floating.course ? undefined : "true"} data-glass-plain={floating.course ? true : undefined} data-float-ui data-testid={floating.course ? 'floating-course' : 'quick-add-capsule'} className={`floating-course ${floating.dragging ? 'is-dragging' : ''}`} style={{ left:floating.x,top:floating.y,width:floating.width,height:floating.height,background:floating.course?undefined:floating.background,color:floating.color }} onPointerDown={startDrag}>
       <button className="float-resize top" aria-label="调整开始节次" onPointerDown={(e) => startDrag(e,'start')} data-glass-plain><span /></button>
-      {floating.course ? <div className="float-course-content"><strong>{floating.course.alias || floating.course.courseName}</strong><span>{floating.course.room}</span><small>第 {floating.target.week} 周，第 {floating.target.startNode}–{floating.target.startNode+floating.target.step-1} 节</small></div> : <button className="quick-add-confirm" onPointerDown={event=>event.stopPropagation()} aria-label="添加选中时段课程" onClick={() => { latest.current.onQuickAdd({ ...floating.target,tableId:table.id,date:dateOfWeekIso(table.startDate,floating.target.week,floating.target.day) }); set(null) }}>+</button>}
+      {floating.course ? <CourseOverlayCard course={floating.course} groupRows={courses.filter(course=>course.groupId===floating.course!.groupId)} isGrey={false} scale={prefs.gridScale} cornerRatio={prefs.gridCornerRatio} x={0} y={0} w={floating.width} h={floating.height} /> : <button data-glass-plain className="quick-add-confirm" onPointerDown={event=>event.stopPropagation()} aria-label="添加选中时段课程" onClick={() => { latest.current.onQuickAdd({ ...floating.target,tableId:table.id,date:dateOfWeekIso(table.startDate,floating.target.week,floating.target.day) }); set(null) }}>+</button>}
       <button className="float-resize bottom" aria-label="调整结束节次" onPointerDown={(e) => startDrag(e,'end')} data-glass-plain><span /></button>
     </div>
-    {!floating.dragging && <div className="float-actions" data-float-ui style={{ top:Math.max(8,Math.min(window.innerHeight-64,floating.y-60)),left:Math.max(8,Math.min(window.innerWidth-288,floating.x+floating.width/2-144)) }}>
-      {floating.course ? <><button disabled={floating.busy} onClick={() => { latest.current.onEdit(floating.course!,floating.sourceWeek,true); set(null) }}>调整本次</button><button disabled={floating.busy} onClick={async () => { if (await latest.current.onDelete(floating.course!,floating.sourceWeek)) set(null) }}>删除本次</button><button disabled={floating.busy} onClick={() => floating.resized ? void commit(true) : set(null)}>{floating.resized ? '确认调整' : '完成'}</button></> : <button onClick={() => set(null)}>取消添加</button>}
+    {!floating.dragging && <div data-glass-role="regular" data-glass-group="true" className="float-actions" data-float-ui style={{ top:Math.max(8,Math.min(window.innerHeight-64,floating.y-60)),left:Math.max(8,Math.min(window.innerWidth-208,floating.x+floating.width/2-104)) }}>
+      {floating.course ? <><button data-glass-plain disabled={floating.busy} onClick={() => { latest.current.onEdit(floating.course!,floating.sourceWeek,true); set(null) }}>调整本次</button><button data-glass-plain disabled={floating.busy} onClick={async () => { if (await latest.current.onDelete(floating.course!,floating.sourceWeek)) set(null) }}>删除本次</button></> : <button data-glass-plain onClick={() => set(null)}>取消添加</button>}
     </div>}
     {floating.dragging && <div data-float-ui className="float-week-hint">第 {floating.target.week} 周，拖到左右边缘可跨周</div>}
   </>

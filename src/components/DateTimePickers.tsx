@@ -31,7 +31,7 @@ export function DatePickerField({
   return (
     <div style={{ display: 'flex', alignItems: 'center', ...style }}>
       <FilledTextField label={label} value={value} onChange={onValueChange} isError={isError} style={{ flex: 1, minWidth: 0 }} />
-      <button
+      <button data-glass-role="regular" data-glass-icon="true"
         type="button"
         aria-label={t('select_date')}
         onClick={() => setShowPicker(true)}
@@ -66,7 +66,7 @@ export function DatePickerDialog({ onConfirm, onDismiss }: { onConfirm: (iso: st
       onClick={onDismiss}
       style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
     >
-      <div
+      <div data-glass-role="alert" data-glass-motion="static"
         role="dialog"
         aria-modal="true"
         aria-label={t('select_date')}
@@ -119,7 +119,7 @@ export function DatePickerDialog({ onConfirm, onDismiss }: { onConfirm: (iso: st
 /** M3 Button 默认尺寸 (minHeight 40, 内边距 24×8, labelLarge), shape 由调用方给 medium(12) */
 function PickerButton({ label, onClick, container, content }: { label: string; onClick: () => void; container: string; content: string }) {
   return (
-    <button
+    <button data-glass-role="tinted" data-glass-tint={container}
       type="button"
       onClick={onClick}
       className="m3-label-large"
@@ -158,7 +158,7 @@ export function TimePickerField({
   const [time, setTime] = useState(() => initialTime(value))
   return (
     <>
-      <div
+      <div data-glass-plain
         role="button"
         tabIndex={0}
         aria-label={label || t('select_time')}

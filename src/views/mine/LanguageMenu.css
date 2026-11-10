@@ -3,9 +3,7 @@
 .language-menu-layer { position:fixed; inset:0; z-index:1400; }
 .language-menu-popup { position:fixed; box-sizing:border-box; overflow:auto; padding:8px; border-radius:24px; background:var(--md-surface-container-highest); box-shadow:0 8px 32px color-mix(in srgb,var(--md-scrim) 20%,transparent); transform-origin:top right; animation:language-menu-enter 380ms cubic-bezier(.18,.8,.25,1.12) both; }
 .language-menu-popup button { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:48px; padding:12px 16px; border:0; border-radius:16px; background:transparent; color:var(--md-on-surface); font:inherit; text-align:start; cursor:pointer; }
-.language-menu-popup button[aria-checked="true"] { background:var(--md-secondary-container); color:var(--md-on-secondary-container); }
 .language-menu-popup button:focus-visible { outline:2px solid var(--md-primary); outline-offset:-2px; }
-[data-ui-style="liquid_glass"] .language-menu-popup { background:color-mix(in srgb,var(--md-surface-container-highest) 62%,transparent); backdrop-filter:blur(24px) saturate(1.45); border:1px solid color-mix(in srgb,var(--md-on-surface) 15%,transparent); box-shadow:inset 1px 1px 1px color-mix(in srgb,white 60%,transparent),0 12px 32px color-mix(in srgb,var(--md-scrim) 16%,transparent); }
 .language-menu-closing { animation:language-menu-exit 200ms ease-in both; pointer-events:none; }
 @keyframes language-menu-enter { from { opacity:0; transform:scale(.45,.16) translateY(-12px); border-radius:100px; } to { opacity:1; transform:scale(1); border-radius:24px; } }
 @keyframes language-menu-exit { to { opacity:0; transform:scale(.8,.65) translateY(-8px); } }

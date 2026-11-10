@@ -14,3 +14,14 @@
 .quick-add-confirm { display: block; height: 100%; width: 100%; background: transparent; color: inherit; font-size: 28px; border: none; cursor: pointer; border-radius: inherit; }
 .float-week-hint { position: fixed; z-index: 1020; bottom: 90px; left: 50%; transform: translateX(-50%); white-space: nowrap; border-radius: 24px; padding: 10px 16px; background: var(--md-primary-container); color: var(--md-on-primary-container); pointer-events: none; }
 @keyframes float-lift { from { transform: scale(1); box-shadow: 0 2px 4px #10244215; } to { transform: scale(1.035); } }
+
+/* FloatOccurrence.kt: reuse the card, dismiss the scrim immediately on drag. */
+[data-float-origin] {opacity:.35;}
+.floating-course {transform:none;outline:none;background:transparent;animation:none;box-shadow:0 6px 18px #10244238;}
+.floating-course.is-dragging {transform:none;}
+.float-actions {gap:0;padding:0;border-radius:10px;border:1px solid var(--md-outline-variant);box-shadow:0 4px 12px #18284126;}
+.float-actions button {min-height:36px;padding:8px 14px;border-radius:0;background:transparent;color:var(--md-primary);font-size:12px;font-weight:600;white-space:nowrap;}
+.float-actions button + button {color:var(--md-error);position:relative;}
+.float-actions button + button::before {content:'';position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--md-outline-variant);}
+.float-resize {height:14px;}
+.float-resize span {width:16px;}

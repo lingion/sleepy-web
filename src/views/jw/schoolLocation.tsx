@@ -1,5 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { gunzipSync } from 'fflate'
+import { useTranslation } from 'react-i18next'
+import { SchoolDivider, SchoolRow } from './SchoolRows'
 import boundariesUrl from './schoolCityBoundaries.bin.gz?url'
 import { SCHOOLS, type SchoolInfo } from './schools'
 
@@ -60,32 +62,45 @@ export function normalizeCity(city: string) { const s=city.trim().replace(/市$/
 export function schoolsInCity(city: string) { return SCHOOLS.filter(s => s.cities?.some(c=>normalizeCity(c)===normalizeCity(city))) }
 let cachedAreas: Area[] | undefined
 export function CityRecommendations({onPick}:{onPick:(s:SchoolInfo)=>void}) {
-  const [city,setCity]=useState(''), [status,setStatus]=useState('点击定位，查找同城学校'), [loading,setLoading]=useState(false), [expanded,setExpanded]=useState(false)
+  const {t}=useTranslation()
+  const [city,setCity]=useState(''), [status,setStatus]=useState(''), [loading,setLoading]=useState(false), [expanded,setExpanded]=useState(false)
+  const [attempted,setAttempted]=useState(false)
   const alive=useRef(true), generation=useRef(0)
   useEffect(()=>{ alive.current=true; return ()=>{alive.current=false;generation.current++} },[])
   const schools=schoolsInCity(city)
   function locate() {
     const id=++generation.current
     const active=()=>alive.current&&id===generation.current
-    if (!navigator.geolocation) {setStatus('当前浏览器不支持定位，请搜索学校'); return}
-    setLoading(true);setStatus('正在定位城市')
+    setAttempted(true)
+    if (!navigator.geolocation) {setStatus(t('school_location_unavailable')); return}
+    setCity('');setExpanded(false);setLoading(true);setStatus(t('school_location_loading'))
     navigator.geolocation.getCurrentPosition(async position=>{
       try {
         if (!active()) return
-        if (Date.now()-position.timestamp>30000) throw Error('定位结果已过期，请重试')
-        if (!cachedAreas) { const response=await fetch(boundariesUrl,{credentials:'omit'}); if(!response.ok)throw Error('城市边界读取失败'); cachedAreas=parseCityBoundaries(new Uint8Array(await response.arrayBuffer())) }
+        if (Date.now()-position.timestamp>30000) throw Error(t('school_location_no_fix'))
+        if (!cachedAreas) { const response=await fetch(boundariesUrl,{credentials:'omit'}); if(!response.ok)throw Error(t('school_location_unavailable')); cachedAreas=parseCityBoundaries(new Uint8Array(await response.arrayBuffer())) }
         if (!active()) return
         const found=cityForFix(cachedAreas,position.coords)
-        if (!found) throw Error('定位精度不足或暂无城市边界，请搜索学校')
+        if (!found) throw Error(t('school_location_accuracy_insufficient'))
         setCity(found);setStatus(found);setExpanded(false)
-      } catch(e) {if(active())setStatus(e instanceof Error?e.message:'定位失败，请搜索学校')}
+      } catch(e) {if(active())setStatus(e instanceof Error?e.message:t('school_location_unavailable'))}
       finally {if(active())setLoading(false)}
-    },error=>{if(active()){setStatus(error.code===1?'定位权限被拒绝，请在浏览器设置中允许或搜索学校':'未获取到定位，请重试或搜索学校');setLoading(false)}},{enableHighAccuracy:false,maximumAge:30000,timeout:12000})
+    },error=>{if(active()){setStatus(t(error.code===1?'school_location_denied':'school_location_no_fix'));setLoading(false)}},{enableHighAccuracy:false,maximumAge:30000,timeout:12000})
   }
-  return <div className="m3-card" style={{padding:12,border:'1px solid var(--md-outline-variant)'}}>
-    <div className="m3-title-small">可能的学校</div><p role="status">{status}{city ? `，${schools.length} 所学校` : ''}</p>
-    <button type="button" className="m3-btn-regular" disabled={loading} onClick={locate}>{loading?'定位中':'定位城市'}</button>
-    {(expanded?schools:schools.slice(0,3)).map(s=><button type="button" className="m3-btn-regular" key={s.catalogId||`${s.sortKey}_${s.name}`} onClick={()=>onPick(s)}>{s.name}</button>)}
-    {schools.length>3&&<button type="button" className="m3-btn-regular" onClick={()=>setExpanded(v=>!v)}>{expanded?'收起':'展开全部'}</button>}
-  </div>
+  return <section className="jw-possible-schools">
+    <div className="jw-possible-schools-header">
+      <div className="jw-possible-schools-copy">
+        <h2 className="m3-title-medium">{t('possible_schools')}</h2>
+        <p role="status" className="m3-body-small">{status || t('school_location_hint')}{city ? ` · ${schools.length}` : ''}</p>
+      </div>
+      <button data-glass-role="regular" type="button" className="m3-button-text" disabled={loading} onClick={locate}>
+        {loading?t('loading'):t(attempted?'school_location_retry':'school_location_locate')}
+      </button>
+    </div>
+    {city && <p className="jw-recommendation-hint m3-body-small">{t(schools.length?'school_location_city_hint':'school_location_no_matches')}</p>}
+    <div className="jw-recommended-list" role="listbox" aria-label={t('possible_schools')} data-expanded={expanded}>
+      {(expanded?schools:schools.slice(0,5)).map(s=><div key={s.catalogId||`${s.sortKey}_${s.name}`}><SchoolRow school={s} onPick={()=>onPick(s)} /><SchoolDivider /></div>)}
+    </div>
+    {schools.length>5&&<button data-glass-role="regular" type="button" className="m3-button-text" onClick={()=>setExpanded(v=>!v)}>{t(expanded?'school_location_collapse':'school_location_show_all')}</button>}
+  </section>
 }

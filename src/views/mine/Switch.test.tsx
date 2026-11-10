@@ -7,7 +7,7 @@ import { Switch } from './shared'
 function renderSwitch(checked: boolean, onChange = vi.fn()) {
   const { container } = render(<Switch checked={checked} onChange={onChange} />)
   const track = container.firstElementChild as HTMLElement
-  const thumb = track.firstElementChild as HTMLElement
+  const thumb = track.querySelector('.switch-thumb') as HTMLElement
   return { track, thumb, onChange }
 }
 

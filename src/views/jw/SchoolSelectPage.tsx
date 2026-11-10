@@ -1,291 +1,181 @@
-/**
- * SchoolSelectPage — ui/screen/imports/SchoolSelectScreen.kt 的 web 移植。
- *
- * 与 Android 一致的行为:
- *  · 计数行左侧永远是「共 N 所」(全量), 只有搜索时才在右侧补「匹配 M」
- *  · 输入看起来像 URL 时, 列表顶部插一条「直接用此 URL 登录」行 (UrlDirectRow)
- *  · 行可点条件 = status 已适配 且 配了 URL; 否则整行降透明度且不可点
- *  · 字母索引条只在无搜索词且分组 > 1 时出现
- */
-
-import { useMemo, useRef, useState } from 'react'
+/** SchoolSelectScreen.kt at Android 77b878fd. Fixed search/counts, one scroll body, separate alphabet rail. */
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconLink, IconSchool } from '../../components/icons'
-import { HDiv } from '../mine/shared'
 import { filterSchools } from './pinyin'
 import { CityRecommendations } from './schoolLocation'
-import {
-  detectProtocolFromUrl,
-  displayHost,
-  looksLikeUrl,
-  matchSchoolByDomain,
-  normalizeUrl,
-  protocolDisplayName,
-} from './protocol'
-import {
-  SCHOOLS,
-  groupByLetter,
-  statusBadge,
-  type SchoolInfo,
-} from './schools'
+import { detectProtocolFromUrl, looksLikeUrl, matchSchoolByDomain, normalizeUrl } from './protocol'
+import { SCHOOLS, groupByLetter, isSelectable, type SchoolInfo } from './schools'
+import { CustomUrlEntryRow, SchoolDivider, SchoolRow, UrlDirectRow } from './SchoolRows'
+import './SchoolSelectPage.css'
 
 export interface UrlPick {
-  /** 归一化后的可抓取 URL */
   url: string
-  /** URL 判型结果;null = 交给 parser 兜底裁决 */
   protocol: string | null
-  /** 注册域命中目录里的哪所学校;null = 自定义教务 */
   matched: SchoolInfo | null
 }
 
-export function SchoolSelectPage({
-  onPickSchool,
-  onPickUrl,
-}: {
+export function SchoolSelectPage({ onPickSchool, onPickUrl }: {
   onPickSchool: (school: SchoolInfo) => void
   onPickUrl: (pick: UrlPick) => void
 }) {
   const { t } = useTranslation()
+  const hintId = useId()
+  const searchRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const prefixRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState('')
-  const listRef = useRef<HTMLDivElement | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
-
+  const [viewportHeight, setViewportHeight] = useState(640)
+  const [prefixHeight, setPrefixHeight] = useState(0)
+  const [rowHeights, setRowHeights] = useState<Record<string, number>>({})
+  const draggingIndex = useRef(false)
   const filtered = useMemo(() => filterSchools(SCHOOLS, query), [query])
   const sections = useMemo(() => groupByLetter(filtered), [filtered])
   const isUrl = looksLikeUrl(query)
-  const showIndexBar = query.trim() === '' && sections.length > 1
-
+  const searching = query.trim() !== ''
+  const showIndexBar = !searching && sections.length > 1
+  const hasList = filtered.length > 0
   const urlPick = useMemo<UrlPick | null>(() => {
     if (!isUrl) return null
-    const raw = query.trim()
-    const url = normalizeUrl(raw)
+    const url = normalizeUrl(query.trim())
     return { url, protocol: detectProtocolFromUrl(url), matched: matchSchoolByDomain(url, SCHOOLS) }
   }, [isUrl, query])
+  const counts = useMemo(() => ({
+    supported: SCHOOLS.filter(isSelectable).length,
+    unverified: SCHOOLS.filter(s => s.status === 'unverified' || s.status === 'grad_unverified').length,
+  }), [])
 
+  // Include all catalogue rows in the virtual geometry. Long names are measured instead of clipped to 76px.
   const entries = useMemo(() => {
-    let top = 0
-    return sections.flatMap(sec => [
-      { key: sec.letter, letter: sec.letter, school: null as SchoolInfo | null, height: 32 },
-      ...sec.schools.map((school, index) => ({key: `${sec.letter}-${index}`,letter: sec.letter, school, height: 76})),
-    ]).map(row => { const entry = {...row, top}; top += row.height; return entry })
-  }, [sections])
-  const visible = entries.filter(row => row.top + row.height >= scrollTop - 180 && row.top < scrollTop + 850)
-  const totalHeight = entries.at(-1) ? entries.at(-1)!.top + entries.at(-1)!.height : 0
+    let top = 0, position = 0
+    return sections.flatMap(section => [
+      { key: `header-${section.letter}`, letter: section.letter, school: null as SchoolInfo | null, position: 0, estimate: 42 },
+      ...section.schools.map(school => ({ key: school.catalogId || `${school.sortKey}_${school.name}`, letter: section.letter,
+        school, position: ++position, estimate: school.url.trim() ? 71 : 67 })),
+    ]).map(row => {
+      const height = rowHeights[row.key] ?? row.estimate
+      const entry = { ...row, top, height }
+      top += height
+      return entry
+    })
+  }, [sections, rowHeights])
+  const measureRow = useCallback((key: string, height: number) => {
+    if (height <= 0) return
+    setRowHeights(previous => previous[key] === height ? previous : { ...previous, [key]: height })
+  }, [])
+
+  useLayoutEffect(() => {
+    const list = listRef.current, prefix = prefixRef.current
+    if (!list || !prefix) { setPrefixHeight(0); return }
+    let previousWidth = list.clientWidth
+    const measure = () => {
+      setPrefixHeight(prefix.getBoundingClientRect().height)
+      if (list.clientHeight > 0) setViewportHeight(list.clientHeight)
+      if (list.clientWidth !== previousWidth) {
+        previousWidth = list.clientWidth
+        setRowHeights({})
+      }
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(list)
+    observer.observe(prefix)
+    return () => observer.disconnect()
+  }, [hasList, searching])
+
+  const bodyTop = prefixHeight + 4
+  const visible = entries.filter(row => row.top + row.height >= scrollTop - bodyTop - 180 && row.top < scrollTop - bodyTop + viewportHeight + 180)
+  const totalHeight = entries.length ? entries[entries.length - 1].top + entries[entries.length - 1].height : 0
+  let activeLetter: string | null = null
+  for (const row of entries) {
+    if (row.top > scrollTop - bodyTop + 1) break
+    activeLetter = row.letter
+  }
   function scrollToLetter(letter: string) {
-    const top = entries.find(e => !e.school && e.letter === letter)?.top ?? 0
+    const row = entries.find(entry => !entry.school && entry.letter === letter)
+    if (!row) return
+    const top = bodyTop + row.top
     if (listRef.current) listRef.current.scrollTop = top
     setScrollTop(top)
   }
+  function indexAt(clientY: number, bar: HTMLElement) {
+    const bounds = bar.getBoundingClientRect()
+    if (!bounds.height) return
+    const ratio = Math.max(0, Math.min(.999, (clientY - bounds.top) / bounds.height))
+    scrollToLetter(sections[Math.floor(ratio * sections.length)].letter)
+  }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {/* 搜索框 + supportingText */}
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setScrollTop(0); if (listRef.current) listRef.current.scrollTop = 0 }}
-          placeholder={t('search_school_url')}
-          aria-label={t('select_school')}
-          style={{
-            padding: '10px 12px',
-            borderRadius: 10,
-            border: '1px solid var(--md-outline)',
-            background: 'var(--md-surface)',
-            color: 'var(--md-on-surface)',
-            font: 'inherit',
+  return <div className="jw-school-select">
+    <label className="jw-school-search">
+      <input ref={searchRef} type="search" name="school" value={query} autoComplete="off" spellCheck={false}
+        aria-label={t('select_school')} aria-describedby={hintId} placeholder={t('search_school_url')}
+        onChange={event => {
+          setQuery(event.target.value)
+          setScrollTop(0)
+          if (listRef.current) listRef.current.scrollTop = 0
+        }} />
+      <span id={hintId} className="jw-school-search-hint m3-body-small">{t('school_pinyin_hint')}</span>
+    </label>
+    <div className="jw-school-counts m3-body-small">
+      <span>{t('jw_catalog_counts', { v1: SCHOOLS.length, v2: counts.supported, v3: counts.unverified })}</span>
+      {searching && <span className="jw-school-matched" role="status">{t('jw_matched_count', { v1: filtered.length })}</span>}
+    </div>
+    {urlPick && <UrlDirectRow pick={urlPick} typedUrl={query.trim()} onPick={() => onPickUrl(urlPick)} />}
+    {!hasList ? (!isUrl && <div className="jw-school-empty m3-body-medium">{t(SCHOOLS.length ? 'no_school_found' : 'loading')}</div>) :
+      <div className="jw-school-viewport">
+        <div ref={listRef} className="jw-school-scroll" onScroll={event => setScrollTop(event.currentTarget.scrollTop)}>
+          <div ref={prefixRef} className="jw-school-prefix">
+            {!searching && <CityRecommendations onPick={onPickSchool} />}
+            <div className="jw-custom-url-entry">
+              <CustomUrlEntryRow onClick={() => searchRef.current?.focus()} />
+              <SchoolDivider />
+            </div>
+          </div>
+          <div className="jw-school-window" role="listbox" aria-label={t('select_school')} style={{ height: totalHeight }}>
+            {visible.map(row => <MeasuredRow key={row.key} rowKey={row.key} top={row.top} onMeasure={measureRow}>
+              {row.school ? <>
+                <SchoolRow school={row.school} onPick={() => onPickSchool(row.school!)} position={row.position} total={filtered.length} />
+                <SchoolDivider />
+              </> : <div className="jw-letter-header" data-letter={row.letter}><span className="m3-title-small">{row.letter}</span></div>}
+            </MeasuredRow>)}
+          </div>
+        </div>
+        {showIndexBar && <nav className="jw-school-index" aria-label={t('select_school')}
+          onPointerDown={event => {
+            if (event.button !== 0) return
+            event.preventDefault()
+            draggingIndex.current = true
+            event.currentTarget.setPointerCapture?.(event.pointerId)
+            indexAt(event.clientY, event.currentTarget)
           }}
-        />
-        <span className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
-          {t('school_pinyin_hint')}
-        </span>
-      </label>
-
-      {/* 计数行 — 左侧恒为全量, 右侧仅搜索时出现 */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <span className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
-          {t('school_count_total', { v1: SCHOOLS.length })}
-        </span>
-        <div style={{ flex: 1 }} />
-        {query.trim() !== '' && (
-          <span className="m3-body-small" style={{ color: 'var(--md-primary)' }}>
-            {t('jw_matched_count', { v1: filtered.length })}
-          </span>
-        )}
-      </div>
-
-      {urlPick && <UrlDirectRow pick={urlPick} typedUrl={query.trim()} onPick={() => onPickUrl(urlPick)} />}
-
-      {query.trim() === '' && <CityRecommendations onPick={onPickSchool} />}
-      <button type="button" className="m3-btn-regular" onClick={() => listRef.current?.parentElement?.parentElement?.querySelector('input')?.focus()}>自定义教务链接</button>
-      <div style={{ display: 'flex', gap: 4 }}>
-        <div
-          ref={listRef}
-          onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-          role="listbox"
-          aria-label={t('select_school')}
-          style={{ flex: 1, minHeight: 0, maxHeight: 'calc(100vh - 250px)', overflowY: 'auto' }}
-        >
-          {filtered.length === 0 && !isUrl ? (
-            <div className="m3-body-medium" style={{ padding: '32px 0', textAlign: 'center', color: 'var(--md-on-surface-variant)' }}>
-              {SCHOOLS.length === 0 ? t('loading') : t('no_school_found')}
-            </div>
-          ) : (
-            <div style={{height:totalHeight,position:'relative'}}>
-              {visible.map(row => <div key={row.key} style={{position:'absolute',top:row.top,left:0,right:0,height:row.height,overflow:'hidden'}}>
-                {row.school ? <><SchoolRow school={row.school} onPick={()=>onPickSchool(row.school!)} /><HDiv /></> :
-                  <div data-letter={row.letter} className="m3-title-small" style={{padding:'6px 10px',color:'var(--md-primary)'}}>{row.letter}</div>}
-              </div>)}
-            </div>
-          )}
-        </div>
-
-        {showIndexBar && (
-          <div
-            role="navigation"
-            aria-label={t('select_school')}
-            style={{ width: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, paddingTop: 6 }}
-          >
-            {sections.map((sec) => (
-              <button
-                key={sec.letter}
-                className="m3-btn-regular"
-                type="button"
-                onClick={() => scrollToLetter(sec.letter)}
-                style={{
-                  border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
-                  font: 'inherit', fontSize: 11, lineHeight: '15px', color: 'var(--md-primary)',
-                }}
-              >
-                {sec.letter}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
+          onPointerMove={event => { if (draggingIndex.current) indexAt(event.clientY, event.currentTarget) }}
+          onPointerUp={() => { draggingIndex.current = false }}
+          onPointerCancel={() => { draggingIndex.current = false }}>
+          {sections.map(section => <button type="button" data-glass-plain key={section.letter}
+            aria-current={activeLetter === section.letter ? 'location' : undefined}
+            onClick={() => scrollToLetter(section.letter)}><span>{section.letter}</span></button>)}
+        </nav>}
+      </div>}
+  </div>
 }
 
-/** 学校行 — 36dp primaryContainer 图标块 + 名称/协议两行; 不可点时降透明度 */
-function SchoolRow({ school, onPick }: { school: SchoolInfo; onPick: () => void }) {
-  const { t } = useTranslation()
-  const clickable = true
-  const badge = statusBadge(school)
-  return (
-    <div
-      role="option"
-      aria-selected={false}
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick() } }}
-      aria-label={school.name}
-      onClick={clickable ? onPick : undefined}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px',
-        cursor: clickable ? 'pointer' : 'default',
-      }}
-    >
-      <div
-        style={{
-          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-          background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <IconSchool size={20} />
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div className="m3-body-large" style={{ display: 'flex', alignItems: 'center' }}>
-          {badge && (
-            <>
-              <span
-                className="m3-label-small"
-                style={{
-                  background: badge.bg, color: badge.fg,
-                  padding: '1px 6px', borderRadius: 6, flexShrink: 0,
-                }}
-              >
-                {t(badge.labelKey)}
-              </span>
-              <span style={{ width: 6 }} />
-            </>
-          )}
-          <span style={{ color: clickable ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)' }}>
-            {school.name}
-          </span>
-        </div>
-        {school.url.trim() !== '' && (
-          <div
-            className="m3-body-small"
-            style={{ color: 'var(--md-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-          >
-            {protocolDisplayName(school.type)} · {displayHost(school.url)}
-          </div>
-        )}
-      </div>
-    </div>
-  )
+function MeasuredRow({ rowKey, top, onMeasure, children }: { rowKey: string; top: number; onMeasure: (key: string, height: number) => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const row = ref.current
+    if (!row) return
+    const measure = () => onMeasure(rowKey, row.getBoundingClientRect().height)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(row)
+    return () => observer.disconnect()
+  }, [rowKey, onMeasure])
+  return <div ref={ref} className="jw-school-virtual-row" style={{ top }}>{children}</div>
 }
 
-/** 直接输入网址行 — 命中目录 > 判出协议 > 自动检测 */
-function UrlDirectRow({ pick, typedUrl, onPick }: { pick: UrlPick; typedUrl: string; onPick: () => void }) {
-  const { t } = useTranslation()
-  const hint = pick.matched
-    ? t('url_match_school', { v1: pick.matched.name })
-    : pick.protocol
-      ? `${t('url_detected')}${protocolDisplayName(pick.protocol)}`
-      : t('url_auto_detect')
-  const hintIsPrimary = pick.matched !== null || pick.protocol !== null
-  return (
-    <div
-      role="option"
-      aria-selected={false}
-      aria-label={t('url_direct_login')}
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onPick() }}
-      onClick={onPick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px', cursor: 'pointer',
-        border: '1px solid var(--md-outline-variant)', borderRadius: 12, marginBottom: 4,
-      }}
-    >
-      <div
-        style={{
-          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-          background: 'var(--md-primary)', color: 'var(--md-on-primary)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <IconLink size={20} />
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div className="m3-body-large" style={{ color: 'var(--md-primary)' }}>{t('url_direct_login')}</div>
-        <div
-          className="m3-body-small"
-          style={{ color: 'var(--md-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-        >
-          {typedUrl}
-        </div>
-        <div className="m3-body-small" style={{ color: hintIsPrimary ? 'var(--md-primary)' : 'var(--md-on-surface-variant)' }}>
-          {hint}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** 供 JwImportView 复用: URL 直连行落到哪个「学校」条目 (Android 同构兜底对象) */
 export function urlPickToSchool(pick: UrlPick): SchoolInfo {
-  if (pick.matched) {
-    return { ...pick.matched, url: pick.url, type: pick.protocol ?? pick.matched.type }
-  }
-  return {
-    sortKey: '',
-    name: '自定义教务',
-    url: pick.url,
-    type: pick.protocol,
-    aliases: [],
-    sortKeyFull: '',
-    status: 'supported',
-  }
+  if (pick.matched) return { ...pick.matched, url: pick.url, type: pick.protocol ?? pick.matched.type }
+  return { sortKey: '', name: '自定义教务', url: pick.url, type: pick.protocol, aliases: [], sortKeyFull: '', status: 'supported' }
 }

@@ -1,0 +1,41 @@
+{
+  "source": "Read-only DOM observations during native browser input; screenshots can precede the reported DOM by one frame.",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "dockDrag": {
+    "held": true,
+    "lift": 0.8096833170748173,
+    "position": 0.10186740842656097,
+    "jelly": 0.010333883538585486,
+    "y": -1.4222187058045692,
+    "width": 108.06019289545272,
+    "height": 66.02086202423561
+  },
+  "buttonDrag": {
+    "lift": 0.5504589380443968,
+    "x": 0.9828459073183249,
+    "y": 0.9828459073183249,
+    "scaleX": 1.1299844289748908,
+    "scaleY": 1.1395597046256165
+  },
+  "released": {
+    "buttonLift": 0,
+    "buttonX": 0,
+    "buttonY": 0,
+    "buttonScaleX": 1,
+    "buttonScaleY": 1,
+    "dockLift": 0,
+    "dockY": 0,
+    "dockWidth": 94,
+    "dockHeight": 54
+  },
+  "narrowWeekMenu": {
+    "viewportWidth": 240,
+    "left": 12,
+    "width": 216,
+    "right": 228
+  },
+  "runtimeErrors": []
+}

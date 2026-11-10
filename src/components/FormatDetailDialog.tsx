@@ -92,7 +92,7 @@ export function FormatDetailDialog({
       }}
       onClick={onDismiss}
     >
-      <div
+      <div data-glass-role="alert" data-glass-motion="static"
         role="dialog"
         aria-modal="true"
         aria-label={t(keys.title)}
@@ -181,7 +181,7 @@ export function FormatDetailDialog({
             >
               {decodePromptForDisplay(promptRaw)}
             </pre>
-            <button
+            <button data-glass-role="tinted" data-glass-tint="var(--md-primary-container)"
               type="button"
               onClick={() => void copyPrompt()}
               style={{
@@ -207,7 +207,7 @@ export function FormatDetailDialog({
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
+          <button data-glass-role="regular"
             type="button"
             onClick={onDismiss}
             style={{

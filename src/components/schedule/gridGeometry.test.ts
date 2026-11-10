@@ -34,6 +34,31 @@ function mkCourse(partial: Partial<Course>): Course {
 
 const geo = buildGridGeometry([], DEFAULT_TIME_JSON, 7, 1000, 1)
 
+describe('课程列宽优先', () => {
+  it.each([320, 360, 402, 600])('%ipx 下时间栏不得宽于一天课程', (width) => {
+    for (const scale of [0.7, 1, 1.3]) {
+      for (const layout of ['legacy', 'three_line'] as const) {
+        for (const hanging of [-1, 0, 1]) {
+          const grid = buildGridGeometry([], DEFAULT_TIME_JSON, 7, width, scale, {
+            periodHeaderLayout: layout,
+            periodHeaderStyle: 'financial',
+            periodHeaderShowX: true,
+            periodHeaderHanging: hanging,
+          })
+          expect(grid.timeW).toBeLessThanOrEqual(grid.colW + 1e-9)
+          expect(grid.colW).toBeGreaterThan(0)
+          const cards = Array.from({ length: 7 }, (_, i) => singleCardGeom(mkCourse({ day: i + 1 }), grid, i, true)!)
+          cards.forEach((card, i) => {
+            expect(card.w).toBeCloseTo(grid.colW, 6)
+            if (i) expect(card.x - cards[i - 1].x - cards[i - 1].w).toBeCloseTo(grid.gapW, 6)
+          })
+          expect(cards[6].x + cards[6].w + grid.gapW).toBeCloseTo(width, 6)
+        }
+      }
+    }
+  })
+})
+
 describe('buildGridGeometry — 布局常量', () => {
   it('scale=1 时 headH=52 timeW=74.2 (legacy dash 轴几何 #102) rowH=56', () => {
     expect(geo.headH).toBe(52)

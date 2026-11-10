@@ -1,0 +1,107 @@
+/* Explicit native material roles. The SVG adapter supplies tint, blur, rim and RGB sampling. */
+:root[data-ui-style="liquid_glass"] :is(.glass-control,.glass-surface) {
+  background:transparent !important;
+  backdrop-filter:var(--glass-optics-filter,none);
+  -webkit-backdrop-filter:var(--glass-optics-filter,none);
+  border-color:transparent;
+}
+:root[data-ui-style="liquid_glass"] .glass-control {overflow:visible;}
+/* Only pseudo-element hosts need a default position; native positioning always wins. */
+:where(:root[data-ui-style="liquid_glass"] .glass-control[data-glass-icon="true"]),
+:where(:root[data-ui-style="liquid_glass"] .glass-surface:is([data-glass-role="menu"],[data-glass-role="alert"])) {position:relative;}
+:root[data-ui-style="liquid_glass"] [data-glass-role="alert"] {--glass-rim-radius:34px;--glass-rim-side:.35;--glass-rim-corner:.22;--glass-rim-flat:.12;border-radius:34px !important;}
+:root[data-ui-style="liquid_glass"] [data-glass-role="menu"] {--glass-rim-radius:24px;--glass-rim-side:.25;--glass-rim-corner:.15;--glass-rim-flat:.09;}
+:root[data-ui-style="liquid_glass"][data-mode="dark"] [data-glass-role="alert"] {--glass-rim-side:.75;--glass-rim-corner:.1;--glass-rim-flat:.03;}
+:root[data-ui-style="liquid_glass"][data-mode="dark"] [data-glass-role="menu"] {--glass-rim-side:.27;--glass-rim-corner:.1;--glass-rim-flat:.02;}
+/* LiquidGlassRim.paintLine: the carrier owns this separate half-dp exterior line. */
+:root[data-ui-style="liquid_glass"] .glass-surface:is([data-glass-role="menu"],[data-glass-role="alert"])::after {
+  content:'';position:absolute;inset:0;border-radius:inherit;padding:.5px;pointer-events:none;
+  background:linear-gradient(to right,rgb(0 0 0 / var(--glass-rim-side)),rgb(0 0 0 / var(--glass-rim-corner)) calc(var(--glass-rim-radius)/4),rgb(0 0 0 / var(--glass-rim-flat)) var(--glass-rim-radius),rgb(0 0 0 / var(--glass-rim-flat)) calc(100% - var(--glass-rim-radius)),rgb(0 0 0 / var(--glass-rim-corner)) calc(100% - var(--glass-rim-radius)/4),rgb(0 0 0 / var(--glass-rim-side)));
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;
+}
+:root[data-ui-style="liquid_glass"] .glass-moving {
+  translate:var(--glass-x,0px) var(--glass-y,0px);
+  scale:var(--glass-scale-x,1) var(--glass-scale-y,1);
+  z-index:30;
+}
+:root[data-ui-style="liquid_glass"] .glass-control[data-glass-icon="true"] {
+  background:transparent !important;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;
+}
+:root[data-ui-style="liquid_glass"] .glass-control[data-glass-icon="true"]::before {
+  content:'';position:absolute;width:36px;height:36px;left:calc(50% - 18px);top:calc(50% - 18px);border-radius:50%;pointer-events:none;
+  backdrop-filter:var(--glass-optics-filter,none);-webkit-backdrop-filter:var(--glass-optics-filter,none);z-index:0;
+}
+:root[data-ui-style="liquid_glass"] .glass-control[data-glass-icon="true"] > * {position:relative;z-index:1;}
+:root[data-ui-style="liquid_glass"] [data-glass-group="true"] [data-glass-role] {background:transparent !important;box-shadow:none;}
+:root[data-ui-style="liquid_glass"] [data-glass-group="true"] {overflow:visible;}
+
+/* Plain backing, floating background lens and independent glyph lens are siblings. */
+.glass-destinations,.glass-content-lens,.navigation-backing {display:none;pointer-events:none;}
+:root[data-ui-style="liquid_glass"] :is(.segmented-track,.is-dock .navigation-track) {background:transparent !important;isolation:auto;overflow:visible;}
+:root[data-ui-style="liquid_glass"] .segmented-track::before {
+  content:'';position:absolute;inset:0;border-radius:inherit;background:var(--segment-backing,color-mix(in srgb,var(--md-on-surface) 4.5%,transparent));pointer-events:none;
+}
+:root[data-ui-style="liquid_glass"] :is(.segmented-track,.is-dock .navigation-track) > button .semantic-destination {opacity:0;}
+:root[data-ui-style="liquid_glass"] :is(.segment-lens,.is-dock .navigation-lens) {
+  display:block;position:absolute;left:var(--lens-left) !important;top:var(--lens-top) !important;bottom:auto !important;
+  width:var(--lens-width) !important;height:var(--lens-height) !important;border-radius:999px !important;
+  background:color-mix(in srgb,var(--lens-fill,var(--md-surface)) calc((1 - var(--lens-lift,0))*100%),transparent) !important;
+  backdrop-filter:var(--glass-optics-filter,none);-webkit-backdrop-filter:var(--glass-optics-filter,none);
+  box-shadow:0 calc(8px * var(--lens-lift,0)) 5px rgb(0 0 0 / calc(.055 * var(--lens-lift,0)));
+  transition:none !important;z-index:1;pointer-events:none;
+}
+:root[data-ui-style="liquid_glass"][data-mode="dark"] :is(.segment-lens,.is-dock .navigation-lens,.switch-thumb,.single-glass-thumb) {
+  box-shadow:0 calc(8px * var(--lens-lift,0)) 5px rgb(0 0 0 / calc(.165 * var(--lens-lift,0)));
+}
+:root[data-ui-style="liquid_glass"] [data-lens-raised="false"] > :is(.segment-lens,.navigation-lens,.switch-thumb,.single-glass-thumb) {backdrop-filter:none;-webkit-backdrop-filter:none;}
+:root[data-ui-style="liquid_glass"] :is(.segmented-track,.is-dock .navigation-track) > .glass-destinations {
+  display:flex;position:absolute;inset:0;padding:4px;box-sizing:border-box;z-index:2;overflow:visible;
+}
+.glass-label-seat {display:flex;align-items:center;justify-content:center;flex:1;min-width:0;white-space:nowrap;color:var(--md-on-surface-variant);font-weight:500;}
+.glass-label-seat[data-selected="true"] {font-weight:600;color:var(--md-on-secondary-container);}
+:root[data-ui-style="liquid_glass"] :is(.segmented-track[data-lens-raised="true"],.is-dock .navigation-track) > .glass-content-lens {
+  display:block;position:absolute;left:var(--lens-left);top:var(--lens-top);width:var(--lens-width);height:var(--lens-height);border-radius:999px;overflow:hidden;z-index:3;
+}
+.glass-content-warp {position:absolute;inset:0;filter:var(--glass-optics-filter,none);}
+.glass-content-source {
+  position:absolute;left:calc(0px - var(--lens-left));top:calc(0px - var(--lens-top));width:var(--source-width);height:var(--source-height);
+  box-sizing:border-box;padding:4px;display:flex;align-items:stretch;
+}
+.glass-content-source .glass-label-seat {transform:scale(calc(1 + .16 * var(--lens-lift,0)));color:var(--md-on-secondary-container);}
+:root[data-ui-style="liquid_glass"] .segmented-track > button {z-index:4;background:transparent;}
+
+/* The native glass branch exists only in floating Dock mode. */
+:root[data-ui-style="liquid_glass"] .is-dock {width:min(360px,calc(100% - 42px));border-radius:31px;}
+:root[data-ui-style="liquid_glass"] .is-dock .navigation-track {height:62px;padding:4px;box-sizing:border-box;border-radius:31px;box-shadow:none;}
+:root[data-ui-style="liquid_glass"] .is-dock .navigation-backing {display:block;position:absolute;inset:0;border-radius:31px;box-shadow:0 6px 12px #0002;}
+:root[data-ui-style="liquid_glass"] .is-dock .navigation-track > button {height:54px;z-index:4;background:transparent;}
+:root[data-ui-style="liquid_glass"] .is-dock .navigation-lens {--lens-fill:var(--md-surface-container);}
+:root[data-ui-style="liquid_glass"] .is-dock :is(.glass-destinations,.glass-content-source) {padding:4px 0 !important;padding-left:var(--seat-inset) !important;}
+:root[data-ui-style="liquid_glass"] .is-dock .glass-label-seat {flex:0 0 var(--seat-pitch);font-weight:500;}
+.navigation-label-seat {flex-direction:column;gap:2px;font-size:10px;line-height:14.5px;}
+:root[data-ui-style="liquid_glass"] .is-dock .glass-content-source .glass-label-seat {color:var(--md-on-surface);}
+:root[data-ui-style="liquid_glass"] .is-dock .glass-content-warp {filter:none;}
+:root[data-ui-style="liquid_glass"] .is-dock [data-lens-raised="true"] .glass-content-warp {filter:var(--glass-optics-filter,none);}
+
+/* GlassSwitch.kt: 68x48 hit target, ordinary 63x28 track, resting 37x24 thumb. */
+.switch-backing {display:none;}
+:root[data-ui-style="liquid_glass"] .switch-track {
+  width:68px !important;height:48px !important;margin:0 !important;background:transparent !important;box-shadow:none !important;border-radius:24px !important;
+}
+:root[data-ui-style="liquid_glass"] .switch-backing {
+  display:block;position:absolute;left:2.5px;top:10px;width:63px;height:28px;border-radius:999px;
+  background:color-mix(in srgb,var(--md-primary) calc(clamp(0,var(--lens-position,0),1)*100%),var(--switch-off));
+}
+:root[data-ui-style="liquid_glass"] .switch-thumb {
+  width:var(--lens-width,37px) !important;height:var(--lens-height,24px) !important;left:var(--lens-left,4.5px) !important;top:var(--lens-top,12px) !important;border-radius:999px !important;
+  background:color-mix(in srgb,var(--switch-thumb-fill,var(--md-on-primary)) calc((1 - var(--lens-lift,0))*100%),transparent) !important;
+  backdrop-filter:var(--glass-optics-filter,none);-webkit-backdrop-filter:var(--glass-optics-filter,none);
+  box-shadow:0 calc(8px * var(--lens-lift,0)) 5px rgb(0 0 0 / calc(.055 * var(--lens-lift,0)));transition:none !important;pointer-events:none;
+}
+:root[data-ui-style="liquid_glass"] .switch-track[aria-checked="false"] {--switch-thumb-fill:var(--md-outline);}
+:root[data-ui-style="liquid_glass"] .switch-track[aria-checked="true"] {--switch-thumb-fill:var(--md-on-primary);}
+@media (prefers-reduced-motion:reduce) { .glass-moving {translate:none !important;scale:none !important;} }
+:root[data-ui-style="liquid_glass"] .segmented-track {border-radius:999px !important;}
+.glass-label-copy::before {content:attr(data-label);}
+.glass-content-warp {border-radius:inherit;}
+:root[data-ui-style="liquid_glass"] :is(.segment-lens,.navigation-lens,.switch-thumb,.single-glass-thumb) {background-clip:padding-box;}

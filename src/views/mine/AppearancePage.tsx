@@ -69,7 +69,7 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenScheduleDispla
         onClick={() => void update({ theme: 'system' as Prefs['theme'] })}
       />
 
-      {/* 2 列网格: cells.chunked(2) 每行 Row(spacedBy 12) + 单格行补空 Box; Row 顶对齐不拉伸 (新建格 96 高) */}
+      {/* 2 列网格: cells.chunked(2) 每行 Row(spacedBy 12) + 单格行补空 Box; Row 顶对齐不拉伸 (新建格 112 高) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {chunked(cells, 2).map((row, ri) => (
           <div key={ri} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -117,7 +117,7 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenScheduleDispla
 /** 主题卡外壳 — Surface r16, 选中 primaryContainer / 否则 surfaceContainer (全 app 纯色块禁描线) */
 function ThemeSurface({ selected, onClick, children, padding = 16 }: { selected: boolean; onClick: () => void; children: ReactNode; padding?: number }) {
   return (
-    <div
+    <div data-glass-plain
       role="button"
       tabIndex={0}
       aria-pressed={selected}
@@ -190,7 +190,7 @@ function PresetThemeCard({ preset, isDark, selected, onClick }: { preset: ThemeP
   const scheme = isDark ? preset.dark : preset.light
   return (
     <ThemeSurface selected={selected} onClick={onClick}>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, minHeight: 48, alignItems: 'center' }}>
         <Swatch color={scheme.primary} />
         <Swatch color={scheme.secondary} />
         <Swatch color={scheme.tertiary} />
@@ -201,19 +201,19 @@ function PresetThemeCard({ preset, isDark, selected, onClick }: { preset: ThemeP
   )
 }
 
-/** 「新建主题」入口 — 裸虚线圆圈+加号, 无卡无背景无文字 (2026-09-11 用户定稿), fillMaxWidth × 96 */
+/** 「新建主题」入口 — 裸虚线圆圈+加号, 无卡无背景无文字 (2026-09-11 用户定稿), fillMaxWidth × 112 */
 function NewThemeCard({ onClick }: { onClick: () => void }) {
   const { t } = useTranslation()
   return (
-    <div
+    <div data-glass-plain
       role="button"
       tabIndex={0}
       aria-label={t('theme_new')}
       onClick={onClick}
       onKeyDown={(e) => onActivateKey(e, onClick)}
-      style={{ height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+      style={{ height: 112, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
     >
-      <DashedCircleWithPlus size={40} />
+      <div data-glass-role="regular" style={{ width: 40, height: 40, borderRadius: 20 }}><DashedCircleWithPlus size={40} /></div>
     </div>
   )
 }
@@ -238,7 +238,7 @@ function DashedCircleWithPlus({ size }: { size: number }) {
 
 /**
  * 自定义主题卡 — 与预设卡完全同构(三色板+名称+选中对勾, 大小一致)。
- * edit 色块在色板行右端: 28 r8 surfaceContainerHighest 与色板同高, 首行不撑高 (2026-09-13 用户定稿)。
+ * edit 在色板行右端使用 48 触摸槽；预设和自定义首行同高，液态模式只绘制中央 36 圆盘。
  */
 function CustomThemeCard({
   theme,
@@ -257,12 +257,12 @@ function CustomThemeCard({
   const scheme = deriveCustomScheme(theme, isDark)
   return (
     <ThemeSurface selected={selected} onClick={onClick}>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, minHeight: 48, alignItems: 'center' }}>
         <Swatch color={scheme.primary} />
         <Swatch color={scheme.secondary} />
         <Swatch color={scheme.tertiary} />
         <div style={{ flex: 1 }} />
-        <div
+        <div data-glass-role="regular" data-glass-icon="true"
           role="button"
           tabIndex={0}
           aria-label={t('theme_custom_edit')}
@@ -270,7 +270,7 @@ function CustomThemeCard({
           onClick={(e) => { e.stopPropagation(); onEdit() }}
           onKeyDown={(e) => { e.stopPropagation(); onActivateKey(e, onEdit) }}
           style={{
-            width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: 'var(--md-surface-container-highest)',
+            width: 48, height: 48, borderRadius: 24, flexShrink: 0, background: 'var(--md-surface-container-highest)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'var(--md-on-surface-variant)', cursor: 'pointer',
           }}
@@ -287,7 +287,7 @@ function CustomThemeCard({
 /** AppearanceNavigationRow.kt — surfaceContainer r12, padding 16/16, bodyLarge onSurface + ChevronRight onSurfaceVariant */
 function AppearanceNavigationRow({ title, onClick }: { title: string; onClick: () => void }) {
   return (
-    <div
+    <div data-glass-plain
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -318,6 +318,6 @@ function CourseColorSettings() {
     <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }} aria-label={t('course_color_preview', '配色预览')}>
       {preview.map(course => { const color = pickCourseColor(course, resolveIsDark(prefs), neutral, prefs.courseColorless); const text = rgbToHex(textColorOn(parseHex(color) ?? [255, 255, 255], resolveIsDark(prefs), parseHex(courseNeutralTokens(resolveIsDark(prefs)).onSurface) ?? [0, 0, 0])); return <span key={course.groupId} style={{ padding: '6px 12px', borderRadius: 8, whiteSpace: 'nowrap', color: text, background: color }}>{course.courseName}</span> })}
     </div>
-    {!prefs.courseColorless && <button type="button" className="m3-button-tonal" onClick={() => void refreshCourseHues(prefs, resolveIsDark(prefs), true).then(() => update({}))}>{t('course_color_recalc', '重新编排课程颜色')}</button>}
+    {!prefs.courseColorless && <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" type="button" className="m3-button-tonal" onClick={() => void refreshCourseHues(prefs, resolveIsDark(prefs), true).then(() => update({}))}>{t('course_color_recalc', '重新编排课程颜色')}</button>}
   </div>
 }

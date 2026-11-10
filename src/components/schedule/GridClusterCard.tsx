@@ -233,7 +233,7 @@ export function GridClusterCard(props: GridClusterCardProps) {
         )
       })}
       {badge > 0 && (
-        <button
+        <button data-glass-plain
           onClick={(e) => {
             e.stopPropagation()
             onRotate()

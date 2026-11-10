@@ -24,8 +24,8 @@ describe('SegmentedSwitcher (SegmentedSwitcher.kt 1:1)', () => {
     expect(root.style.background).toBe('var(--md-surface-container-highest)')
     const thumb = root.firstElementChild as HTMLElement
     expect(thumb.style.borderRadius).toBe('12px')
-    // jsdom 会把 calc 里的 2/3 折算成小数
-    expect(thumb.style.left).toMatch(/^calc\(4px \+ 0\.666\d* \* \(100% - 8px\)\)$/)
+    // The selected segment is the fallback until the physical lens starts moving.
+    expect(thumb.style.left).toBe('calc(4px + var(--lens-position,2) * (100% - 8px) / 3)')
   })
 
   it('marks the selected segment SemiBold and reports clicks by index', () => {

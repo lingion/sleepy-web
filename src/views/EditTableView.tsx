@@ -382,7 +382,7 @@ export function EditTableView({
       )}
 
       {/* 保存 — Buttons.ctaHeight 56 / shape large r16 */}
-      <button
+      <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
         onClick={() => saveAndSettle(slotRows)}
         style={{
           height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -397,7 +397,7 @@ export function EditTableView({
           待保存的新表隐藏删除键 (EditTableScreen.kt:312: pendingNewTableId == null 才渲染)
           — Buttons.regularHeight 48 / r16 / Icons.Outlined.Delete */}
       {pendingNewTableId == null && (
-      <button
+      <button data-glass-role="tinted" data-glass-tint="var(--md-error-container)"
         onClick={() => setShowDeleteConfirm(true)}
         style={{
           height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -511,7 +511,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
   const { t } = useTranslation()
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 64 }}>
-      <button
+      <button data-glass-role="regular" data-glass-icon="true"
         type="button"
         onClick={onBack}
         aria-label={t('back', { defaultValue: '返回' })}
@@ -528,7 +528,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
   )
 }
 
-function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
+function Overlay({ children, onDismiss, glassRole = 'alert' }: { children: React.ReactNode; onDismiss: () => void; glassRole?: 'alert' | 'menu' | false }) {
   return (
     <div
       onClick={onDismiss}
@@ -539,6 +539,9 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
       }}
     >
       <div
+        data-glass-role={glassRole || undefined}
+        data-glass-motion={glassRole ? "static" : undefined}
+        data-glass-plain={glassRole === false ? true : undefined}
         role="dialog"
         aria-modal="true"
         className="m3-card"

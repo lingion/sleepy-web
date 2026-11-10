@@ -11,6 +11,8 @@ import {
   clampPeriodHeaderHanging,
   legacyDashColumn,
   legacyColumnVerticalFit,
+  fitPeriodHeaderColumn,
+  estimatePeriodHeaderTextWidth,
   type LegacyDashRowInk,
 } from './periodHeader'
 
@@ -261,5 +263,45 @@ describe('period header parity', () => {
     expect(normalizePeriodHeaderLayout('horizontal')).toBe('three_line')
     expect(normalizePeriodHeaderLayout('vertical')).toBe('three_line')
     expect(normalizePeriodHeaderLayout('unexpected')).toBe('legacy')
+  })
+})
+
+describe('bounded period header ink', () => {
+  const slots = [
+    { label: '1', nodeStart: 1, nodeEnd: 1, displayStart: '8:00', displayEnd: '08:45' },
+    { label: '11-12', nodeStart: 11, nodeEnd: 12, displayStart: '21:45', displayEnd: '23:00' },
+  ]
+
+  it.each([30, 36, 46, 70])('fits a %ipx column without expanding it, even with short rows and long labels', width => {
+    for (const scale of [0.7, 1, 1.3]) {
+      for (const height of [26, 52 * scale, 80 * scale]) {
+        for (const style of ['arabic', 'chinese', 'financial', 'circled', 'roman'] as const) {
+          for (const hanging of [-1, 0, 1]) {
+            const column = fitPeriodHeaderColumn(slots, width, height, scale, { layout: 'three_line', style, hanging, showX: true })
+            expect(new Set(column.map(row => row[1].size)).size).toBe(1)
+            column.forEach(row => {
+              expect(row.map(text => text.kind)).toEqual(['start', 'label', 'end'])
+              row.forEach((text, i) => {
+                expect(text.text).not.toContain('\n')
+                expect(text.left).toBeGreaterThanOrEqual(3 * scale - 1e-6)
+                const ink = estimatePeriodHeaderTextWidth(text.text, text.size, text.kind === 'label' ? 600 : 500, text.tracking)
+                expect(text.left + ink).toBeLessThanOrEqual(width - 3 * scale + 1e-6)
+                expect(text.top).toBeGreaterThanOrEqual(3 * scale - 1e-6)
+                expect(text.top + text.lineHeight).toBeLessThanOrEqual(height - 3 * scale + 1e-6)
+                if (i) expect(text.top).toBeGreaterThanOrEqual(row[i-1].top + row[i-1].lineHeight - 1e-6)
+              })
+            })
+          }
+        }
+      }
+    }
+  })
+
+  it('keeps wide legacy ranges and hide-time semantics, using Android stacking only when constrained', () => {
+    const options = { layout: 'legacy' as const, style: 'arabic' as const, hanging: 0, showX: false }
+    expect(fitPeriodHeaderColumn(slots, 100, 52, 1, options)[0].map(line => line.kind)).toEqual(['label', 'time'])
+    expect(fitPeriodHeaderColumn(slots, 33, 52, 1, options)[0].map(line => line.text)).toEqual(['8:00', '1', '08:45'])
+    expect(fitPeriodHeaderColumn(slots, 33, 52, 1, { ...options, hideTime: true })[0].map(line => line.kind)).toEqual(['label'])
+    expect(fitPeriodHeaderColumn(slots, 33, 52, 1, { ...options, layout: 'three_line', hideTime: true })[0].map(line => line.kind)).toEqual(['start', 'label', 'end'])
   })
 })

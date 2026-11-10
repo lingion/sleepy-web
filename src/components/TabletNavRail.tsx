@@ -31,7 +31,7 @@ function CombinedRailItem({
   const Icon = RAIL_ICONS[tab]
   const iconColor = selected ? 'var(--md-on-primary-container)' : 'var(--md-on-surface-variant)'
   return (
-    <button
+    <button data-glass-plain
       type="button"
       onClick={onClick}
       aria-label={`课表·${label}`}
@@ -91,7 +91,7 @@ function PlainRailItem({
 }) {
   const Icon = RAIL_ICONS[tab]
   return (
-    <button
+    <button data-glass-plain
       type="button"
       onClick={onClick}
       aria-label={label}

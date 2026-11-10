@@ -109,7 +109,7 @@ export function OccurrenceEditor({ occurrence, table, startInEdit = false, onDis
   const standard = occurrence.course.startNode >= 1 && occurrence.course.startNode <= max && !occurrence.course.isIrregularNode
   const patch = (value: Partial<Course>) => { if (busy) return;setDraft((course) => ({ ...course, ...value })) }
   const run = async (action: () => Promise<void>) => { if (busy) return; setBusy(true); try { await action() } catch (e) { setError(e instanceof Error ? e.message : '保存失败') } finally { setBusy(false) } }
-  return <div className="occurrence-scrim" onClick={() => { if (!busy) onDismiss() }}><section ref={dialog} tabIndex={-1} className="occurrence-editor" role="dialog" aria-modal="true" aria-label="调整本次课程" onClick={(e) => e.stopPropagation()}>
+  return <div className="occurrence-scrim" onClick={() => { if (!busy) onDismiss() }}><section data-glass-role="menu" data-glass-motion="static" ref={dialog} tabIndex={-1} className="occurrence-editor" role="dialog" aria-modal="true" aria-label="调整本次课程" onClick={(e) => e.stopPropagation()}>
     <h2 className="m3-title-large">{draft.courseName}</h2><p>{occurrence.displayDate}，第 {occurrence.course.startNode}–{occurrence.course.startNode+occurrence.course.step-1} 节</p>
     {editing ? <><fieldset disabled={busy} className="occurrence-fields">
     <label className="occurrence-field">日期<input type="date" value={date} min={dateOfWeekIso(table.startDate,1,1)} max={dateOfWeekIso(table.startDate,table.maxWeek,7)} onChange={(e) => setDate(e.target.value)} /></label>
@@ -118,10 +118,10 @@ export function OccurrenceEditor({ occurrence, table, startInEdit = false, onDis
     {draft.ownTime && <div className="occurrence-inline"><label className="occurrence-field">开始时间<input type="time" value={draft.startTime} onChange={(e) => patch({ startTime:e.target.value })} /></label><label className="occurrence-field">结束时间<input type="time" value={draft.endTime} onChange={(e) => patch({ endTime:e.target.value })} /></label></div>}
     <label className="occurrence-field">教室或地点<input value={draft.room} onChange={(e) => patch({ room:e.target.value })} /></label>
     </fieldset>{error && <p role="alert">{error}</p>}
-    <button className="occurrence-primary" disabled={busy} onClick={() => void run(async () => {
+    <button data-glass-role="tinted" data-glass-tint="var(--md-primary)" className="occurrence-primary" disabled={busy} onClick={() => void run(async () => {
       if (!date) throw new Error('请选择日期')
       await onSave(prepareOccurrenceDraft(occurrence.course,draft,table.timeJson),date)
-    })}>{busy ? '正在保存' : '保存本次'}</button></> : <><button className="occurrence-secondary" disabled={busy} onClick={()=>setEditing(true)}>调整本次</button><button className="occurrence-danger" disabled={busy} onClick={() => void run(onDelete)}>删除本次</button>{error && <p role="alert">{error}</p>}</>}
-    <button className="occurrence-secondary" disabled={busy} onClick={onDismiss}>取消</button>
+    })}>{busy ? '正在保存' : '保存本次'}</button></> : <><button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" className="occurrence-secondary" disabled={busy} onClick={()=>setEditing(true)}>调整本次</button><button data-glass-role="tinted" data-glass-tint="var(--md-error-container)" className="occurrence-danger" disabled={busy} onClick={() => void run(onDelete)}>删除本次</button>{error && <p role="alert">{error}</p>}</>}
+    <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" className="occurrence-secondary" disabled={busy} onClick={onDismiss}>取消</button>
   </section></div>
 }

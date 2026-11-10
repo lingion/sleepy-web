@@ -57,9 +57,6 @@ export function App() {
   const [dockExtra, setDockExtra] = useState(76)
   const pushTab = useBackStack((s) => s.pushTab)
   const replaceTab = useBackStack((s) => s.replaceTab)
-  // 不变量 (MainActivity.kt:301-397): 每个 overlay 分支都在底栏组合之前 return —
-  // 栈上只要有一层 (二级/三级皆算, 随栈深递增永远成立), 底栏两种形态都不存在。
-  const hasOverlay = useBackStack((s) => s.stack.length > 0)
   // 平板横屏 Master-Detail (SleepyNavHost.kt:484-494): 宽≥600 且 宽≥高 → 左课表固定 + 右 Today/Manage/Mine。
   // 全屏覆盖层 (二级/三级页) 打开时回落单栏 — Android overlay 是 NavHost 全屏目的地, 盖住整个双栏;
   // 课表页弹层族 (详情/切表/跳周/分享) 是 fixed 浮层, 不拆栏 (Android 本就是 sheet/dialog 局部层)。
@@ -129,7 +126,7 @@ export function App() {
   // dockExtra 污染成 0, 回主页面后底部留白消失)。
   const dockNavRef = useRef<HTMLElement>(null)
   useEffect(() => {
-    if (!navDock || hasOverlay) return
+    if (!navDock || fullOverlay) return
     const el = dockNavRef.current
     if (!el) return
     const measure = () => {
@@ -140,7 +137,7 @@ export function App() {
     ro.observe(el)
     measure()
     return () => ro.disconnect()
-  }, [navDock, hasOverlay])
+  }, [navDock, fullOverlay])
 
   // Tab 枚举顺序 = MainActivity.kt:173 Schedule/Today/Manage/Mine
   const items: [Tab, string][] = publicSchedule
@@ -218,19 +215,18 @@ export function App() {
           维持 m3-title-large div(Android TopAppBar 1:1 对齐不许动)。 */}
       <GlassControls style={uiStyle} />
       <main key={tab} className="app-page-transition" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {tab === 'schedule' && <ScheduleView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} readOnly={publicSchedule} />}
-        {tab === 'today' && <TodayView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
-        {tab === 'manage' && <ManageView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
-        {tab === 'mine' && <MineView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
+        {tab === 'schedule' && <ScheduleView navExtraBottom={!fullOverlay && navDock ? dockExtra : 0} readOnly={publicSchedule} />}
+        {tab === 'today' && <TodayView navExtraBottom={!fullOverlay && navDock ? dockExtra : 0} />}
+        {tab === 'manage' && <ManageView navExtraBottom={!fullOverlay && navDock ? dockExtra : 0} />}
+        {tab === 'mine' && <MineView navExtraBottom={!fullOverlay && navDock ? dockExtra : 0} />}
       {publicSchedule && (
         <div style={{ position: 'fixed', top: 12, right: 12, zIndex: 950, padding: '6px 10px', borderRadius: 999, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)' }}>
           <span className="m3-label-small">只读分享</span>
         </div>
       )}
       </main>
-      {/* 底栏闸门 = 返回栈是否为空 (Android 每个 overlay 分支都在底栏之前 return)。
-          栈非空 → 贴底通栏与悬浮 Dock 两种形态都不渲染, 底部滚动余量同时归零。 */}
-      {!publicSchedule && !hasOverlay && <GlassNavigation
+      {/* 局部弹层保留主页面和底栏；完整子页才离开底栏目的地。 */}
+      {!publicSchedule && !fullOverlay && <GlassNavigation
         ref={dockNavRef} items={items.map(([key, label]) => ({ key, label, icon: TAB_ICONS[key] }))}
         current={tab} dock={navDock} onSelect={(key) => selectTab(key as Tab)}
       />}

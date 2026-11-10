@@ -85,8 +85,11 @@ export function buildGridGeometry(
     : GRID.slotH
   const rowScale = Math.min(1.8, Math.max(0.7, options.rowScale ?? 1))
   const rowH = d(fit * rowScale) + d(GRID.gapH)
-  const timeW = d(resolveTimeColumnWidth(plan.slots, options))
   const gapW = d(GRID.gapW)
+  // Android measures the text envelope first. On Web, the user's course-width
+  // priority additionally limits the time lane to at most one course lane.
+  const laneBudget = Math.max(0, containerWidth - gapW * (dayCount + 1)) / (dayCount + 1)
+  const timeW = Math.min(d(resolveTimeColumnWidth(plan.slots, options)), laneBudget)
   const colW = (containerWidth - timeW - gapW * (dayCount + 1)) / dayCount
   return {
     scale,

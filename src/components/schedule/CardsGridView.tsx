@@ -4,7 +4,7 @@ import './mealBreak.css'
  * 双层架构: 时间栏 (renderSlots 逐行) + 课程卡绝对定位 (非簇单卡 + 冲突簇整簇)。
  */
 
-import { useMemo, useRef, type TouchEvent, type WheelEvent } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type TouchEvent, type WheelEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Course } from '../../data/types'
 import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
@@ -15,16 +15,9 @@ import { timeToFractionalRows, type RenderSlotPlan } from '../../domain/timeTabl
 import { buildGridGeometry, singleCardGeom, slotIndexOf, yOfRows, rowHeightAt } from './gridGeometry'
 import { GridClusterCard } from './GridClusterCard'
 import {
-  columnAdaptiveFont,
-  estimateHeaderInk,
+  fitPeriodHeaderColumn,
   estimatePeriodHeaderTextWidth,
-  legacyColumnVerticalFit,
-  legacyDashColumn,
-  legacyRowInk,
-  periodHeaderHangingPlacement,
-  periodHeaderColumnPlacements,
-  periodHeaderLines,
-  type AdaptiveFont,
+  type PeriodHeaderTextLine,
   type PeriodHeaderLayout,
   type PeriodHeaderStyle,
 } from './periodHeader'
@@ -71,12 +64,27 @@ export function CardsGridView(props: CardsGridViewProps) {
     [prefs.visibleDays]
   )
   const dayCount = Math.max(1, sortedDays.length)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    const measure = () => {
+      const style = getComputedStyle(root)
+      const width = root.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      if (width > 0) setMeasuredWidth(width)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(root)
+    return () => observer.disconnect()
+  }, [prefs.gridScale])
   const geo = useMemo(
     () => buildGridGeometry(
       courses,
       timeJson,
       dayCount,
-      Math.max(containerWidth, 120),
+      Math.max(measuredWidth ?? containerWidth, 1),
       prefs.gridScale,
       {
         adaptiveHeight: prefs.gridAdaptiveHeight,
@@ -93,7 +101,7 @@ export function CardsGridView(props: CardsGridViewProps) {
         periodHeaderTimeAlignment:prefs.periodHeaderTimeAlignment,
       },
     ),
-    [courses, timeJson, dayCount, containerWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale, prefs.gridLongBreakSpacing, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX,hideTime,prefs.periodHeaderTimeAlignment]
+    [courses, timeJson, dayCount, containerWidth, measuredWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale, prefs.gridLongBreakSpacing, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX,hideTime,prefs.periodHeaderTimeAlignment]
   )
   const today = useMemo(() => new Date(), [])
   const updatePrefs = usePrefsStore((s) => s.update)
@@ -107,8 +115,6 @@ export function CardsGridView(props: CardsGridViewProps) {
     midLocal: number
     scroller: HTMLElement
   } | null>(null)
-  const rootRef = useRef<HTMLDivElement | null>(null)
-
   const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     if (!prefs.gridPinchZoom || event.touches.length !== 2) return
     const t0 = event.touches[0]
@@ -164,47 +170,18 @@ export function CardsGridView(props: CardsGridViewProps) {
 
   const maxNode = geo.slots.length
 
-  // 表头字号自适应 (Android 3e4a4dfe 1:1 语义): 整列统一字号, 由最紧行决定, 防截断。
-  // CSS 无文本测量 → 估算墨迹宽; 卡宽 = 时间栏宽, 卡高 = 最矮行高。
-  const headerFont = useMemo(() => {
-    if (prefs.periodHeaderLayout !== 'three_line') return null
-    const inks = geo.slots
-      .filter((s) => !s.isPlaceholder)
-      .map((s) => estimateHeaderInk(periodHeaderLines(s, 'three_line', prefs.periodHeaderStyle, prefs.periodHeaderShowX)))
-    const cardW = geo.timeW
-    const minRowH = geo.slots.length
-      ? Math.min(...geo.slots.map((_, i) => rowHeightAt(geo.plan, i, geo.rowH) - geo.gapH))
-      : 52 * prefs.gridScale
-    return columnAdaptiveFont(cardW, minRowH, inks)
-  }, [geo.slots, geo.plan, geo.rowH, geo.gapH, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderShowX])
-
-  const headerPlacements = useMemo(() => {
-    if (prefs.periodHeaderLayout !== 'three_line') return null
-    const projection = (16 / 12) * prefs.gridScale
-    const rows = geo.slots
-      .filter((slot) => !slot.isPlaceholder)
-      .map((slot) => {
-        const lines = periodHeaderLines(slot, 'three_line', prefs.periodHeaderStyle, prefs.periodHeaderShowX)
-        return {
-          timeWidth: Math.max(
-            estimatePeriodHeaderTextWidth(lines[0], 11),
-            estimatePeriodHeaderTextWidth(lines[2], 11),
-          ) * projection,
-          labelWidth: estimatePeriodHeaderTextWidth(lines[1], 12) * projection,
-        }
-      })
-    return periodHeaderColumnPlacements(rows, prefs.periodHeaderHanging)
-  }, [geo.slots, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX])
-
-  // 定令 2026-10-03 (ref #102): legacy 列级 dash 轴 — 全列所有行同一轴,
-  // 与 gridGeometry 列宽同一几何 (legacyDashColumn, pad 已在列宽里, 轴不含 pad)。
-  const legacyAxis = useMemo(() => {
-    if (prefs.periodHeaderLayout !== 'legacy') return null
-    const rows = geo.slots
-      .filter((slot) => !slot.isPlaceholder)
-      .map((slot) => legacyRowInk(slot, prefs.periodHeaderStyle, prefs.periodHeaderShowX))
-    return legacyDashColumn(rows, 0, prefs.periodHeaderTimeAlignment).dashCenter * prefs.gridScale
-  }, [geo.slots, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderShowX, prefs.periodHeaderTimeAlignment])
+  const headerLines = useMemo(() => {
+    const slots = geo.slots.filter(slot => !slot.isPlaceholder)
+    const minHeight = Math.min(...geo.slots.flatMap((slot, i) => slot.isPlaceholder ? [] : [rowHeightAt(geo.plan, i, geo.rowH) - geo.gapH]))
+    return fitPeriodHeaderColumn(slots, geo.timeW, Number.isFinite(minHeight) ? minHeight : 52 * prefs.gridScale, prefs.gridScale, {
+      layout: prefs.periodHeaderLayout,
+      style: prefs.periodHeaderStyle,
+      hanging: prefs.periodHeaderHanging,
+      showX: prefs.periodHeaderShowX,
+      hideTime,
+      timeAlignment: prefs.periodHeaderTimeAlignment,
+    })
+  }, [geo, prefs.gridScale, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX, hideTime, prefs.periodHeaderTimeAlignment])
 
   // 簇: 时间域聚簇 (2026-09-09 假冲突修复同源)
   const clusters = useMemo(() => findClusters(courses, timeJson), [courses, timeJson])
@@ -242,6 +219,7 @@ export function CardsGridView(props: CardsGridViewProps) {
             <DayHeadCell
               key={day}
               day={day}
+              width={geo.colW}
               isToday={isDateToday(dateOfWeek(startDate, currentWeek, day), today)}
               isGrey={greyDays.has(day)}
               courseCount={courses.filter((c) => c.day === day).length}
@@ -286,9 +264,7 @@ export function CardsGridView(props: CardsGridViewProps) {
                 showX={prefs.periodHeaderShowX}
                 hideTime={hideTime}
                 timeAlignment={prefs.periodHeaderTimeAlignment}
-                font={headerFont}
-                placement={headerPlacements?.[geo.slots.slice(0, i).filter((item) => !item.isPlaceholder).length]}
-                legacyAxis={legacyAxis ?? undefined}
+                lines={headerLines[geo.slots.slice(0, i).filter((item) => !item.isPlaceholder).length]}
               />
             </div>
           ))}
@@ -394,24 +370,11 @@ function GridSeparators({ geo, dayCount }: { geo: ReturnType<typeof buildGridGeo
 // ---- 子组件 -----------------------------------------------------------
 
 export function SingleTimeHeadCell({
-  slot,
-  width,
-  height,
-  scale,
-  cornerRatio,
-  layout,
-  style,
-  hanging,
-  showX,
-  hideTime = false,
-  timeAlignment='dash',
-  font,
-  placement: placementOverride,
-  legacyAxis,
+  slot, width, height = 52, scale, cornerRatio, layout, style, hanging, showX,
+  hideTime = false, timeAlignment = 'dash', lines: sharedLines,
 }: {
   slot: { label: string; displayStart: string; displayEnd: string; nodeStart?: number; nodeEnd?: number; isPlaceholder?: boolean }
   width: number
-  /** legacy union 垂直解的卡高 (行高 − gapH); 缺省 = 表头行高 */
   height?: number
   scale: number
   cornerRatio: number
@@ -421,116 +384,37 @@ export function SingleTimeHeadCell({
   showX: boolean
   hideTime?: boolean
   timeAlignment?: 'dash' | 'center'
-  /** 整列统一自适应字号 (Android AdaptiveFont 同源); null = 旧固定字号 */
-  font?: AdaptiveFont | null
-  placement?: {
-    timeLeft: number
-    labelLeft: number
-    contentWidth: number
-  }
-  /** 列级共享 dash 轴 (网格全列同一轴, ref #102); 未传 (单卡) 走行内退化 */
-  legacyAxis?: number
+  lines?: PeriodHeaderTextLine[]
 }) {
   const isPh = !!slot.isPlaceholder
-  const lines = periodHeaderLines(slot, layout, style, showX)
-  if (layout === 'three_line') {
-    const label = lines[1]
-    const base = font ?? { labelSize: 12, timeSize: 11 }
-    const placement = placementOverride ?? periodHeaderHangingPlacement(
-      Math.max(
-        estimatePeriodHeaderTextWidth(lines[0], base.timeSize),
-        estimatePeriodHeaderTextWidth(lines[2], base.timeSize),
-      ),
-      estimatePeriodHeaderTextWidth(label, base.labelSize),
-      hanging,
-    )
-    const layoutWidth = Math.max(width, placement.contentWidth + 6 * scale)
-    return (
-      <div style={{ width: layoutWidth, display: 'flex' }} data-period-header-hanging={hanging}>
-        <div
+  const lines = sharedLines ?? fitPeriodHeaderColumn([slot], width, height, scale, {
+    layout, style, hanging, showX, hideTime, timeAlignment,
+  })[0]
+  return (
+    <div
+      data-period-header-hanging={layout === 'three_line' ? hanging : undefined}
+      data-period-header-hide-time={layout === 'legacy' && hideTime ? true : undefined}
+      style={{
+        width, flexShrink: 0, minWidth: 0, height: '100%', position: 'relative',
+        borderRadius: 8 * scale * Math.min(1, cornerRatio),
+        background: isPh ? 'color-mix(in srgb, var(--md-surface-container-low) 50%, transparent)' : 'var(--md-surface-container-low)',
+      }}
+    >
+      {!isPh && lines.map(line => (
+        <span
+          key={line.kind}
+          data-period-header-line={line.kind}
+          className="m3-label-small"
           style={{
-            position: 'relative', flex: 1, minWidth: 0, height: '100%',
-            borderRadius: 8 * scale * Math.min(1, cornerRatio),
-            background: isPh ? 'color-mix(in srgb, var(--md-surface-container-low) 50%, transparent)' : 'var(--md-surface-container-low)',
-            padding: 3 * scale, boxSizing: 'border-box', overflow: 'visible',
+            position: 'absolute', left: line.left, top: line.top,
+            fontSize: line.size, lineHeight: `${line.lineHeight}px`, letterSpacing: line.tracking,
+            fontWeight: line.kind === 'label' ? 600 : 500, whiteSpace: 'nowrap',
+            color: line.kind === 'label' ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)',
           }}
-        >
-          {!isPh && <>
-            <span
-              data-period-header-line="start"
-              className="m3-label-small"
-              style={{ position: 'absolute', top: 3 * scale, left: placement.timeLeft + 3 * scale, fontSize: base.timeSize * scale, lineHeight: `${base.timeSize * 1.25 * scale}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface-variant)' }}
-            >{lines[0]}</span>
-            <span
-              data-period-header-line="label"
-              className="m3-label-small"
-              style={{ position: 'absolute', top: '50%', left: placement.labelLeft + 3 * scale, transform: 'translateY(-50%)', fontSize: base.labelSize * scale, fontWeight: 600, lineHeight: `${base.labelSize * 1.25 * scale}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface)' }}
-            >{label}</span>
-            <span
-              data-period-header-line="end"
-              className="m3-label-small"
-              style={{ position: 'absolute', bottom: 3 * scale, left: placement.timeLeft + 3 * scale, fontSize: base.timeSize * scale, lineHeight: `${base.timeSize * 1.25 * scale}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface-variant)' }}
-            >{lines[2]}</span>
-          </>}
-        </div>
-      </div>
-    )
-  }
-  if (layout === 'legacy' && hideTime) return <div data-period-header-hide-time style={{width,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:8*scale*Math.min(1,cornerRatio),background:'var(--md-surface-container-low)',padding:3*scale}}>{!isPh && <span data-period-header-line="label" style={{fontSize:12*scale*Math.min(1,Math.max(.6,((height ?? 52*scale)-6*scale)/(14*scale))),lineHeight:1.25,fontWeight:600,letterSpacing:.5*scale,whiteSpace:'nowrap'}}>{lines[0]}</span>}</div>
-  if (layout === 'legacy') {
-    // Legacy 两行 (ref #102, Android PeriodHeaderCellContent legacy 分支 1:1):
-    //   ① dash 字形中心坐共享轴 (轴 = 网格列级 legacyAxis, 与列宽同一几何);
-    //   ② 两行墨迹是一个整体矩形 — 垂直按 legacyColumnVerticalFit union 解定位,
-    //      不是每行各自 flex 居中 (旧实现高不够时两行挤叠的根因);
-    //   ③ gap 优先被吞, 吞完才缩字 — 缩字优先于重叠 (minScale 钳底)。
-    const ink = legacyRowInk(slot, style, showX)
-    const scaled = {
-      labelPx: ink.labelPx * scale,
-      timeLeftPx: ink.timeLeftPx * scale,
-      dashPx: ink.dashPx * scale,
-      timeRightPx: ink.timeRightPx * scale,
-      // 行盒高 = 安卓 headerLabelStyle/headerTimeStyle 的 14/13 sp×scale
-      labelHeightPx: 14 * scale,
-      timeHeightPx: 13 * scale,
-    }
-    // 单卡回退轴 (预览): 本行自己的 dash 字形中心; 网格传列级共享轴
-    const axis = legacyAxis ?? Math.max(scaled.labelPx / 2, scaled.timeLeftPx + scaled.dashPx / 2)
-    const pad = 3 * scale
-    const contentHeight = Math.max(1, (height ?? 52 * scale) - 2 * pad)
-    const fit = legacyColumnVerticalFit([scaled], contentHeight, 0.6, 2 * scale)
-    const fs = fit.fontScale
-    return (
-      <div style={{ width, display: 'flex' }}>
-        <div
-          style={{
-            position: 'relative',
-            flex: 1,
-            minWidth: 0,
-            height: '100%',
-            borderRadius: 8 * scale * Math.min(1, cornerRatio),
-            background: isPh ? 'color-mix(in srgb, var(--md-surface-container-low) 50%, transparent)' : 'var(--md-surface-container-low)',
-            padding: pad,
-            boxSizing: 'border-box',
-            overflow: 'hidden',
-          }}
-        >
-          {!isPh && <>
-            <span
-              data-period-header-line="label"
-              className="m3-label-small"
-              style={{ position: 'absolute', top: pad + fit.labelTop, left: timeAlignment==='center' ? (width-scaled.labelPx*fs)/2 : pad + axis - scaled.labelPx*fs/2, fontSize: 12 * scale * fs, fontWeight: 600, lineHeight: `${14 * scale * fs}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface)' }}
-            >{lines[0]}</span>
-            <span
-              data-period-header-line="time"
-              className="m3-label-small"
-              style={{ position: 'absolute', top: pad + fit.timeTop, left: timeAlignment==='center' ? (width-(scaled.timeLeftPx+scaled.dashPx+scaled.timeRightPx)*fs)/2 : pad + axis - (scaled.timeLeftPx+scaled.dashPx/2)*fs, fontSize: 11 * scale * fs, lineHeight: `${13 * scale * fs}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface-variant)' }}
-            >{`${slot.displayStart}-${slot.displayEnd}`}</span>
-          </>}
-        </div>
-      </div>
-    )
-  }
-  return null
+        >{line.text}</span>
+      ))}
+    </div>
+  )
 }
 export function CourseOverlayCard({
   course,
@@ -658,6 +542,7 @@ export function CourseOverlayCard({
 
 function DayHeadCell({
   day,
+  width,
   isToday,
   isGrey,
   courseCount,
@@ -666,6 +551,7 @@ function DayHeadCell({
   cornerRatio,
 }: {
   day: number
+  width: number
   isToday: boolean
   isGrey: boolean
   courseCount: number
@@ -686,6 +572,12 @@ function DayHeadCell({
       ? 'color-mix(in srgb, var(--md-on-primary-container) 80%, transparent)'
       : 'var(--md-on-surface-variant)'
   const dayLabel = localizedDay(day, i18n.language)
+  const detail = dateStr ?? (courseCount === 0 ? t('no_course') : t('course_count_format', { v1: courseCount }))
+  const textFit = Math.min(1, width / Math.max(
+    estimatePeriodHeaderTextWidth(dayLabel, 14 * scale, 600, 0.1),
+    estimatePeriodHeaderTextWidth(detail, (dateStr ? 10 : 9) * scale),
+    1,
+  ))
   // CourseTableView.kt:903-906 DayHeadCell 1:1: radius (10*scale*cornerRatio@max1), v-padding date?4:3
   const vPad = (dateStr ? 4 : 3) * scale
 
@@ -693,7 +585,8 @@ function DayHeadCell({
     <div
       data-day-header={day}
       style={{
-        flex: 1,
+        width,
+        flexShrink: 0,
         minWidth: 0,
         height: (dateStr ? 56 : 52) * scale,
         borderRadius: 10 * scale * Math.min(1, cornerRatio),
@@ -709,17 +602,17 @@ function DayHeadCell({
     >
       <span
         className="m3-label-large"
-        style={{ fontWeight: 600, fontSize: 14 * scale, lineHeight: `${20 * scale}px`, color: fg, whiteSpace: 'nowrap' }}
+        style={{ fontWeight: 600, fontSize: 14 * scale * textFit, lineHeight: `${20 * scale}px`, letterSpacing: 0.1 * textFit, color: fg, whiteSpace: 'nowrap' }}
       >
         {dayLabel}
       </span>
       {dateStr ? (
-        <span className="m3-label-small" style={{ fontSize: 10 * scale, lineHeight: `${11 * scale}px`, color: subFg, whiteSpace: 'nowrap' }}>
+        <span className="m3-label-small" style={{ fontSize: 10 * scale * textFit, lineHeight: `${11 * scale}px`, letterSpacing: 0.5 * textFit, color: subFg, whiteSpace: 'nowrap' }}>
           {dateStr}
         </span>
       ) : (
-        <span className="m3-label-small" style={{ fontSize: 9 * scale, lineHeight: `${11 * scale}px`, color: subFg, whiteSpace: 'nowrap' }}>
-          {courseCount === 0 ? t('no_course') : t('course_count_format', { v1: courseCount })}
+        <span className="m3-label-small" style={{ fontSize: 9 * scale * textFit, lineHeight: `${11 * scale}px`, letterSpacing: 0.5 * textFit, color: subFg, whiteSpace: 'nowrap' }}>
+          {detail}
         </span>
       )}
     </div>

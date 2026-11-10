@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
   IconChevronLeft, IconChevronRight,
@@ -132,6 +133,8 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [jumpOpen, setJumpOpen] = useState(false)
+  const [weekGrouped, setWeekGrouped] = useState(false)
+  const weekAnchor = useRef<HTMLSpanElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const back = useBackStack((s) => s.pop)
   const push = useBackStack((s) => s.push)
@@ -360,7 +363,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
       {/* 顶栏 — 无表不渲染 (Android !hasTable 直接 EmptyState 全屏, ScheduleScreen.kt:142-159) */}
       {hasTable && (
         <>
-          <ScheduleToolbar>
+          <ScheduleToolbar onGroupedChange={setWeekGrouped}>
             {/* 左缘: 切换课表 + 撤回 (仅有可撤回快照时显示, ScheduleScreen.kt:417-428) */}
             <div className="toolbar-start">
               {readOnly ? (
@@ -384,8 +387,9 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             </div>
 
             {/* 翻页三件套 — 屏幕正中 (ScheduleScreen.kt:433-436 Box 叠加同构) */}
-            <div className="week-controls">
+            <div className="week-controls" data-glass-role={weekGrouped ? "regular" : undefined} data-glass-group={weekGrouped ? "true" : undefined}>
               <NavCircleBtn
+                glass={!weekGrouped}
                 onClick={() => setWeek(Math.max(1, currentWeek - 1))}
                 disabled={currentWeek <= 1}
                 title={t('schedule_prev_week', { defaultValue: '上一周' })}
@@ -397,7 +401,9 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
                 <span
                   onClick={() => (isOnActual ? open('weekJump', () => setJumpOpen(true)) : setWeek(null))}
                   className="m3-label-large week-label"
-                  data-glass-control
+                  ref={weekAnchor}
+                  data-glass-role={weekGrouped ? undefined : "regular"}
+                  data-glass-plain={weekGrouped ? true : undefined}
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isOnActual ? open('weekJump', () => setJumpOpen(true)) : setWeek(null) } }}
                   role="button"
@@ -417,20 +423,22 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
                 >
                   <span data-week-text>{weekLabel}</span>
                 </span>
-                {jumpOpen && (
+                {jumpOpen && createPortal(
                   <>
                     <div
                       onClick={() => { leave(); setJumpOpen(false) }}
                       style={{ position: 'fixed', inset: 0, zIndex: 990 }}
                     />
                     <div
+                      data-glass-role="menu" data-glass-motion="static"
                       style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 4px)',
+                        position: 'fixed',
+                        top: (weekAnchor.current?.getBoundingClientRect().bottom ?? 64) + 4,
                         left: '50%',
                         transform: 'translateX(-50%)',
                         zIndex: 991,
-                        width: 280,
+                        width: Math.min(280, Math.max(0, window.innerWidth - 24)),
+                        maxWidth: 'calc(100vw - 24px)',
                         padding: 12,
                         borderRadius: 12,
                         background: 'var(--md-surface-container-highest)',
@@ -448,6 +456,9 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
                           const isCurrent = w === currentWeek
                           return (
                             <div
+                              data-glass-role="regular"
+                              data-glass-selected={isCurrent ? "true" : undefined}
+                              data-glass-tint={isCurrent ? "var(--md-primary)" : undefined}
                               key={w}
                               onClick={() => {
                                 setWeek(w)
@@ -476,10 +487,11 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
                         })}
                       </div>
                     </div>
-                  </>
+                  </>, document.body
                 )}
               </div>
               <NavCircleBtn
+                glass={!weekGrouped}
                 onClick={() => setWeek(Math.min(maxWeek, currentWeek + 1))}
                 disabled={currentWeek >= maxWeek}
                 title={t('schedule_next_week', { defaultValue: '下一周' })}
@@ -535,6 +547,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
               setSampleBannerOff(true)
               void db.prefs.put({ key: 'sampleBannerDismissed', value: '1' })
             }}
+            data-glass-plain
             aria-label={t('sample_table_dismiss')}
             style={{
               border: 'none', cursor: 'pointer', flexShrink: 0, padding: 4,
@@ -733,7 +746,9 @@ function NavCircleBtn({
   onClick,
   disabled,
   title,
+  glass = true,
 }: {
+  glass?: boolean
   children: React.ReactNode
   onClick?: () => void
   disabled?: boolean
@@ -745,6 +760,9 @@ function NavCircleBtn({
       disabled={disabled}
       title={title}
       aria-label={title}
+      data-glass-role={glass ? "regular" : undefined}
+      data-glass-icon={glass ? "true" : undefined}
+      data-glass-plain={!glass ? true : undefined}
       className="schedule-icon-button"
       style={{
         width: 48,
@@ -809,6 +827,7 @@ function UndoRedoCapsule({
   const half = 32
   return (
     <div
+      data-glass-role="regular" data-glass-group="true"
       style={{
         height: half,
         borderRadius: half / 2,
@@ -820,6 +839,7 @@ function UndoRedoCapsule({
     >
       <button
         type="button"
+        data-glass-plain
         aria-label="撤回"
         disabled={!showUndo}
         onClick={onUndo}
@@ -841,6 +861,7 @@ function UndoRedoCapsule({
       />
       <button
         type="button"
+        data-glass-plain
         aria-label="取消撤回"
         disabled={!showRedo}
         onClick={onRedo}
@@ -885,6 +906,7 @@ function TableSwitcherDialog({
       }}
     >
       <div
+        data-glass-role="alert" data-glass-motion="static"
         role="dialog"
         aria-modal="true"
         aria-label={t('schedule_switch_table', { defaultValue: '切换课表' })}
@@ -971,6 +993,7 @@ function EmptyStateCard({ onGoImport, onCreateTable }: { onGoImport: () => void;
         {t('schedule_empty_hint', { defaultValue: '前往课表管理导入，或手动创建第一张课表。' })}
       </div>
       <button
+        data-glass-role="tinted" data-glass-tint="var(--md-primary)"
         onClick={onGoImport}
         style={{
           width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -981,6 +1004,7 @@ function EmptyStateCard({ onGoImport, onCreateTable }: { onGoImport: () => void;
         {t('schedule_empty_import', { defaultValue: '导入第一张课表' })}
       </button>
       <button
+        data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)"
         onClick={onCreateTable}
         style={{
           width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -1026,6 +1050,7 @@ function NoCourseCard({
         {t('schedule_empty_name_hint', { defaultValue: '给这张课表添加课程，或导入一张新课表' })}
       </div>
       <button
+        data-glass-role="tinted" data-glass-tint="var(--md-primary)"
         onClick={onAddCourse}
         style={{
           width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -1036,6 +1061,7 @@ function NoCourseCard({
         {t('schedule_manual_first', { defaultValue: '先手动添加一门课' })}
       </button>
       <button
+        data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)"
         onClick={onImport}
         style={{
           width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',

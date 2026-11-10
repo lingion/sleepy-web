@@ -1,7 +1,7 @@
 /**
  * schools — 教务目录 (assets/schools.json + JwSchoolInfo.kt + JwImportViewModel.parseSchoolsJson 1:1)。
  *
- * 数据源: Android app/src/main/assets/schools.json 原样复制 (337 校, 29 协议)。
+ * 数据源: 完整学校目录，保留全部 4140 条学校数据。
  * 与 Android 同构的解析规则: 任一键以 "_" 开头的对象是审计元数据块, 整条跳过;
  * status 缺失/未知 → 回落 supported。
  */
@@ -90,15 +90,16 @@ export function isSelectable(s: SchoolInfo): boolean {
 }
 
 /** 行内状态徽标 — SchoolStatusBadge: supported 无徽标 */
-export function statusBadge(s: SchoolInfo): { labelKey: string; bg: string; fg: string } | null {
+export function statusBadge(s: SchoolInfo): { labelKey: string; secondaryLabelKey?: string; bg: string; fg: string } | null {
   switch (s.status) {
     case 'unverified':
     case 'grad_unverified':
-      return { labelKey: '未验证', bg: 'var(--md-tertiary-container)', fg: 'var(--md-on-tertiary-container)' }
+      return null
     case STATUS_PENDING:
     case STATUS_GRAD_PENDING:
       return {
         labelKey: 'jw_pending_pending',
+        secondaryLabelKey: s.status === STATUS_GRAD_PENDING ? 'jw_pending_grad' : undefined,
         bg: 'var(--md-tertiary-container)',
         fg: 'var(--md-on-tertiary-container)',
       }

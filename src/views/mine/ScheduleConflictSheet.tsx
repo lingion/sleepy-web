@@ -42,7 +42,7 @@ export function ScheduleConflictBottomSheet({
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
-      <div
+      <div data-glass-role="menu" data-glass-motion="static"
         role="dialog" aria-modal="true" aria-label={t('schedule_conflict_dialog_title')}
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -79,7 +79,7 @@ export function ScheduleConflictBottomSheet({
         <div style={{ height: 20 }} />
 
         {/* 「取消」= 撤销本次作息改动, 其他字段草稿保留 */}
-        <button
+        <button data-glass-plain
           type="button"
           onClick={onCancel}
           className="m3-label-large"
@@ -98,7 +98,7 @@ export function ScheduleConflictBottomSheet({
 
 function ConflictOption({ title, subtitle, onClick }: { title: string; subtitle: string; onClick: () => void }) {
   return (
-    <button
+    <button data-glass-plain
       type="button"
       onClick={onClick}
       style={{
@@ -142,7 +142,7 @@ export function PendingPolicyBanner({
       <div className="m3-body-medium" style={{ flex: 1, color: 'var(--md-on-secondary-container)' }}>
         {t('schedule_conflict_banner_format', { v1: policyText })}
       </div>
-      <button
+      <button data-glass-role="regular"
         type="button"
         onClick={onModify}
         className="m3-label-large"

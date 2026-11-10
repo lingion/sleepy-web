@@ -11,6 +11,7 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject }
 
 import {useGlassLens} from './glass/useGlassLens'
 import {haptic} from './glass/physics'
+import {LensLabels} from './glass/LensLabels'
 
 const THUMB_TRANSITION = '150ms cubic-bezier(0.2, 0, 0, 1)'
 
@@ -32,7 +33,7 @@ export function SegmentedSwitcher({
   const count = Math.max(1, options.length)
   const index = Math.min(Math.max(0, selected), count - 1)
   const rootRef = useRef<HTMLDivElement>(null)
-  const lens=useGlassLens(rootRef)
+  const lens=useGlassLens(rootRef,{kind:'segment',index,count,inset:4,onSelect})
   const segmentWidth = useMeasuredSegmentWidth(rootRef, fit ? options : null)
   const width = fit ? (segmentWidth === null ? 'max-content' : segmentWidth * count + 8) : '100%'
 
@@ -41,22 +42,23 @@ export function SegmentedSwitcher({
       ref={rootRef}
       className="segmented-track" data-glass-motion="off"
       data-held={held}
-      onPointerDown={(e) => { if (e.button !== 0) return; setHeld(true);lens.press(e.clientX,e.clientY); e.currentTarget.setPointerCapture?.(e.pointerId); dragSelect(e.clientX) }}
-      onPointerMove={(e) => { if (held) {dragSelect(e.clientX);lens.move(e.clientX,e.clientY)} }}
-      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => {setHeld(false);lens.release()}}
+      onPointerDown={(e) => { if (e.button !== 0) return; setHeld(true);lens.press(e.clientX,e.clientY); e.currentTarget.setPointerCapture?.(e.pointerId); if(document.documentElement.dataset.uiStyle!=='liquid_glass')dragSelect(e.clientX) }}
+      onPointerMove={(e) => { if (held) {if(document.documentElement.dataset.uiStyle!=='liquid_glass')dragSelect(e.clientX);lens.move(e.clientX,e.clientY)} }}
+      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => {setHeld(false);lens.release(true)}}
       style={{
+        '--segment-backing':containerColor,
         position: 'relative', display: 'grid', gridAutoFlow: 'column', gridAutoColumns: '1fr',
         width, height, flexShrink: 0, boxSizing: 'border-box', padding: 4, borderRadius: 14,
         background: containerColor ?? 'var(--md-surface-container)',
         ...style,
-      }}
+      } as CSSProperties}
     >
-      <div
+        <div
         aria-hidden
         className="segment-lens"
         style={{
           position: 'absolute', top: 4, bottom: 4, borderRadius: 12, background: 'var(--md-secondary-container)',
-          left: `calc(4px + ${index} * (100% - 8px) / ${count})`, width: `calc((100% - 8px) / ${count})`,
+          left: `calc(4px + var(--lens-position,${index}) * (100% - 8px) / ${count})`, width: `calc((100% - 8px) / ${count})`,
           transition: `left ${THUMB_TRANSITION}`,
         }}
       />
@@ -67,8 +69,8 @@ export function SegmentedSwitcher({
             key={i}
             type="button"
             aria-pressed={sel}
-            onClick={() => onSelect(i)}
-            className="m3-label-large"
+            onClick={() => lens.click(i)}
+            className="m3-label-large segment-button"
             style={{
               position: 'relative', minWidth: 0, padding: fit && segmentWidth === null ? '0 16px' : 0,
               border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
@@ -78,10 +80,11 @@ export function SegmentedSwitcher({
               transition: `color ${THUMB_TRANSITION}`,
             }}
           >
-            {label}
+            <span className="semantic-destination">{label}</span>
           </button>
         )
       })}
+      <LensLabels>{options.map((label,i)=><span key={i} className="glass-label-seat glass-label-copy m3-label-large" data-selected={i===index} data-label={label}/>)}</LensLabels>
     </div>
   )
 }
