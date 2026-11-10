@@ -4,8 +4,9 @@ import boundariesUrl from './schoolCityBoundaries.bin.gz?url'
 import { SCHOOLS, type SchoolInfo } from './schools'
 
 type Area = { name: string; polygons: number[][][] }
-/** Android SCB1 asset: signed big-endian integers and UTF-8 names. */
+/** Android SCB1 asset, either raw gzip or already decoded by the HTTP stack. */
 export function parseCityBoundaries(bytes: Uint8Array): Area[] {
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = gunzipSync(bytes)
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   let offset = 0, total = 0
   const int = () => { const n = view.getInt32(offset); offset += 4; return n }
@@ -72,7 +73,7 @@ export function CityRecommendations({onPick}:{onPick:(s:SchoolInfo)=>void}) {
       try {
         if (!active()) return
         if (Date.now()-position.timestamp>30000) throw Error('定位结果已过期，请重试')
-        if (!cachedAreas) { const response=await fetch(boundariesUrl,{credentials:'omit'}); if(!response.ok)throw Error('城市边界读取失败'); cachedAreas=parseCityBoundaries(gunzipSync(new Uint8Array(await response.arrayBuffer()))) }
+        if (!cachedAreas) { const response=await fetch(boundariesUrl,{credentials:'omit'}); if(!response.ok)throw Error('城市边界读取失败'); cachedAreas=parseCityBoundaries(new Uint8Array(await response.arrayBuffer())) }
         if (!active()) return
         const found=cityForFix(cachedAreas,position.coords)
         if (!found) throw Error('定位精度不足或暂无城市边界，请搜索学校')

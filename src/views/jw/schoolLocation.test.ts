@@ -2,7 +2,13 @@ import { it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'fflate'
 import { cityAt, cityForFix, parseCityBoundaries, schoolsInCity, normalizeCity } from './schoolLocation'
-const areas=parseCityBoundaries(gunzipSync(readFileSync(`${__dirname}/schoolCityBoundaries.bin.gz`)))
+const asset=readFileSync(`${__dirname}/schoolCityBoundaries.bin.gz`)
+const areas=parseCityBoundaries(gunzipSync(asset))
+it('边界读取同时支持原始压缩资产和浏览器已解码的HTTP正文',()=>{
+  expect(cityAt(parseCityBoundaries(asset),39.9042,116.4074)).toBe('北京市')
+  expect(cityAt(parseCityBoundaries(gunzipSync(asset)),39.9042,116.4074)).toBe('北京市')
+  expect(()=>parseCityBoundaries(new Uint8Array([31,139,8]))).toThrow()
+})
 it('真实Android离线边界匹配北京、哈尔滨，境外和非城市不猜最近中心',()=>{
   expect(cityAt(areas,39.9042,116.4074)).toBe('北京市')
   expect(cityAt(areas,45.8038,126.5349)).toBe('哈尔滨市')
