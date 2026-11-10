@@ -6,6 +6,26 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
   useEffect(() => {
     document.documentElement.dataset.uiStyle = style
     if (style !== 'liquid_glass') return
+    const enhanced = new Map<HTMLElement,string>()
+    const enhance = (el:HTMLElement) => {
+      if(!el.matches('button,[data-glass-control]')) return
+      if(el.hasAttribute('data-glass-plain') || el.closest('[data-glass-motion="off"]')) return
+      const signature=el.style.background+'|'+el.style.backgroundColor+'|'+[...el.classList].filter(name=>name!=='glass-control' && name!=='glass-moving').join(' ')
+      if(enhanced.get(el)===signature) return
+      el.classList.remove('glass-control')
+      const computed=getComputedStyle(el)
+      const background=computed.backgroundColor
+      const transparent=background==='transparent' || /rgba\([^)]*,\s*0\)/.test(background)
+      el.style.setProperty('--glass-control-tint',transparent ? 'var(--glass-tint)' : `color-mix(in srgb, ${background} 92%, transparent)`)
+      if(computed.position==='static') el.dataset.glassStatic='true'
+      el.classList.add('glass-control')
+      enhanced.set(el,signature)
+    }
+    const scan=(node:Node)=>{if(!(node instanceof Element))return;if(node.matches('button,[data-glass-control]'))enhance(node as HTMLElement);node.querySelectorAll<HTMLElement>('button,[data-glass-control]').forEach(enhance)}
+    scan(document.body)
+    const observer=new MutationObserver(records=>{for(const record of records) {if(record.target===document.documentElement){for(const el of [...enhanced.keys()]){enhanced.delete(el);if(el.isConnected)enhance(el)}}else if(record.type==='attributes')enhance(record.target as HTMLElement);else {record.addedNodes.forEach(scan);if(record.removedNodes.length)for(const el of enhanced.keys())if(!el.isConnected)enhanced.delete(el)}}})
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class']})
+    observer.observe(document.documentElement,{attributes:true,attributeFilter:['style']})
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     const motions = new Map<HTMLElement, GlassPressMotion>()
     const pointers = new Map<number, { element: HTMLElement; x: number; y: number; side: number }>()
@@ -32,7 +52,8 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
     const down = (e: PointerEvent) => {
       if (e.button !== 0 || !(e.target instanceof Element)) return
       const el = e.target.closest<HTMLElement>('button, [role="switch"], [data-glass-control]')
-      if (!el || el.matches(':disabled, [aria-disabled="true"]') || el.closest('[data-glass-motion="off"]')) return
+      if (!el || el.hasAttribute('data-glass-plain') || el.matches(':disabled, [aria-disabled="true"]') || el.closest('[data-glass-motion="off"]')) return
+      enhance(el)
       const rect = el.getBoundingClientRect()
       const motion = motions.get(el) ?? new GlassPressMotion()
       pointers.set(e.pointerId, { element: el, x: e.clientX, y: e.clientY, side: Math.min(rect.width, rect.height) })
@@ -58,6 +79,8 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
     document.addEventListener('pointerup', up, true)
     document.addEventListener('pointercancel', up, true)
     return () => {
+      observer.disconnect()
+      for(const el of enhanced.keys()){el.classList.remove('glass-control','glass-moving');el.style.removeProperty('--glass-control-tint');delete el.dataset.glassStatic}
       cancelAnimationFrame(frame)
       for (const el of motions.keys()) {
         el.classList.remove('glass-moving')

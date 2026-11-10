@@ -289,8 +289,8 @@ button:focus-visible, [role="button"]:focus-visible, [role="slider"]:focus-visib
 @keyframes nav-icon-rotate { from { transform: rotate(-45deg) scale(.8); } to { transform: none; } }
 @keyframes page-enter { from { opacity: .65; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 :root[data-ui-style="liquid_glass"] { --glass-tint: color-mix(in srgb,var(--md-surface-container-high) 58%,transparent); --glass-shine: color-mix(in srgb,white 64%,transparent); }
-:root[data-ui-style="liquid_glass"] :is(button:not([data-glass-plain]), [data-glass-control]) { backdrop-filter: blur(18px) saturate(1.65); -webkit-backdrop-filter: blur(18px) saturate(1.65); background-color: var(--glass-tint) !important; box-shadow: inset 0 1px 1px #fff9, inset 0 -1px 1px #18234326, 0 3px 8px #14244810; border-color: transparent; isolation: isolate; }
-:root[data-ui-style="liquid_glass"] :is(button[aria-pressed="true"],button[aria-current], [role="switch"][aria-checked="true"]) { background-color: color-mix(in srgb,var(--md-primary-container) 65%,transparent) !important; color: var(--md-on-primary-container); }
+:root[data-ui-style="liquid_glass"] .glass-control { backdrop-filter: blur(18px) saturate(1.65); -webkit-backdrop-filter: blur(18px) saturate(1.65); background-color: var(--glass-control-tint,var(--glass-tint)) !important; box-shadow: inset 0 1px 1px #fff9, inset 0 -1px 1px #18234326, 0 3px 8px #14244810; border-color: transparent; isolation: isolate; }
+
 :root[data-ui-style="liquid_glass"] .glass-moving { translate: var(--glass-x,0px) var(--glass-y,0px); scale: calc(1 + var(--glass-lift,0) * .09 + var(--glass-stretch,0)) calc(1 + var(--glass-lift,0) * .12 - var(--glass-stretch,0)); z-index: 30; box-shadow: inset 1px 1px 1px #fffc, inset -1px -1px 1px #6082b85c, calc(var(--glass-lift,0) * 3px) calc(var(--glass-lift,0) * 9px) 20px #182b4b30 !important; }
 :root[data-ui-style="liquid_glass"] .glass-control::after { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.2px; pointer-events: none; background: conic-gradient(from 125deg,#ffb8bd88,#b9adff77,#99e9ff88,#c2ffd177,#fff5b988,#ffbad877,#a9ccff88,#ffb8bd88); mask: linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0); mask-composite: exclude; opacity: calc(.42 + var(--glass-lift,0) * .58); }
 :root[data-ui-style="liquid_glass"] [role="dialog"] { backdrop-filter: blur(28px) saturate(1.4); -webkit-backdrop-filter: blur(28px) saturate(1.4); background: color-mix(in srgb,var(--md-surface-container-high) 82%,transparent) !important; box-shadow: inset 0 1px 1px #fff8,0 16px 60px #101d3838; }
@@ -324,3 +324,4 @@ button:focus-visible, [role="button"]:focus-visible, [role="slider"]:focus-visib
 .schedule-toolbar[data-grouped="true"] .week-label {min-height:32px;padding:4px 8px !important;border-radius:0;}
 .schedule-toolbar[data-grouped="true"] .week-controls > div {border-inline:1px solid var(--md-outline-variant);}
 
+:root[data-ui-style="liquid_glass"] .glass-control[data-glass-static] {position:relative;}
