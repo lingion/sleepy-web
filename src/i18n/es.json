@@ -1274,5 +1274,8 @@
   "occurrence_quick_add_start": "Arrastra para cambiar el primer período",
   "occurrence_quick_add_end": "Arrastra para cambiar el último período",
   "reminder_fluid_unavailable_web": "Las tarjetas del sistema en tiempo real requieren Android. El navegador puede mostrar una vista previa de notificación estándar.",
-  "web_widget_settings_unavailable": "Puedes previsualizar widgets y guardar sus ajustes aquí. Usa Android para añadirlos a la pantalla de inicio."
+  "web_widget_settings_unavailable": "Puedes previsualizar widgets y guardar sus ajustes aquí. Usa Android para añadirlos a la pantalla de inicio.",
+  "web_widget_live_preview": "Vista previa en vivo",
+  "web_widget_native_hint": "Usa Android para añadir widgets de Sleepy a la pantalla de inicio. La web permite previsualizarlos y guardar los ajustes de apariencia compartidos.",
+  "web_widget_multiple_sizes": "Varios tamaños"
 }

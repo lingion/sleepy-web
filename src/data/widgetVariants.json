@@ -1,0 +1,114 @@
+[
+  {
+    "id": "WeekGridWidgetProvider",
+    "family": "WeekGrid",
+    "label": "widget_week_grid_label",
+    "image": "widget_preview_weekgrid.png",
+    "width": 300,
+    "height": 250
+  },
+  {
+    "id": "WeekGridSmallWidgetProvider",
+    "family": "WeekGrid",
+    "label": "widget_week_grid_small_label",
+    "image": "widget_preview_weekgrid_small.png",
+    "width": 110,
+    "height": 110
+  },
+  {
+    "id": "WeekGridWideWidgetProvider",
+    "family": "WeekGrid",
+    "label": "widget_week_grid_wide_label",
+    "image": "widget_preview_weekgrid_wide.png",
+    "width": 300,
+    "height": 160
+  },
+  {
+    "id": "TodayWidgetReceiver",
+    "family": "Today",
+    "label": "widget_today_label",
+    "image": "widget_preview_today.png",
+    "width": 300,
+    "height": 250
+  },
+  {
+    "id": "TodaySmallWidgetReceiver",
+    "family": "Today",
+    "label": "widget_today_small_label",
+    "image": "widget_preview_today_small.png",
+    "width": 110,
+    "height": 110
+  },
+  {
+    "id": "WeekListWidgetReceiver",
+    "family": "WeekList",
+    "label": "widget_week_list_label",
+    "image": "widget_preview_weeklist.png",
+    "width": 300,
+    "height": 250
+  },
+  {
+    "id": "WeekListSmallWidgetReceiver",
+    "family": "WeekList",
+    "label": "widget_week_list_small_label",
+    "image": "widget_preview_weeklist_small.png",
+    "width": 110,
+    "height": 110
+  },
+  {
+    "id": "WeekViewWidgetReceiver",
+    "family": "WeekView",
+    "label": "widget_week_view_label",
+    "image": "widget_preview_weekview.png",
+    "width": 300,
+    "height": 250
+  },
+  {
+    "id": "WeekViewSmallWidgetReceiver",
+    "family": "WeekView",
+    "label": "widget_week_view_small_label",
+    "image": "widget_preview_weekview_small.png",
+    "width": 110,
+    "height": 110
+  },
+  {
+    "id": "TwoDayWidgetReceiver",
+    "family": "TwoDay",
+    "label": "widget_twoday_label",
+    "image": "widget_preview_twoday.png",
+    "width": 300,
+    "height": 250
+  },
+  {
+    "id": "TwoDaySmallWidgetReceiver",
+    "family": "TwoDay",
+    "label": "widget_twoday_small_label",
+    "image": "widget_preview_twoday_small.png",
+    "width": 110,
+    "height": 110
+  },
+  {
+    "id": "TodayWideWidgetReceiver",
+    "family": "Today",
+    "label": "widget_today_wide_label",
+    "image": "widget_preview_today_wide.png",
+    "width": 300,
+    "height": 160
+  },
+  {
+    "id": "TwoDayWideWidgetReceiver",
+    "family": "TwoDay",
+    "label": "widget_twoday_wide_label",
+    "image": "widget_preview_twoday_wide.png",
+    "width": 300,
+    "height": 160
+  },
+  {
+    "id": "WeekListWideWidgetReceiver",
+    "family": "WeekList",
+    "label": "widget_week_list_wide_label",
+    "image": "widget_preview_weeklist_wide.png",
+    "width": 300,
+    "height": 160
+  }
+]

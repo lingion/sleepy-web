@@ -1274,5 +1274,8 @@
   "occurrence_quick_add_start": "ドラッグして開始時限を変更",
   "occurrence_quick_add_end": "ドラッグして終了時限を変更",
   "reminder_fluid_unavailable_web": "システムのライブカードには Android 版が必要です。ブラウザーでは通常の通知をプレビューできます。",
-  "web_widget_settings_unavailable": "ブラウザーでウィジェットをプレビューし、設定を保存できます。ホーム画面への追加には Android 版をご利用ください。"
+  "web_widget_settings_unavailable": "ブラウザーでウィジェットをプレビューし、設定を保存できます。ホーム画面への追加には Android 版をご利用ください。",
+  "web_widget_live_preview": "ライブプレビュー",
+  "web_widget_native_hint": "ホーム画面への Sleepy ウィジェットの追加には Android 版をご利用ください。ウェブ版ではプレビューと共通の外観設定の保存ができます。",
+  "web_widget_multiple_sizes": "複数サイズ"
 }

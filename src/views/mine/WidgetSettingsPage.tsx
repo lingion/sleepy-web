@@ -14,7 +14,7 @@ import { courseTimeParts } from '../../domain/timeTable'
 import { EntryRow } from './GeneralSettingsPage'
 import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
 
-export function WidgetSettingsPage({ onBack, onOpenScheduleDisplay = () => {} }: { onBack: () => void; onOpenScheduleDisplay?: () => void }) {
+export function WidgetSettingsPage({ onBack, onOpenScheduleDisplay = () => {}, onOpenManagement = () => {} }: { onOpenManagement?: () => void; onBack: () => void; onOpenScheduleDisplay?: () => void }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore(s => s.prefs)
   const update = usePrefsStore(s => s.update)
@@ -50,7 +50,8 @@ export function WidgetSettingsPage({ onBack, onOpenScheduleDisplay = () => {} }:
   const names = t('@day_names', { returnObjects: true }) as string[]
   const days = mode === 0 ? [new Date(`${todayDate}T12:00:00`).getDay() || 7] : prefs.visibleDays
   return <SettingsScaffold title={t('mine_widget', '桌面小组件')} onBack={onBack}>
-    <EntryRow title={t('widget_manage_entry')} onClick={() => setGallery(!gallery)} />
+    <EntryRow title={t('widget_manage_entry')} onClick={onOpenManagement} />
+    <EntryRow title={t('web_widget_live_preview')} onClick={() => setGallery(!gallery)} />
     <p className="m3-body-small" style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>{t('web_widget_settings_unavailable')}</p>
     {gallery && <section style={{ display: 'grid', gap: 12 }}>
       <SegmentedSwitcher options={[t('tab_today'), t('settings_start_view_full'), t('settings_start_view_cards')]} selected={mode} onSelect={setMode} />

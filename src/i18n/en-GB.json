@@ -1274,5 +1274,8 @@
   "occurrence_quick_add_start": "Drag to change the first period",
   "occurrence_quick_add_end": "Drag to change the last period",
   "reminder_fluid_unavailable_web": "Live system cards require Android. This browser can show a standard notification preview.",
-  "web_widget_settings_unavailable": "Preview widgets and save their settings here. Use Android to add widgets to your home screen."
+  "web_widget_settings_unavailable": "Preview widgets and save their settings here. Use Android to add widgets to your home screen.",
+  "web_widget_live_preview": "Live preview",
+  "web_widget_native_hint": "Android is required to add Sleepy widgets to your home screen. The web app can preview widgets and save their shared appearance settings.",
+  "web_widget_multiple_sizes": "Multiple sizes"
 }

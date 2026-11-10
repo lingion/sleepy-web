@@ -1274,5 +1274,8 @@
   "occurrence_quick_add_start": "拖动调整起始节次",
   "occurrence_quick_add_end": "拖动调整结束节次",
   "reminder_fluid_unavailable_web": "系统实时卡片需要安卓版。浏览器可以预览普通通知。",
-  "web_widget_settings_unavailable": "在浏览器中可预览小组件并保存设置。添加到系统桌面请使用安卓版。"
+  "web_widget_settings_unavailable": "在浏览器中可预览小组件并保存设置。添加到系统桌面请使用安卓版。",
+  "web_widget_live_preview": "实时预览",
+  "web_widget_native_hint": "请使用安卓版将 Sleepy 小组件添加到桌面。网页版可以预览组件并保存共用外观设置。",
+  "web_widget_multiple_sizes": "多尺寸"
 }

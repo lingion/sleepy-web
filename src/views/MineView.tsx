@@ -24,12 +24,13 @@ import { PeriodTablesPage } from './mine/PeriodTablesPage'
 import { CustomThemeEditorView } from './mine/CustomThemeEditorView'
 import { CourseListPage } from './mine/CourseListPage'
 import { PeriodHeaderSettingsPage } from './mine/PeriodHeaderSettingsPage'
+import { WidgetGalleryPage, WidgetManagementPage } from './mine/WidgetGalleryPage'
 import { WidgetSettingsPage } from './mine/WidgetSettingsPage'
 import { ScheduleDisplayPage } from './mine/ScheduleDisplayPage'
 
 type Page =
   | 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder' | 'license'
-  | 'backup' | 'widgets' | 'customTheme' | 'periodTables' | 'courseList' | 'periodHeader' | 'scheduleDisplay' | 'tableReminder'
+  | 'widgetGallery' | 'widgetManagement' | 'backup' | 'widgets' | 'customTheme' | 'periodTables' | 'courseList' | 'periodHeader' | 'scheduleDisplay' | 'tableReminder'
 
 /** MineView 自己拥有的返回层 — popstate 只在这些 key 弹出时收回页面状态 */
 const MINE_KEYS = new Set<string>(['backup', 'widgets', 'general', 'appearance', 'export', 'allTables', 'periodTables', 'about', 'reminder', 'license', 'courseList', 'periodHeader', 'scheduleDisplay'])
@@ -40,6 +41,8 @@ export function minePageFromHash(hash: string): Page {
   switch (chain[chain.length - 1]) {
     case 'backup': return 'backup'
     case 'widgets': return 'widgets'
+    case 'widgetManagement': return 'widgetManagement'
+    case 'widgetGallery': return 'widgetGallery'
     case 'general': return 'general'
     case 'holiday': return 'holiday'
     case 'appearance': return 'appearance'
@@ -67,6 +70,8 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   useEffect(() => installBackHandler((key) => {
     // 只收回属于本页的层 — 别的 tab 的弹层 (课程详情/周次跳转…) 弹出时不得误跳
     if (key === 'holiday') setPage(useBackStack.getState().peek() === 'reminder' ? 'reminder' : 'main')
+    else if (key === 'widgetGallery') setPage('widgetManagement')
+    else if (key === 'widgetManagement') setPage('widgets')
     else if (key === 'tableReminder') setPage('reminder')
     else if (key === 'customTheme') setPage('appearance')
     else if (key === 'license') setPage('about')
@@ -132,8 +137,12 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
       return <ScheduleDisplayPage onBack={() => backTo(useBackStack.getState().stack[useBackStack.getState().stack.length - 2] === 'widgets' ? 'widgets' : 'appearance')} onOpenPeriodHeader={() => go('periodHeader', 'periodHeader')} />
     case 'backup':
       return <GeneralSettingsPage onBack={() => backTo('main')} backupOnly />
+    case 'widgetManagement':
+      return <WidgetManagementPage onBack={() => backTo('widgets')} onOpenGallery={() => go('widgetGallery', 'widgetGallery')} />
+    case 'widgetGallery':
+      return <WidgetGalleryPage onBack={() => backTo('widgetManagement')} />
     case 'widgets':
-      return <WidgetSettingsPage onBack={() => backTo('main')} onOpenScheduleDisplay={() => go('scheduleDisplay', 'scheduleDisplay')} />
+      return <WidgetSettingsPage onOpenManagement={() => go('widgetManagement', 'widgetManagement')} onBack={() => backTo('main')} onOpenScheduleDisplay={() => go('scheduleDisplay', 'scheduleDisplay')} />
     default:
       return (
         <MineHome

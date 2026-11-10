@@ -1274,5 +1274,8 @@
   "occurrence_quick_add_start": "拖曳以調整起始節次",
   "occurrence_quick_add_end": "拖曳以調整結束節次",
   "reminder_fluid_unavailable_web": "系統即時卡片需要 Android 版。瀏覽器可預覽一般通知。",
-  "web_widget_settings_unavailable": "可在瀏覽器預覽小工具並儲存設定。新增至系統桌面請使用 Android 版。"
+  "web_widget_settings_unavailable": "可在瀏覽器預覽小工具並儲存設定。新增至系統桌面請使用 Android 版。",
+  "web_widget_live_preview": "即時預覽",
+  "web_widget_native_hint": "請使用 Android 版將 Sleepy 小工具加入主畫面。網頁版可預覽小工具並儲存共用外觀設定。",
+  "web_widget_multiple_sizes": "多尺寸"
 }
