@@ -9,6 +9,7 @@
  */
 
 import type { Course } from '../data/types'
+import { persistedCourseHue } from '../data/courseHueCache'
 
 /** 黄金角 — 相邻 id 色差最大化 (13 门课最少差 ~27°) */
 const GOLDEN_ANGLE = 137.508
@@ -118,10 +119,17 @@ export function rgbToHex(rgb: [number, number, number]): string {
 /**
  * "#RRGGBB" / "#AARRGGBB" (Android ARGB) → [r,g,b]; 失败 null。
  * 对齐 Android Color.parseColor 行为: 不接受 3 位 #RGB (解析失败 → 调用方回落 neutralColor);
- * 8 位 alpha 段在 web CSS 渲染形态下忽略 (Android 会保留半透明, 平台渲染差异)。
+ * RGB 数值供文字对比与色相计算使用；渲染入口另外保留 ARGB alpha。
+ * 同时识别渲染入口生成的 rgba()，避免把 CSS RRGGBBAA 误当 Android ARGB。
  */
 export function parseHex(hex: string): [number, number, number] | null {
+  const rgba = /^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(?:0(?:\.\d+)?|1(?:\.0+)?)\)$/.exec(hex.trim())
+  if (rgba) {
+    const rgb = rgba.slice(1, 4).map(Number)
+    return rgb.every(value => value <= 255) ? rgb as [number, number, number] : null
+  }
   const s = hex.trim().replace('#', '')
+  if (!/^(?:[\da-f]{6}|[\da-f]{8})$/i.test(s)) return null
   let r: number
   let g: number
   let b: number
@@ -130,7 +138,7 @@ export function parseHex(hex: string): [number, number, number] | null {
     g = parseInt(s.slice(2, 4), 16)
     b = parseInt(s.slice(4, 6), 16)
   } else if (s.length === 8) {
-    // Android ARGB 形态 #AARRGGBB — alpha 段忽略
+    // Android ARGB：RGB 用于计算，alpha 由 courseColorCss 保留。
     r = parseInt(s.slice(2, 4), 16)
     g = parseInt(s.slice(4, 6), 16)
     b = parseInt(s.slice(6, 8), 16)
@@ -139,6 +147,12 @@ export function parseHex(hex: string): [number, number, number] | null {
   }
   if (isNaN(r) || isNaN(g) || isNaN(b)) return null
   return [r, g, b]
+}
+
+function courseColorCss(hex: string, rgb: [number, number, number]): string {
+  const argb = hex.trim().replace('#', '')
+  const alpha = argb.length === 8 ? parseInt(argb.slice(0, 2), 16) : 255
+  return alpha === 255 ? rgbToHex(rgb) : `rgba(${rgb.join(',')},${alpha / 255})`
 }
 
 /** RGB → HSL (h 0-360, s 0-1, l 0-1) */
@@ -201,10 +215,10 @@ export function pickCourseColor(
 ): string {
   if (hasCustomColor(course)) {
     const parsed = parseHex(course.color)
-    if (parsed) return rgbToHex(parsed)
+    if (parsed) return courseColorCss(course.color, parsed)
   }
   if (colorless) return neutralColor
-  const hue = stableHue(course.groupId)
+  const hue = persistedCourseHue(course.groupId) ?? stableHue(course.groupId)
   const s = isDark ? S_DARK : S_LIGHT
   const l = isDark ? L_DARK : L_LIGHT
   return rgbToHex(hslToRgb(hue, s, l))
@@ -225,7 +239,7 @@ export function pickCourseColorWithGroupRows(
     case 2: {
       // CUSTOM
       const parsed = parseHex(row.color)
-      return parsed ? rgbToHex(parsed) : neutralColor
+      return parsed ? courseColorCss(row.color, parsed) : neutralColor
     }
     case 1: {
       // AUTO
@@ -239,10 +253,10 @@ export function pickCourseColorWithGroupRows(
       // GROUP(0) 或未知
       if (hasCustomColor(row)) {
         const parsed = parseHex(row.color)
-        if (parsed) return rgbToHex(parsed)
+        if (parsed) return courseColorCss(row.color, parsed)
       }
       if (colorless) return neutralColor
-      const hue = stableHue(row.groupId)
+      const hue = persistedCourseHue(row.groupId) ?? stableHue(row.groupId)
       const s = isDark ? S_DARK : S_LIGHT
       const l = isDark ? L_DARK : L_LIGHT
       return rgbToHex(hslToRgb(hue, s, l))
@@ -267,7 +281,7 @@ export function groupSourceColorHex(groupRows: Course[]): string {
  * 与 stableHue 同理全程 fround, 复刻 Kotlin Float 语义 (GoldenAngleColor.forRow:298-304)。
  */
 export function goldenAngleForRow(row: Course, groupRows: Course[], sourceHex: string): number {
-  const baseHue = f32(parseHexHue(sourceHex))
+  const baseHue = f32(persistedCourseHue(row.groupId) ?? parseHexHue(sourceHex))
   const sorted = [...groupRows].sort((a, b) => a.id - b.id)
   const idx = sorted.findIndex((r) => r.id === row.id)
   const safeIdx = idx < 0 ? 0 : idx

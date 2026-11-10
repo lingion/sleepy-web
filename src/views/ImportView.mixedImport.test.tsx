@@ -5,7 +5,7 @@
  *  - 解析端 periodTable 非空 + 选 ImportAsNew → 自动建 periodTables (suggestUniqueName 顺跳)
  *  - 新建课表 periodTableId 直接指向该作息表
  *  - timetables count = +1, periodTables count = +1
- *  - 旧格式 (periodTable=null) → 不建作息表 (用课表兼容列, 不误共享)
+ *  - v1.0.64 旧格式也建立独立作息表, 不共享既有表
  *
  * UI 测试利用 exportSleepyV1File 生成带 P 行 + C 行的真实 sleepy-v1 文本作为粘贴输入,
  * 端到端验证混合导入路径。
@@ -62,6 +62,7 @@ function mkCourse(p: Partial<Course> & { courseName: string }): Course {
 /** 打开粘贴区 + 填文本 + 点「预览导入」 */
 async function paste(text: string, onDone?: () => void) {
   render(<ImportView onDone={onDone ?? vi.fn()} />)
+  await waitFor(() => expect((screen.getByRole('button',{name:'粘贴课表文本'}) as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(screen.getByText('粘贴课表文本'))
   const ta = screen.getByLabelText('粘贴课表文本') as HTMLTextAreaElement
   fireEvent.change(ta, { target: { value: text } })
@@ -122,7 +123,7 @@ describe('ImportView v1.0.56 T10 混合导入 (issue#40 §6 + T10)', () => {
     expect(period.nodesPerDay).toBe(12)
   })
 
-  it('旧格式 (无 P 区块) → ImportAsNew 不建作息表, 新课表 periodTableId=null', async () => {
+  it('旧格式 (无 P 区块) → ImportAsNew 建立独立作息表', async () => {
     const text = exportSleepyV1File(
       '纯课表', '2026-09-07', 20, 12, TIME_JSON,
       [mkCourse({ courseName: '线性代数' })],
@@ -144,10 +145,10 @@ describe('ImportView v1.0.56 T10 混合导入 (issue#40 §6 + T10)', () => {
       await new Promise((r) => setTimeout(r, 20))
     }
     expect(tableCount).toBe(1)
-    expect(await db.periodTables.count()).toBe(0)
+    expect(await db.periodTables.count()).toBe(1)
     await doneP
     const table = (await db.timetables.toArray())[0]
-    expect(table.periodTableId).toBeNull()
+    expect(table.periodTableId).toBe((await db.periodTables.toArray())[0].id)
     expect(table.name).toBe('纯课表')
   })
 

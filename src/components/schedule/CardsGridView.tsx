@@ -1,3 +1,4 @@
+import './mealBreak.css'
 /**
  * CardsGridView — 网格视图 (CourseTableView.kt CardsGridView 1:1)
  * 双层架构: 时间栏 (renderSlots 逐行) + 课程卡绝对定位 (非簇单卡 + 冲突簇整簇)。
@@ -63,6 +64,7 @@ export function CardsGridView(props: CardsGridViewProps) {
 
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
+  const hideTime=!!(prefs as typeof prefs & {periodHeaderHideTime?:boolean}).periodHeaderHideTime
 
   const sortedDays = useMemo(
     () => prefs.visibleDays.filter((d) => d >= 1 && d <= 7).sort((a, b) => a - b),
@@ -74,7 +76,7 @@ export function CardsGridView(props: CardsGridViewProps) {
       courses,
       timeJson,
       dayCount,
-      Math.max(containerWidth, 320),
+      Math.max(containerWidth, 120),
       prefs.gridScale,
       {
         adaptiveHeight: prefs.gridAdaptiveHeight,
@@ -87,9 +89,11 @@ export function CardsGridView(props: CardsGridViewProps) {
         periodHeaderStyle: prefs.periodHeaderStyle,
         periodHeaderHanging: prefs.periodHeaderHanging,
         periodHeaderShowX: prefs.periodHeaderShowX,
+        periodHeaderHideTime: hideTime,
+        periodHeaderTimeAlignment:prefs.periodHeaderTimeAlignment,
       },
     ),
-    [courses, timeJson, dayCount, containerWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale, prefs.gridLongBreakSpacing, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX]
+    [courses, timeJson, dayCount, containerWidth, prefs.gridScale, prefs.gridAdaptiveHeight, prefs.gridAutoHideEmptyEvening, prefs.gridEveningStart, prefs.gridPinchZoom, prefs.gridRowScale, prefs.gridLongBreakSpacing, prefs.periodHeaderLayout, prefs.periodHeaderStyle, prefs.periodHeaderHanging, prefs.periodHeaderShowX,hideTime,prefs.periodHeaderTimeAlignment]
   )
   const today = useMemo(() => new Date(), [])
   const updatePrefs = usePrefsStore((s) => s.update)
@@ -250,8 +254,11 @@ export function CardsGridView(props: CardsGridViewProps) {
         <div style={{ height: geo.gapH }} />
 
         {/* 网格主体: 绝对定位 */}
-        <div style={{ position: 'relative', height: geo.gridH }}>
+        <div data-grid-week={currentWeek} data-grid-days={JSON.stringify(sortedDays)} data-grid-time={geo.timeW} data-grid-gap={geo.gapW} data-grid-col={geo.colW}
+          data-grid-rows={JSON.stringify(geo.slots.filter((slot) => !slot.isPlaceholder).map((slot) => { const i=geo.slots.indexOf(slot); return { node:slot.nodeStart,y:yOfRows(geo.plan,i,geo.rowH,geo.mealBreakAfterRows,geo.mealGapExtra),height:rowHeightAt(geo.plan,i,geo.rowH)-geo.gapH } }))}
+          style={{ position: 'relative', height: geo.gridH }}>
           {prefs.gridShowSeparators && <GridSeparators geo={geo} dayCount={dayCount} />}
+          {[...geo.mealBreakAfterRows].map((row) => <div key={`meal-${row}`} className="meal-break-band" style={{ position: 'absolute', top: yOfRows(geo.plan,row+1,geo.rowH,geo.mealBreakAfterRows,geo.mealGapExtra)-geo.mealGapExtra, height:geo.mealGapExtra,left:0,right:0 }}><span>{Number(geo.slots[row].end.slice(0,2)) < 15 ? '午餐' : '晚餐'}</span><i /></div>)}
           {/* 时间栏 */}
           {geo.slots.map((slot, i) => (
             <div
@@ -277,6 +284,8 @@ export function CardsGridView(props: CardsGridViewProps) {
                 style={prefs.periodHeaderStyle}
                 hanging={prefs.periodHeaderHanging}
                 showX={prefs.periodHeaderShowX}
+                hideTime={hideTime}
+                timeAlignment={prefs.periodHeaderTimeAlignment}
                 font={headerFont}
                 placement={headerPlacements?.[geo.slots.slice(0, i).filter((item) => !item.isPlaceholder).length]}
                 legacyAxis={legacyAxis ?? undefined}
@@ -384,7 +393,7 @@ function GridSeparators({ geo, dayCount }: { geo: ReturnType<typeof buildGridGeo
 }
 // ---- 子组件 -----------------------------------------------------------
 
-function SingleTimeHeadCell({
+export function SingleTimeHeadCell({
   slot,
   width,
   height,
@@ -394,6 +403,8 @@ function SingleTimeHeadCell({
   style,
   hanging,
   showX,
+  hideTime = false,
+  timeAlignment='dash',
   font,
   placement: placementOverride,
   legacyAxis,
@@ -408,6 +419,8 @@ function SingleTimeHeadCell({
   style: PeriodHeaderStyle
   hanging: number
   showX: boolean
+  hideTime?: boolean
+  timeAlignment?: 'dash' | 'center'
   /** 整列统一自适应字号 (Android AdaptiveFont 同源); null = 旧固定字号 */
   font?: AdaptiveFont | null
   placement?: {
@@ -446,23 +459,24 @@ function SingleTimeHeadCell({
             <span
               data-period-header-line="start"
               className="m3-label-small"
-              style={{ position: 'absolute', top: 3 * scale, left: placement.timeLeft + 3 * scale, fontSize: base.timeSize * scale, lineHeight: `${base.timeSize * 1.25 * scale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)' }}
+              style={{ position: 'absolute', top: 3 * scale, left: placement.timeLeft + 3 * scale, fontSize: base.timeSize * scale, lineHeight: `${base.timeSize * 1.25 * scale}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface-variant)' }}
             >{lines[0]}</span>
             <span
               data-period-header-line="label"
               className="m3-label-small"
-              style={{ position: 'absolute', top: '50%', left: placement.labelLeft + 3 * scale, transform: 'translateY(-50%)', fontSize: base.labelSize * scale, fontWeight: 600, lineHeight: `${base.labelSize * 1.25 * scale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface)' }}
+              style={{ position: 'absolute', top: '50%', left: placement.labelLeft + 3 * scale, transform: 'translateY(-50%)', fontSize: base.labelSize * scale, fontWeight: 600, lineHeight: `${base.labelSize * 1.25 * scale}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface)' }}
             >{label}</span>
             <span
               data-period-header-line="end"
               className="m3-label-small"
-              style={{ position: 'absolute', bottom: 3 * scale, left: placement.timeLeft + 3 * scale, fontSize: base.timeSize * scale, lineHeight: `${base.timeSize * 1.25 * scale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)' }}
+              style={{ position: 'absolute', bottom: 3 * scale, left: placement.timeLeft + 3 * scale, fontSize: base.timeSize * scale, lineHeight: `${base.timeSize * 1.25 * scale}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface-variant)' }}
             >{lines[2]}</span>
           </>}
         </div>
       </div>
     )
   }
+  if (layout === 'legacy' && hideTime) return <div data-period-header-hide-time style={{width,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:8*scale*Math.min(1,cornerRatio),background:'var(--md-surface-container-low)',padding:3*scale}}>{!isPh && <span data-period-header-line="label" style={{fontSize:12*scale*Math.min(1,Math.max(.6,((height ?? 52*scale)-6*scale)/(14*scale))),lineHeight:1.25,fontWeight:600,letterSpacing:.5*scale,whiteSpace:'nowrap'}}>{lines[0]}</span>}</div>
   if (layout === 'legacy') {
     // Legacy 两行 (ref #102, Android PeriodHeaderCellContent legacy 分支 1:1):
     //   ① dash 字形中心坐共享轴 (轴 = 网格列级 legacyAxis, 与列宽同一几何);
@@ -504,12 +518,12 @@ function SingleTimeHeadCell({
             <span
               data-period-header-line="label"
               className="m3-label-small"
-              style={{ position: 'absolute', top: pad + fit.labelTop, left: pad + axis - scaled.labelPx / 2, fontSize: 12 * scale * fs, fontWeight: 600, lineHeight: `${14 * scale * fs}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface)' }}
+              style={{ position: 'absolute', top: pad + fit.labelTop, left: timeAlignment==='center' ? (width-scaled.labelPx*fs)/2 : pad + axis - scaled.labelPx*fs/2, fontSize: 12 * scale * fs, fontWeight: 600, lineHeight: `${14 * scale * fs}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface)' }}
             >{lines[0]}</span>
             <span
               data-period-header-line="time"
               className="m3-label-small"
-              style={{ position: 'absolute', top: pad + fit.timeTop, left: pad + axis - scaled.timeLeftPx - scaled.dashPx / 2, fontSize: 11 * scale * fs, lineHeight: `${13 * scale * fs}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)' }}
+              style={{ position: 'absolute', top: pad + fit.timeTop, left: timeAlignment==='center' ? (width-(scaled.timeLeftPx+scaled.dashPx+scaled.timeRightPx)*fs)/2 : pad + axis - (scaled.timeLeftPx+scaled.dashPx/2)*fs, fontSize: 11 * scale * fs, lineHeight: `${13 * scale * fs}px`, whiteSpace: 'nowrap', letterSpacing:.5*scale, color: 'var(--md-on-surface-variant)' }}
             >{`${slot.displayStart}-${slot.displayEnd}`}</span>
           </>}
         </div>
@@ -562,6 +576,7 @@ export function CourseOverlayCard({
   return (
     <div
       onClick={onClick}
+      data-course-id={course.id} data-course-day={course.day} data-course-node={course.startNode} data-course-step={course.step}
       style={{
         position: 'absolute',
         left: x,
@@ -676,8 +691,10 @@ function DayHeadCell({
 
   return (
     <div
+      data-day-header={day}
       style={{
         flex: 1,
+        minWidth: 0,
         height: (dateStr ? 56 : 52) * scale,
         borderRadius: 10 * scale * Math.min(1, cornerRatio),
         background: bg,
@@ -692,16 +709,16 @@ function DayHeadCell({
     >
       <span
         className="m3-label-large"
-        style={{ fontWeight: 600, fontSize: 14 * scale, lineHeight: `${20 * scale}px`, color: fg }}
+        style={{ fontWeight: 600, fontSize: 14 * scale, lineHeight: `${20 * scale}px`, color: fg, whiteSpace: 'nowrap' }}
       >
         {dayLabel}
       </span>
       {dateStr ? (
-        <span className="m3-label-small" style={{ fontSize: 10 * scale, lineHeight: `${11 * scale}px`, color: subFg }}>
+        <span className="m3-label-small" style={{ fontSize: 10 * scale, lineHeight: `${11 * scale}px`, color: subFg, whiteSpace: 'nowrap' }}>
           {dateStr}
         </span>
       ) : (
-        <span className="m3-label-small" style={{ fontSize: 9 * scale, lineHeight: `${11 * scale}px`, color: subFg }}>
+        <span className="m3-label-small" style={{ fontSize: 9 * scale, lineHeight: `${11 * scale}px`, color: subFg, whiteSpace: 'nowrap' }}>
           {courseCount === 0 ? t('no_course') : t('course_count_format', { v1: courseCount })}
         </span>
       )}

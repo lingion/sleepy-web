@@ -86,7 +86,7 @@ describe('useBackStack — 每页 hash 地址 (tab + 全部二级页)', () => {
     useBackStack.getState().push('general')
     expect(hashState).toBe('#/我的/通用设置')
     useBackStack.getState().push('holiday')
-    expect(hashState).toBe('#/我的/通用设置/节假日')
+    expect(hashState).toBe('#/我的/节假日')
   })
 })
 

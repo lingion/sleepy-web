@@ -1,0 +1,165 @@
+
+> sleepy-web@1.0.61 test
+> vitest run --maxWorkers=2 --minWorkers=1
+
+
+ RUN  v2.1.9 /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110
+
+ ✓ src/domain/import/scheduleParser.test.ts (69 tests) 143ms
+ ✓ src/data/repository.test.ts (36 tests) 687ms
+ ✓ src/domain/conflictLayout.test.ts (46 tests) 39ms
+ ✓ src/domain/timeTable.test.ts (68 tests) 40ms
+ ✓ src/views/jw/importFlow.test.ts (50 tests) 949ms
+ ✓ src/domain/reminders/scheduler.test.ts (17 tests) 346ms
+ ✓ src/domain/import/sleepyNativeParser.test.ts (38 tests) 47ms
+ ✓ src/domain/courseColor.test.ts (49 tests) 119ms
+ ✓ src/domain/import/sleepyNativeExporter.test.ts (20 tests) 34ms
+ ✓ src/domain/courseDraft.test.ts (29 tests) 27ms
+ ✓ src/components/schedule/periodHeader.test.ts (30 tests) 24ms
+ ✓ src/domain/migration/backupExecutor.test.ts (14 tests) 290ms
+ ✓ src/views/importExport.test.ts (11 tests) 168ms
+ ✓ src/views/mine/LicensePage.test.tsx (6 tests) 1248ms
+   ✓ LicensePage > 按学校 41 张卡默认收起, 仅可展开卡有 48dp 展开按钮 399ms
+ ✓ src/state/backStack.test.ts (19 tests) 1751ms
+   ✓ useBackStack — 刷新/直达恢复链 (chainFromHash + restoreChain) > minePageFromHash: 链顶 → 初始 page;非子页 hash → main 1725ms
+ ✓ src/state/reminderStore.test.ts (22 tests) 21ms
+ ✓ src/domain/holiday/ranges.test.ts (23 tests) 36ms
+ ✓ src/components/schedule/GridClusterCard.offset.test.tsx (8 tests) 526ms
+ ✓ src/domain/import/sleepyNativeFormat.test.ts (23 tests) 24ms
+ ✓ src/domain/jw/qzAppParser.test.ts (12 tests) 36ms
+ ✓ src/views/jw/JwImportView.test.tsx (13 tests) 12381ms
+   ✓ JwImportView > 初始落在选学校页: 标题 + 全量计数 + 搜索框 1088ms
+   ✓ JwImportView > 搜索出匹配数, 无结果时给空态 651ms
+   ✓ JwImportView > 输入 URL 出现「直接用此 URL 登录」行, 点击进抓取页 643ms
+   ✓ JwImportView > 点学校行进抓取页, 顶部显示校名 781ms
+   ✓ JwImportView > 抓取页点「直接抓取教务页面」→ 解析成功进确认页并列出课程 1069ms
+   ✓ JwImportView > 抓到登录页 → 会话过期错误浮层, 点「知道了」原地关闭 1016ms
+   ✓ JwImportView > 抓取失败 (网络) → 抓取失败浮层 731ms
+   ✓ JwImportView > 粘贴 HTML 也能解析进确认页 865ms
+   ✓ JwImportView > 未填节次时间就确认 → 内联报错, 补齐后落库成功并写进仓储 982ms
+   ✓ JwImportView > 全不选后确认 → 提示至少选一门 814ms
+   ✓ JwImportView > 确认页「返回」退回抓取页, 抓取页「返回」退回选学校 1364ms
+   ✓ JwImportView > 教务草稿持久化 (Android 696f13bd 1:1) > 解析成功即落草稿; 确认落库后草稿清除 901ms
+   ✓ JwImportView > 教务草稿持久化 (Android 696f13bd 1:1) > 解析后返回/退出 → selectSchool 显示续导卡; 删除按钮清库 1469ms
+ ✓ src/views/ImportView.mixedImport.test.tsx (3 tests) 1191ms
+   ✓ ImportView v1.0.56 T10 混合导入 (issue#40 §6 + T10) > P 区块 + 课程 → ImportAsNew 自动建作息表, 新课表 periodTableId 指向该表 609ms
+ ✓ src/domain/import/scheduleExporter.test.ts (13 tests) 23ms
+ ✓ src/data/undoStore.test.ts (7 tests) 153ms
+ ✓ src/views/editTablePeriodBind.test.ts (5 tests) 125ms
+ ✓ src/components/schedule/gridGeometry.test.ts (16 tests) 23ms
+ ✓ src/components/schedule/useWeekSwipe.pager.test.ts (29 tests) 23ms
+ ✓ src/domain/import/sleepyNativePeriod.test.ts (12 tests) 42ms
+ ✓ src/views/mine/GeneralSettingsPage.lab.test.tsx (9 tests) 2821ms
+   ✓ 实验室段 (v1.0.56 T2/T3, Android 默认全关 1:1) > 段头 + 3 个开关全部存在且默认关 339ms
+   ✓ 语言折叠卡 (Android 2026-09-21: 折叠头只显当前语言值 1:1) > 收起态只显当前语言, 展开显 5 项, 再点收回 509ms
+   ✓ 语言折叠卡 (Android 2026-09-21: 折叠头只显当前语言值 1:1) > shows widget-only behavior and marks widget/high-refresh browser limitations 308ms
+   ✓ 语言折叠卡 (Android 2026-09-21: 折叠头只显当前语言值 1:1) > 两栏开 → 分栏标准两行单选 (DisplayModeOption) 320ms
+   ✓ 语言折叠卡 (Android 2026-09-21: 折叠头只显当前语言值 1:1) > 折叠展开态: 进节假日页保留, 返回上级即丢弃 365ms
+ ✓ src/domain/jw/whutParser.test.ts (16 tests) 29ms
+ ✓ src/domain/jw/eams5Parser.test.ts (10 tests) 35ms
+ ✓ src/views/AddCourseView.jumpScroll.test.tsx (6 tests) 1033ms
+   ✓ AddCourseView 编辑跳转 (ref #144) > collapses other slots and keeps 48px delete immediately before the 48px chevron 543ms
+ ✓ src/views/mine/HolidayPage.test.tsx (4 tests) 858ms
+   ✓ HolidayPage 1:1 > dropdown lists every workday, then 无, then 其他日期…, and writes the default table key 352ms
+ ✓ src/domain/jw/chaoxingParser.test.ts (17 tests) 50ms
+ ✓ src/domain/jw/qzParsers.test.ts (18 tests) 530ms
+ ✓ src/domain/jw/newZfParser.test.ts (13 tests) 240ms
+ ✓ src/domain/jw/miscParsers.test.ts (25 tests) 282ms
+ ✓ src/components/schedule/FullWeekView.test.tsx (6 tests) 524ms
+   ✓ FullWeekView 日期显示 — 摘要卡无日期 + DetailDayCard 中文日期 (ref sleepy#191) > keeps the five-course strip actionable while showing every course in details 322ms
+ ✓ src/views/editTable.test.ts (5 tests) 130ms
+ ✓ src/theme/customSchemeDeriver.test.ts (16 tests) 30ms
+ ✓ src/domain/jw/classicEamsParser.test.ts (7 tests) 17ms
+ ✓ src/views/ImportView.purePeriod.test.tsx (5 tests) 4707ms
+   ✓ ImportView v1.0.56 T9 纯作息导入 (issue#40 §6) > 纯 P 文本 → 弹「导入作息表」命名框, 预填解析出的名字 1653ms
+   ✓ ImportView v1.0.56 T9 纯作息导入 (issue#40 §6) > 确认 → 仅 db.periodTables +1, timetables 不动 1316ms
+   ✓ ImportView v1.0.56 T9 纯作息导入 (issue#40 §6) > 点取消关闭对话框, 库零变化 1235ms
+ ✓ src/domain/import/icsRangeExporter.test.ts (7 tests) 17ms
+ ✓ src/domain/jw/oldZfParser.test.ts (14 tests) 278ms
+ ✓ src/domain/holiday/transfers.test.ts (13 tests) 30ms
+ ✓ src/views/mine/AppearancePage.test.tsx (7 tests) 803ms
+ ✓ src/domain/jw/boyaPpParser.test.ts (12 tests) 30ms
+ ✓ src/domain/markdownBlocks.test.ts (11 tests) 13ms
+ ✓ src/components/schedule/CardsGridView.legacy.test.tsx (4 tests) 221ms
+ ✓ src/data/schedulePolicyDb.test.ts (5 tests) 153ms
+ ✓ src/domain/smartPeriod.test.ts (15 tests) 16ms
+ ✓ src/state/prefsStore.test.ts (18 tests) 69ms
+ ✓ src/domain/periodValidation.test.ts (17 tests) 13ms
+ ✓ src/views/EditTableView.periodDraft.test.tsx (4 tests) 983ms
+   ✓ 课表作息草稿来源与同步 > waits for the bound period table instead of seeding stale compatibility clocks 346ms
+ ✓ src/components/formatHelp.test.ts (24 tests) 29ms
+ ✓ src/shell.seo.test.tsx (7 tests) 167ms
+ ✓ src/state/pendingTable.test.ts (6 tests) 150ms
+ ✓ src/views/AddCourseView.color.test.tsx (3 tests) 1015ms
+   ✓ 课程级组色与时段三态 > places group color in basic information and applies it only after the impact confirmation 605ms
+ ✓ src/components/schedule/ScheduleInteractionLayer.test.tsx (3 tests) 256ms
+ ✓ src/domain/schedulePolicy.test.ts (9 tests) 12ms
+ ✓ src/App.test.tsx (12 tests) 387ms
+ ✓ src/domain/irregularLanes.test.ts (6 tests) 13ms
+ ✓ src/domain/jw/ustcParser.test.ts (11 tests) 17ms
+ ✓ src/views/ExportView.periodTable.test.tsx (3 tests) 372ms
+ ✓ src/views/mine/shared.test.tsx (6 tests) 292ms
+ ✓ src/state/holidayStore.test.ts (7 tests) 39ms
+ ✓ src/views/mine/PeriodHeaderSettingsPage.test.tsx (3 tests) 508ms
+ ✓ src/domain/occurrenceSave.test.ts (5 tests) 37ms
+ ✓ src/brandIcons.rounded.test.ts (7 tests) 128ms
+ ✓ src/domain/periodEditor.test.ts (10 tests) 11ms
+ ✓ src/domain/jw/ucasParser.test.ts (6 tests) 111ms
+ ✓ src/components/FormatDetailDialog.test.tsx (4 tests) 284ms
+ ✓ src/data/customThemeStore.test.ts (9 tests) 19ms
+ ✓ src/App.tablet.test.tsx (6 tests) 360ms
+ ✓ src/domain/jw/wiseduParser.test.ts (10 tests) 18ms
+ ✓ src/domain/jw/seuParser.test.ts (12 tests) 15ms
+ ✓ src/components/schedule/useOccurrenceActions.test.tsx (3 tests) 50ms
+ ✓ src/views/mine/AboutPage.test.tsx (4 tests) 481ms
+ ✓ src/domain/jw/scuParser.test.ts (9 tests) 13ms
+ ✓ src/domain/jw/cquParser.test.ts (9 tests) 13ms
+ ✓ src/domain/update/updateCore.test.ts (8 tests) 8ms
+ ✓ src/domain/jw/parserRegistry.test.ts (8 tests) 1582ms
+   ✓ selectBest — 兜底裁决 > zf-old fixture: 无声明 type 也能裁决出 Table1 课程 686ms
+   ✓ selectBest — 兜底裁决 > declaredType 0 课 → 回退通用裁决 442ms
+ ✓ src/views/TodayView.test.tsx (2 tests) 350ms
+   ✓ 今日页的真实日期投影 > shows every fixed-date course outside the semester with bound period-table clocks 305ms
+ ✓ src/components/glass/GlassControls.test.tsx (3 tests) 242ms
+ ✓ src/views/ScheduleView.topbarIcon.test.tsx (3 tests) 1262ms
+   ✓ 顶栏左缘图标 — 对齐安卓 CalendarMonth > 只读态(public 分享部署): 整个文档不允许出现 sleepy-logo 位图 1020ms
+ ✓ src/domain/periodTablePreview.test.ts (5 tests) 13ms
+ ✓ src/domain/jw/bjtuParser.test.ts (5 tests) 196ms
+ ✓ src/data/sampleTable.test.ts (3 tests) 79ms
+ ✓ src/domain/feedback.test.ts (7 tests) 15ms
+ ✓ src/components/SegmentedSwitcher.test.tsx (4 tests) 227ms
+ ✓ src/views/mine/Switch.test.tsx (5 tests) 78ms
+ ✓ src/domain/jw/zjuParser.test.ts (8 tests) 14ms
+ ✓ src/domain/jw/neuParser.test.ts (8 tests) 15ms
+ ✓ src/state/reminderStore.tomorrow.test.ts (4 tests) 10ms
+ ✓ src/components/ColorPickerDialog.test.tsx (3 tests) 322ms
+ ✓ src/components/IntRangeSlider.test.tsx (2 tests) 276ms
+ ✓ src/domain/abi.test.ts (10 tests) 15ms
+ ✓ src/domain/occurrenceDraft.test.ts (4 tests) 15ms
+ ✓ src/views/mine/TimeSlotSection.test.tsx (2 tests) 481ms
+   ✓ 作息手动和自动模式切换 > opens automatic mode with the current manual clocks and retains edge rows 316ms
+ ✓ src/components/DateTimePickers.test.tsx (2 tests) 234ms
+ ✓ src/components/glass/useGlassLens.test.tsx (1 test) 37ms
+ ✓ src/components/TabletNavRail.test.tsx (3 tests) 113ms
+ ✓ src/components/schedule/OccurrenceEditor.test.tsx (2 tests) 273ms
+ ✓ src/domain/import/uuid.test.ts (3 tests) 8ms
+ ✓ src/domain/courseOccurrence.test.ts (3 tests) 31ms
+ ✓ src/components/schedule/ScheduleInteractionLayer.dialog.test.tsx (1 test) 190ms
+ ✓ src/domain/jw/qzIeasParser.test.ts (3 tests) 75ms
+ ✓ src/data/db.reminderMigration.test.ts (1 test) 47ms
+ ✓ src/iconCacheBust.test.ts (4 tests) 7ms
+ ✓ src/views/mine/periodTableNames.test.ts (6 tests) 7ms
+ ✓ src/components/schedule/useWeekSwipe.test.ts (7 tests) 6ms
+ ✓ src/state/tabletLayout.test.ts (6 tests) 11ms
+ ✓ src/components/schedule/weekLane.test.ts (5 tests) 7ms
+ ✓ src/views/semesterStatus.test.ts (5 tests) 6ms
+ ✓ src/domain/jw/xjuPostParser.test.ts (2 tests) 63ms
+ ✓ src/domain/jw/yethanParser.test.ts (2 tests) 10ms
+ ✓ src/components/schedule/dayHighlight.test.ts (3 tests) 6ms
+ ✓ src/components/schedule/toolbarLayout.test.ts (1 test) 6ms
+ ✓ src/components/glass/physics.test.ts (1 test) 7ms
+
+ Test Files  119 passed (119)
+      Tests  1321 passed (1321)
+   Start at  13:12:23
+   Duration  112.40s (transform 4.23s, setup 0ms, collect 27.08s, tests 45.56s, environment 95.37s, prepare 13.86s)

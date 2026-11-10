@@ -9,6 +9,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { GlassControls } from './components/glass/GlassControls'
+import { GlassNavigation } from './components/glass/GlassNavigation'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from './state/prefsStore'
 import { chainFromHash, installBackHandler, restoreChain, tabFromHash, useBackStack, type BackKey, type TabKey } from './state/backStack'
@@ -23,6 +25,8 @@ import { MineView } from './views/MineView'
 import { publicScheduleEnabled } from './publicSchedule'
 import { startReminderEngine, stopReminderEngine } from './domain/reminders/scheduler'
 import { useReminderStore } from './state/reminderStore'
+import { DailyAgendaPage } from './views/DailyAgendaPage'
+import { agendaDateFromHash } from './domain/reminders/agenda'
 
 type Tab = TabKey
 
@@ -46,8 +50,10 @@ const PANE_DIALOG_KEYS: ReadonlySet<BackKey> = new Set<BackKey>([
 export function App() {
   const { t } = useTranslation()
   const navDock = usePrefsStore((s) => s.prefs.navDock)
+  const uiStyle = usePrefsStore((s) => (s.prefs as { uiStyle?: 'classic' | 'liquid_glass' }).uiStyle ?? 'classic')
   const publicSchedule = publicScheduleEnabled()
   const [tab, setTab] = useState<Tab>(() => publicSchedule ? 'schedule' : tabFromHash(window.location.hash))
+  const [agendaDate, setAgendaDate] = useState(() => agendaDateFromHash(window.location.hash))
   const [dockExtra, setDockExtra] = useState(76)
   const pushTab = useBackStack((s) => s.pushTab)
   const replaceTab = useBackStack((s) => s.replaceTab)
@@ -81,7 +87,23 @@ export function App() {
       // 二级层由其所在视图处理;退回 tab 层时 hash 直接决定当前 tab。
       const next = tabFromHash(hash)
       setTab(next)
+      setAgendaDate(agendaDateFromHash(hash))
     })
+  }, [])
+
+  useEffect(() => {
+    const openAgenda = (event: Event) => {
+      const hash = (event as CustomEvent<unknown>).detail
+      if (typeof hash !== 'string') return
+      const date = agendaDateFromHash(hash)
+      if (!date) return
+      useBackStack.getState().pushTab('today')
+      useBackStack.getState().push('dailyAgenda', hash)
+      setTab('today')
+      setAgendaDate(date)
+    }
+    window.addEventListener('sleepy:open-agenda', openAgenda)
+    return () => window.removeEventListener('sleepy:open-agenda', openAgenda)
   }, [])
 
   const selectTab = (next: Tab) => {
@@ -130,6 +152,8 @@ export function App() {
         ['mine', t('tab_mine', '我的')],
       ]
 
+  if (agendaDate && stack.includes('dailyAgenda')) return <><GlassControls style={uiStyle} /><DailyAgendaPage date={agendaDate} onBack={() => { useBackStack.getState().pop(); setAgendaDate(null) }} /></>
+
   // ── 平板横屏 Master-Detail (SleepyNavHost.kt:494-657) ─────────────────
   // 左 50% = 课表永久固定; 右 50% = Today/Manage/Mine 跟 rail 切;
   // tab=Schedule 时右栏派生 Today (Android「宽屏派生为 Tab.Today」同构)。
@@ -137,6 +161,7 @@ export function App() {
     const rightTab = (tab === 'schedule' ? 'today' : tab) as 'today' | 'manage' | 'mine'
     return (
       <div style={{ display: 'flex', height: '100%', background: 'var(--md-background)' }}>
+        <GlassControls style={uiStyle} />
         <TabletNavRail
           current={rightTab}
           labels={{
@@ -191,7 +216,8 @@ export function App() {
       {/* H1 唯一持有者 = index.html 壳层静态标签(Bing 只读源码,运行期注入不可见,
           2026-10-28 复报定案)。App 内不再渲染 h1,否则文档双 H1;各 tab 内容标题
           维持 m3-title-large div(Android TopAppBar 1:1 对齐不许动)。 */}
-      <main style={{ flex: 1, overflow: 'auto' }}>
+      <GlassControls style={uiStyle} />
+      <main key={tab} className="app-page-transition" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {tab === 'schedule' && <ScheduleView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} readOnly={publicSchedule} />}
         {tab === 'today' && <TodayView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
         {tab === 'manage' && <ManageView navExtraBottom={!hasOverlay && navDock ? dockExtra : 0} />}
@@ -204,123 +230,10 @@ export function App() {
       </main>
       {/* 底栏闸门 = 返回栈是否为空 (Android 每个 overlay 分支都在底栏之前 return)。
           栈非空 → 贴底通栏与悬浮 Dock 两种形态都不渲染, 底部滚动余量同时归零。 */}
-      {!publicSchedule && !hasOverlay && (navDock ? (
-        // 悬浮胶囊 Dock (PillNavigationBar dock=true / DockNavigationBar):
-        // iOS 悬浮 tab bar 语义 — 居中玻璃胶囊, 4 座位等宽恒显 icon+label 双行,
-        // thumb (secondaryContainer) 包住整个座位, 选中文字 onSecondaryContainer
-        <nav
-          ref={dockNavRef}
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 12,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-            zIndex: 900,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              height: 64,
-              padding: '0 8px',
-              borderRadius: 32,
-              background: 'color-mix(in srgb, var(--md-surface-container) 86%, transparent)',
-              boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
-              pointerEvents: 'auto',
-            }}
-          >
-            {items.map(([key, label]) => {
-              const Icon = TAB_ICONS[key]
-              const isSel = tab === key
-              return (
-                <button
-                  key={key}
-                  onClick={() => selectTab(key)}
-                  aria-current={isSel ? 'page' : undefined}
-                  style={{
-                    width: 56,
-                    height: 52,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 2,
-                    border: 'none',
-                    borderRadius: 26,
-                    cursor: 'pointer',
-                    background: isSel ? 'var(--md-secondary-container)' : 'transparent',
-                    color: isSel
-                      ? 'var(--md-on-secondary-container)'
-                      : 'var(--md-on-surface-variant)',
-                  }}
-                >
-                  <Icon size={24} />
-                  <span
-                    className="m3-label-small"
-                    style={{ maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  >
-                    {label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
-      ) : (
-        // 贴底通栏 (PillNavigationBar dock=false): 全宽 surfaceContainer 带,
-        // thumb 色块 (secondaryContainer, 64×32 圆角16) 只包图标, label 在色块外
-        // 下方 4dp; 选中 label SemiBold + onSurface, 未选 Medium + onSurfaceVariant
-        <nav style={{ display: 'flex', background: 'var(--md-surface-container)' }}>
-          {items.map(([key, label]) => {
-            const Icon = TAB_ICONS[key]
-            const isSel = tab === key
-            return (
-              <button
-                key={key}
-                onClick={() => selectTab(key)}
-                aria-current={isSel ? 'page' : undefined}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '10px 0 12px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  color: isSel ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)',
-                }}
-              >
-                <span
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 64,
-                    height: 32,
-                    borderRadius: 16,
-                    background: isSel ? 'var(--md-secondary-container)' : 'transparent',
-                  }}
-                >
-                  <Icon size={20} />
-                </span>
-                <span
-                  className="m3-label-small"
-                  style={{ fontWeight: isSel ? 600 : 500 }}
-                >
-                  {label}
-                </span>
-              </button>
-            )
-          })}
-        </nav>
-      ))}
+      {!publicSchedule && !hasOverlay && <GlassNavigation
+        ref={dockNavRef} items={items.map(([key, label]) => ({ key, label, icon: TAB_ICONS[key] }))}
+        current={tab} dock={navDock} onSelect={(key) => selectTab(key as Tab)}
+      />}
     </div>
   )
 }

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { FullWeekView, DetailDayCard } from './FullWeekView'
 import { initI18n } from '../../i18n'
 import { usePrefsStore } from '../../state/prefsStore'
@@ -91,6 +91,14 @@ afterEach(() => {
 })
 
 describe('FullWeekView 日期显示 — 摘要卡无日期 + DetailDayCard 中文日期 (ref sleepy#191)', () => {
+  it('keeps the five-course strip actionable while showing every course in details', () => {
+    const onCourseClick = vi.fn()
+    const courses = Array.from({ length: 8 }, (_, i) => ({ ...COURSE, id: i + 1, groupId: `g${i}`, courseName: `课程${i + 1}`, startNode: i + 1, step: 1 }))
+    render(<FullWeekView courses={courses} timeJson={TIME_JSON} startDate={START} currentWeek={1} onCourseClick={onCourseClick} />)
+    fireEvent.click(screen.getByRole('button', { name: '课程5' }))
+    expect(onCourseClick).toHaveBeenCalledWith(courses[4])
+    expect(screen.getByText('课程8')).toBeTruthy()
+  })
   it('showDate=true → 摘要卡只有天名, 不带日期', () => {
     setPrefs({ showDate: true })
     const { container } = render(

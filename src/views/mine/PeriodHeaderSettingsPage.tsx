@@ -7,7 +7,7 @@
 import { useLayoutEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from '../../state/prefsStore'
-import { periodHeaderLines, legacyDashColumn, legacyColumnVerticalFit, type LegacyDashRowInk, type PeriodHeaderStyle } from '../../components/schedule/periodHeader'
+import { periodHeaderLines, legacyDashColumn, legacyColumnVerticalFit, estimatePeriodHeaderTextWidth, type LegacyDashRowInk, type PeriodHeaderStyle } from '../../components/schedule/periodHeader'
 import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
 import { SettingsScaffold, ToggleRow, SliderRow, onActivateKey } from './shared'
 
@@ -36,27 +36,14 @@ const PREVIEW_FONT = {
 }
 
 function measureTextWidth(text: string, size: number, weight = 400): number {
-  try {
-    if (typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent)) throw new Error('Canvas measurement unavailable in jsdom')
-    const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')
-    if (context) {
-      const fontFamily = getComputedStyle(document.body).fontFamily || 'sans-serif'
-      context.font = `${weight} ${size}px ${fontFamily}`
-      return context.measureText(text).width
-    }
-  } catch {
-    // jsdom and restricted canvas implementations use the conservative fallback below.
-  }
-  let width = 0
-  for (const char of text) width += /[0-9:]/.test(char) ? size * 0.58 : char === '-' ? size * 0.4 : size
-  return width
+  return estimatePeriodHeaderTextWidth(text, size, weight)
 }
 
-function previewContentWidth(layout: 'legacy' | 'three_line', style: PeriodHeaderStyle, hanging: number, showX: boolean): number {
+function previewContentWidth(layout: 'legacy' | 'three_line', style: PeriodHeaderStyle, hanging: number, showX: boolean, hideTime = false,alignment:'dash'|'center'='dash'): number {
   const lines = periodHeaderLines(PREVIEW_SLOT, layout, style, showX)
   const label = lines[layout === 'three_line' ? 1 : 0]
   const labelWidth = measureTextWidth(label, LABEL_SIZE, 600)
+  if(layout==='legacy' && hideTime) return Math.max(36,labelWidth+PREVIEW_PAD*2)
   const startWidth = measureTextWidth(PREVIEW_SLOT.displayStart, TIME_SIZE)
   const endWidth = measureTextWidth(PREVIEW_SLOT.displayEnd, TIME_SIZE)
 
@@ -74,7 +61,7 @@ function previewContentWidth(layout: 'legacy' | 'three_line', style: PeriodHeade
   // ref #102: 列宽 = dash 轴几何 — 与网格 legacyDashColumn 同一函数 (pad 即卡片内边距)。
   return Math.max(46, legacyDashColumn(
     [{ labelPx: labelWidth, timeLeftPx: startWidth, dashPx: dashWidth, timeRightPx: endWidth }],
-    PREVIEW_PAD,
+    PREVIEW_PAD,alignment,
   ).columnWidth)
 }
 
@@ -88,11 +75,12 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
+  const hideTime=!!(prefs as typeof prefs & {periodHeaderHideTime?:boolean}).periodHeaderHideTime
   const [hangingDraft, setHangingDraft] = useState(prefs.periodHeaderHanging)
   useLayoutEffect(() => setHangingDraft(prefs.periodHeaderHanging), [prefs.periodHeaderHanging])
 
   const widths = STYLES.map(([style]) => previewContentWidth(
-    prefs.periodHeaderLayout, style, hangingDraft, prefs.periodHeaderShowX,
+    prefs.periodHeaderLayout, style, hangingDraft, prefs.periodHeaderShowX,hideTime,prefs.periodHeaderTimeAlignment,
   ))
   const sharedFont = previewFontSize(Math.max(...widths))
   return <SettingsScaffold title={t('appearance_period_header')} onBack={onBack} gap={12}>
@@ -155,7 +143,7 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
                       lineHeight: `${PREVIEW_FONT.time * 1.25}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)',
                     }}>{PREVIEW_SLOT.displayEnd}</div>
                   </div>
-                ) : (() => {
+                ) : hideTime ? <div data-period-header-hide-time style={{position:'absolute',inset:PREVIEW_PAD,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600}}>{measuredHeaderLabel}</div> : (() => {
                   // ref #102 预览/网格同一几何: union 垂直解替代硬编码 top 4/23;
                   // 行盒 14/13 与网格 legacy 渲染同源 (headerLabelStyle/headerTimeStyle)。
                   const previewInk: LegacyDashRowInk = {
@@ -166,11 +154,11 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
                   return (
                     <div style={{ position: 'absolute', inset: PREVIEW_PAD }}>
                       <div className="m3-label-small" style={{
-                        position: 'absolute', top: fit.labelTop, left: legacyAxis - labelWidth / 2, fontSize: 12 * fit.fontScale,
+                        position: 'absolute', top: fit.labelTop, left: prefs.periodHeaderTimeAlignment==='center' ? (contentWidth-6-labelWidth*fit.fontScale)/2 : legacyAxis-labelWidth*fit.fontScale/2, fontSize: 12 * fit.fontScale,
                         fontWeight: 600, lineHeight: `${14 * fit.fontScale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface)',
                       }}>{measuredHeaderLabel}</div>
                       <div className="m3-label-small" style={{
-                        position: 'absolute', top: fit.timeTop, left: legacyAxis - startWidth - legacyDashWidth / 2,
+                        position: 'absolute', top: fit.timeTop, left: prefs.periodHeaderTimeAlignment==='center' ? (contentWidth-6-startWidth-legacyDashWidth-endWidth)/2 : legacyAxis - startWidth - legacyDashWidth / 2,
                         fontSize: 11 * fit.fontScale, lineHeight: `${13 * fit.fontScale}px`, whiteSpace: 'nowrap', color: 'var(--md-on-surface-variant)',
                       }}>{`${PREVIEW_SLOT.displayStart}-${PREVIEW_SLOT.displayEnd}`}</div>
                     </div>
@@ -206,7 +194,8 @@ export function PeriodHeaderSettingsPage({ onBack }: { onBack: () => void }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <ToggleRow label={t('appearance_header_show_x', '显示“第 X 节”')} checked={prefs.periodHeaderShowX} onChange={(v) => void update({ periodHeaderShowX: v })} />
       {/* ref sleepy#259: 时间轴对齐仅适用旧式两行表头 (Android 同款 layout==legacy 门控) */}
-      {prefs.periodHeaderLayout === 'legacy' && (
+      {prefs.periodHeaderLayout === 'legacy' && <ToggleRow label={t('appearance_header_hide_time','隐藏时间')} subtitle={t('appearance_header_hide_time_sub','旧式表头只显示节次，节次在卡片中居中。')} checked={hideTime} onChange={value=>void update({periodHeaderHideTime:value} as Partial<typeof prefs>)} />}
+      {prefs.periodHeaderLayout === 'legacy' && !hideTime && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 4px 0' }}>
           <span className="m3-label-medium" style={{ color: 'var(--md-on-surface-variant)' }}>
             {t('appearance_header_time_alignment', '时间对齐')}

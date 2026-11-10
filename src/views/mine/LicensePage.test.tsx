@@ -39,18 +39,18 @@ describe('LicensePage', () => {
     expect([...pos].sort((a, b) => a - b)).toEqual(pos)
   })
 
-  it('贡献者 4 人 (含 GitHub 主页链接, 不枚举 issue 编号)', () => {
+  it('贡献者 7 人 (含 GitHub 主页链接, 不枚举 issue 编号)', () => {
     render(<LicensePage onBack={() => {}} />)
-    for (const handle of ['jim139129', 'YYiChen', 'LzBsA', 'Cold577']) {
+    for (const handle of ['jim139129', 'YYiChen', 'LzBsA', 'Cold577', 'X-art-hash', 'echo0731', 'Kerry1020']) {
       expect(screen.getByText(`GitHub @${handle}`)).toBeTruthy()
       expect(screen.getByText(new RegExp(`github\\.com/${handle}$`))).toBeTruthy()
     }
   })
 
-  it('按学校 41 张卡默认收起, 仅可展开卡有 48dp 展开按钮', () => {
+  it('按学校 51 张卡默认收起, 仅可展开卡有 48dp 展开按钮', () => {
     render(<LicensePage onBack={() => {}} />)
-    // 41 所学校 + 致谢导语卡
-    expect(screen.getAllByRole('button', { name: 'expand' })).toHaveLength(42)
+    // 51 所学校、8 个新版来源分组和致谢导语卡
+    expect(screen.getAllByRole('button', { name: 'expand' })).toHaveLength(60)
     expect(screen.queryByText('classduck (luyishui)')).toBeNull()
     expect(within(cardOf('WakeUp 课程表 (YZune)')).queryByRole('button')).toBeNull()
   })
@@ -69,7 +69,7 @@ describe('LicensePage', () => {
     const body = zhCN.about_license_body
     expect(screen.queryByText(body)).toBeNull()
     fireEvent.click(screen.getByText('教务适配致谢'))
-    expect(screen.getByText(body)).toBeTruthy()
+    expect(screen.getByText((_, node) => node?.textContent === body)).toBeTruthy()
   })
 
   it('6 语 about_license_body 均含全部跨校/单校致谢 token, 贡献者区块标题齐全', () => {

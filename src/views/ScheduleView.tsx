@@ -19,7 +19,7 @@ import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'
 import { holidaySetsForYear, useHolidayStore, getHolidayTransfers } from '../state/holidayStore'
 import { holidayGreyDaysForWeek, type HolidayYearData } from '../domain/holiday/ranges'
-import { applyDaySwap, effectiveDayOfWeek } from '../domain/holiday/transfers'
+import { displayMaxWeek, projectWeekCourses } from '../domain/courseOccurrence'
 import { installBackHandler, useBackStack, type BackKey } from '../state/backStack'
 import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
 import { useScheduleSessionStore } from '../state/scheduleSessionStore'
@@ -31,10 +31,12 @@ import { AddCourseView } from './AddCourseView'
 import { ImportView } from './ImportView'
 import { ShareScheduleSheetView } from './ExportView'
 import { EditTableView } from './EditTableView'
-import { semesterStatus } from './TodayView'
-import { inWeek, normalizeNode } from '../data/types'
+import { normalizeNode, hydratedWith } from '../data/types'
 import type { Course, Table } from '../data/types'
 import { pagerTrackWeeks, PAGER_SETTLE_MS, useWeekPager } from '../components/schedule/useWeekSwipe'
+import { ScheduleInteractionLayer } from '../components/schedule/ScheduleInteractionLayer'
+import { useOccurrenceActions, type QuickAddSeed } from '../components/schedule/useOccurrenceActions'
+import { ScheduleToolbar } from '../components/schedule/ScheduleToolbar'
 import { SegmentedSwitcher } from '../components/SegmentedSwitcher'
 import { normalizeStartDateToMonday } from './importExportUtils'
 
@@ -72,10 +74,7 @@ export function actualWeekOf(startDate: string): number {
 
 /** 某年节假日数据与三开关类型已迁至 domain/holiday/ranges (ref #139: 周灰显纯函数随迁可测)。 */
 
-function isoDate(d: Date): string {
-  const p = (x: number) => String(x).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
+
 
 /** 某周跨越的年份 (跨年周最多 2 个) */
 function yearsSpanned(startDate: string, week: number): number[] {
@@ -125,7 +124,9 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   const [pageWidth, setPageWidth] = useState(0)
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
   const [adding, setAdding] = useState(false)
+  const [quickAdd, setQuickAdd] = useState<QuickAddSeed | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importTargetId, setImportTargetId] = useState<number | null>(null)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
   const [editingTableId, setEditingTableId] = useState<number | null>(null)
   const [showSwitcher, setShowSwitcher] = useState(false)
@@ -138,13 +139,16 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
 
   // 浏览器返回时同步本地 page state (popstate 广播 popped key → 收回本视图的层)。
   useEffect(() => installBackHandler((key) => {
-    if (key === 'addCourse') { setAdding(false); setImporting(false); setEditingCourse(null) }
+    if (key === 'addCourse') {
+      if (adding && importing) setAdding(false)
+      else { setAdding(false); setImporting(false); setEditingCourse(null); setQuickAdd(null) }
+    }
     else if (key === 'editTable') setEditingTableId(null)
     else if (key === 'courseDetail') setDetailCourse(null)
     else if (key === 'weekSwitcher') setShowSwitcher(false)
     else if (key === 'weekJump') setJumpOpen(false)
     else if (key === 'shareSheet') setShowShare(false)
-  }), [])
+  }), [adding, importing])
 
   // 入栈只在事件处理器里做 (带 hash 地址, 浏览器返回可弹), 返回按钮 pop 出栈。
   // 🚫 渲染期 push: 每次重渲染都会再入一层, 返回一次弹不干净 (底栏卡在隐藏态)。
@@ -166,36 +170,26 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   const redoDepth = useUndoStore((s) => s.redoStack.length)
 
   const tableList = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) as Table[] | undefined
-  const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
+  const defaultTable = useLiveQuery(async () => { const table = await db.timetables.where('isDefault').equals(1).first(); return table ? hydratedWith(table, table.periodTableId ? await db.periodTables.get(table.periodTableId) : null) : undefined })
   const allCourses = useLiveQuery(
     async () =>
       defaultTable ? await db.courses.where('tableId').equals(defaultTable.id).toArray() : ([] as Course[]),
     [defaultTable?.id]
   )
 
-  const maxWeek = defaultTable?.maxWeek ?? 20
+  const occurrenceActions = useOccurrenceActions(defaultTable)
+  const maxWeek = displayMaxWeek(defaultTable,getHolidayTransfers(defaultTable?.id ?? null))
   const currentWeek = week ?? computeCurrentWeek(defaultTable?.startDate ?? '', maxWeek)
   const actualWeek = useMemo(
     () => actualWeekOf(defaultTable?.startDate ?? ''),
     [defaultTable?.startDate]
   )
-  const status = semesterStatus(defaultTable?.startDate ?? '', maxWeek, new Date())
   const isOnActual = currentWeek === actualWeek
-  const weekLabel =
-    status === 'IN_RANGE'
-      ? t('schedule_current_week', { v1: currentWeek })
-      : `${t(status === 'BEFORE_START' ? 'semester_not_started' : 'semester_ended', {
-          defaultValue: status === 'BEFORE_START' ? '学期未开始' : '学期已结束',
-        })} · ${t('schedule_week_prefix', { v1: currentWeek, defaultValue: `第 ${currentWeek} 周` })}`
+  const weekLabel = t('schedule_week_prefix', { v1: currentWeek, defaultValue: `第 ${currentWeek} 周` })
 
   // 课程按当前周过滤 + normalizeNode (ScheduleScreen.kt:236-241 HorizontalPager 同构) —
   // 切周次 → weekCourses 变化 → 网格/周视图只显示本周应有的课
-  const weekCourses = useMemo(() => {
-    const list = allCourses ?? []
-    if (!defaultTable) return []
-    const tj = defaultTable.timeJson
-    return list.filter((c) => inWeek(c, currentWeek)).map((c) => (tj ? normalizeNode(c, tj) : c))
-  }, [allCourses, currentWeek, defaultTable])
+
 
   // 轨道周次 — 邻接周与本周一起渲染 (HorizontalPager pageCount 同语义),
   // 三页并排整条平移 → 相邻两周视觉上连成一体
@@ -244,20 +238,12 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     if (!defaultTable) return map
     const tj = defaultTable.timeJson
     for (const w of trackWeeks) {
-      const courses = (allCourses ?? []).filter((c) => inWeek(c, w)).map((c) => (tj ? normalizeNode(c, tj) : c))
-      // issue#44 调休改写: 本周各日期命中调休 → 网格列改按目标星期渲染 (渲染期替身, 不写库)。
-      // issue#145: daySwap 整体交给 applyDaySwap —— 补班日那列原课同时屏蔽, 不与调过来的课叠加。
-      const daySwap = new Map<number, number>()
-      for (let natural = 1; natural <= 7; natural++) {
-        const date = dateOfWeek(defaultTable.startDate, w, natural)
-        if (!date) continue
-        const display = effectiveDayOfWeek(isoDate(date), holidayTransfers)
-        if (display !== natural) daySwap.set(natural, display)
-      }
-      map.set(w, applyDaySwap(courses, daySwap))
+      map.set(w, projectWeekCourses(defaultTable, w, allCourses ?? [], holidayTransfers).map((course) => tj ? normalizeNode(course, tj) : course))
     }
     return map
   }, [allCourses, defaultTable, trackWeeks, holidayTransfers])
+
+  const weekCourses = coursesByWeek.get(currentWeek) ?? []
 
   // 单页宽 = 滚动容器宽 (翻页阈值按半页比例算, 落定位移按整页算, 都依赖它)
   const measureRo = useRef<ResizeObserver | null>(null)
@@ -330,18 +316,22 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     dismissed: (await db.prefs.get('sampleBannerDismissed'))?.value,
   }))
 
-  if (importing) {
-    return <ImportView onDone={() => { leave(); setImporting(false) }} />
-  }
-
   if (adding || editingCourse) {
     return (
       <AddCourseView
         editingCourse={editingCourse}
-        onBack={() => { leave(); setAdding(false); setEditingCourse(null) }}
-        onSaved={() => { leave(); setAdding(false); setEditingCourse(null) }}
+        quickAdd={quickAdd}
+        targetTableId={importing ? importTargetId ?? undefined : undefined}
+        onBack={() => { leave(); setAdding(false); setEditingCourse(null); setQuickAdd(null) }}
+        onSaved={() => { leave(); setAdding(false); setEditingCourse(null); setQuickAdd(null) }}
       />
     )
+  }
+
+  if (importing) {
+    return <ImportView addingCourses={importTargetId !== null} targetTableId={importTargetId ?? 0}
+      onManualAdd={() => open('addCourse', () => { setQuickAdd(null); setAdding(true) })}
+      onDone={() => { leave(); setImporting(false) }} />
   }
 
   // 建表流 (EmptyState 副按钮) — 插表后进 EditTableView (Android onCreateTable 同语义)
@@ -370,18 +360,9 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
       {/* 顶栏 — 无表不渲染 (Android !hasTable 直接 EmptyState 全屏, ScheduleScreen.kt:142-159) */}
       {hasTable && (
         <>
-          <div
-            style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '6px 12px',
-              background: 'var(--md-surface)',
-            }}
-          >
+          <ScheduleToolbar>
             {/* 左缘: 切换课表 + 撤回 (仅有可撤回快照时显示, ScheduleScreen.kt:417-428) */}
-            <div style={{ position: 'absolute', left: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="toolbar-start">
               {readOnly ? (
                 <span style={{ display: 'flex', width: 32, height: 32, alignItems: 'center', justifyContent: 'center', color: 'var(--md-on-surface-variant)' }}>
                   <IconCalendarMonth size={18} />
@@ -403,7 +384,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             </div>
 
             {/* 翻页三件套 — 屏幕正中 (ScheduleScreen.kt:433-436 Box 叠加同构) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="week-controls">
               <NavCircleBtn
                 onClick={() => setWeek(Math.max(1, currentWeek - 1))}
                 disabled={currentWeek <= 1}
@@ -415,7 +396,10 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
               <div style={{ position: 'relative' }}>
                 <span
                   onClick={() => (isOnActual ? open('weekJump', () => setJumpOpen(true)) : setWeek(null))}
-                  className="m3-label-large"
+                  className="m3-label-large week-label"
+                  data-glass-control
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isOnActual ? open('weekJump', () => setJumpOpen(true)) : setWeek(null) } }}
                   role="button"
                   aria-label={weekLabel}
                   style={{
@@ -431,7 +415,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
                     color: isOnActual ? 'var(--md-on-primary-container)' : 'var(--md-primary)',
                   }}
                 >
-                  {weekLabel}
+                  <span data-week-text>{weekLabel}</span>
                 </span>
                 {jumpOpen && (
                   <>
@@ -505,10 +489,11 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             </div>
 
             {/* 右缘: 加课 + 分享 (ScheduleScreen.kt:530-540 WeekNavButton 对称位) */}
-            <div style={{ position: 'absolute', right: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="toolbar-end">
               {!readOnly && <NavCircleBtn
                 title={t('schedule_add_course', { defaultValue: '添加课程' })}
-                onClick={() => open('addCourse', () => setAdding(true))}
+                disabled={!defaultTable}
+                onClick={() => open('addCourse', () => { setImportTargetId(defaultTable?.id ?? 0); setImporting(true) })}
               >
                 <IconAdd size={18} />
               </NavCircleBtn>}
@@ -519,7 +504,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
                 <IconIosShare size={18} />
               </NavCircleBtn>
             </div>
-          </div>
+          </ScheduleToolbar>
 
           {/* SegmentedSwitcher — 周视图/网格 (ScheduleScreen.kt:196-204, 容器 surfaceContainer) */}
           {prefs.showViewSwitcher && (
@@ -569,6 +554,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           滚动层 overflow 管纵向 (横向 hidden, 轨道 300% 宽不外溢), 轨道只管横向跟手;
           touch-action:pan-y 把纵向滚动让给浏览器, 只抢横向。 */}
       <div
+        data-schedule-scroll
         ref={(el) => {
           attachScroll(el)
           attachPager(el)
@@ -589,7 +575,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             }}
           >
             <EmptyStateCard
-              onGoImport={() => open('addCourse', () => setImporting(true))}
+              onGoImport={() => open('addCourse', () => { setImportTargetId(null); setImporting(true) })}
               onCreateTable={createFirstTable}
             />
           </div>
@@ -597,8 +583,8 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           // 有表无课 (ScheduleScreen.kt:615-660 NoCourseState)
           <NoCourseCard
             tableName={defaultTable?.name ?? ''}
-            onAddCourse={() => open('addCourse', () => setAdding(true))}
-            onImport={() => open('addCourse', () => setImporting(true))}
+            onAddCourse={() => { if (defaultTable) open('addCourse', () => { setImportTargetId(defaultTable.id); setImporting(true) }) }}
+            onImport={() => open('addCourse', () => { setImportTargetId(null); setImporting(true) })}
           />
         ) : defaultTable ? (
           <div
@@ -616,6 +602,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             {trackWeeks.map((w) => (
               <div
                 key={w}
+                data-schedule-week={w}
                 style={{
                   width: `${100 / trackWeeks.length}%`,
                   flexShrink: 0,
@@ -667,6 +654,11 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
         {navExtraBottom > 0 && <div style={{ height: navExtraBottom, flexShrink: 0 }} />}
       </div>
 
+      <ScheduleInteractionLayer rootRef={containerRef} table={defaultTable} courses={allCourses ?? []} week={currentWeek} readOnly={readOnly}
+        onWeek={(next) => setWeek(next)} onMove={occurrenceActions.move} onDelete={occurrenceActions.remove} onEdit={(course,week,startInEdit) => { void occurrenceActions.openEdit(course,week,false,startInEdit) }}
+        onQuickAdd={(seed) => { setQuickAdd(seed); open('addCourse', () => setAdding(true)) }} />
+      {occurrenceActions.overlays}
+
       {/* 课表切换弹窗 (TableSwitcherDialog.kt 1:1) */}
       {showSwitcher && tableList !== undefined && (
         <TableSwitcherDialog
@@ -704,10 +696,12 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           timeJson={defaultTable.timeJson}
           onDismiss={() => { leave(); setDetailCourse(null) }}
           onEdit={readOnly ? undefined : (c) => {
-            leave()
+            useBackStack.getState().replace('addCourse')
             setDetailCourse(null)
-            open('addCourse', () => setEditingCourse(c))
+            setEditingCourse(c)
           }}
+          onAdjustOccurrence={readOnly ? undefined : (course) => { setDetailCourse(null); void occurrenceActions.openEdit(course,currentWeek,true) }}
+          onDeleteOccurrence={readOnly ? undefined : (course) => { void occurrenceActions.remove(course,currentWeek).then((saved) => { if(saved) { leave(); setDetailCourse(null) } }) }}
           onDefaultTopChanged={handleDefaultTopChanged}
         />
       )}
@@ -751,10 +745,11 @@ function NavCircleBtn({
       disabled={disabled}
       title={title}
       aria-label={title}
+      className="schedule-icon-button"
       style={{
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         border: 'none',
         padding: 0,
         flexShrink: 0,
@@ -820,7 +815,7 @@ function UndoRedoCapsule({
         background: 'var(--md-surface-container-high)',
         display: 'flex',
         alignItems: 'center',
-        overflow: 'hidden',
+        overflow: 'visible',
       }}
     >
       <button

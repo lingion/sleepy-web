@@ -7,6 +7,7 @@ import { usePrefsStore } from './state/prefsStore'
 import { loadPublicSchedule, publicScheduleEnabled } from './publicSchedule'
 import { publicAccessGranted, publicAccessRequired, grantPublicAccess } from './publicAccess'
 import './theme/global.css'
+import { appAssetUrl } from './appAssetUrl'
 
 function PublicAccessGate({ onGranted }: { onGranted: () => void }) {
   const [key, setKey] = useState('')
@@ -65,7 +66,7 @@ function Bootstrap() {
 // 通知点击聚焦等事件由 SW 承接; https/localhost 才注册 (http 局域网调试跳过)。
 if ('serviceWorker' in navigator && (window.isSecureContext || import.meta.env.DEV)) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
+    navigator.serviceWorker.register(appAssetUrl('sw.js')).catch(() => {
       /* 注册失败不影响课表主功能 */
     })
   })

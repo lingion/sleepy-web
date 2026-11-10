@@ -228,6 +228,36 @@ export function applyTheme(themeKey: string, isDark: boolean): void {
   }
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', scheme.background)
+  publishTheme(themeKey, isDark)
+}
+
+export function resolveThemeScheme(themeKey: string, isDark: boolean): SchemeColors {
+  if (themeKey.startsWith(CUSTOM_KEY_PREFIX)) {
+    const custom = getThemeById(themeKey.slice(CUSTOM_KEY_PREFIX.length))
+    if (custom) return deriveCustomScheme(custom, isDark)
+  }
+  const preset = THEME_PRESETS[themeKey] ?? THEME_PRESETS.default
+  return isDark ? preset.dark : preset.light
+}
+
+export function themeSnapshot(themeKey: string, isDark: boolean) {
+  const tokens = (dark: boolean) => Object.fromEntries(Object.entries(resolveThemeScheme(themeKey, dark)).map(([key, color]) => [kebab(key), color]))
+  return { type: 'sleepy:theme', version: 1, mode: isDark ? 'dark' : 'light', palette: themeKey,
+    schemes: { light: tokens(false), dark: tokens(true) } }
+}
+let activeTheme: { key: string; dark: boolean } | undefined
+function publishTheme(key: string, dark: boolean): void {
+  activeTheme = { key, dark }
+  if (typeof window !== 'undefined' && window.parent !== window) {
+    window.parent.postMessage(themeSnapshot(key, dark), window.location.origin)
+  }
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', event => {
+    if (window.parent === window || event.source !== window.parent || event.origin !== window.location.origin ||
+        event.data?.type !== 'sleepy:theme-request' || event.data.version !== 1 || !activeTheme) return
+    publishTheme(activeTheme.key, activeTheme.dark)
+  })
 }
 
 /**

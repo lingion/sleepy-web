@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { IconLink, IconSchool } from '../../components/icons'
 import { HDiv } from '../mine/shared'
 import { filterSchools } from './pinyin'
+import { CityRecommendations } from './schoolLocation'
 import {
   detectProtocolFromUrl,
   displayHost,
@@ -24,7 +25,6 @@ import {
 import {
   SCHOOLS,
   groupByLetter,
-  isSelectable,
   statusBadge,
   type SchoolInfo,
 } from './schools'
@@ -48,6 +48,7 @@ export function SchoolSelectPage({
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const listRef = useRef<HTMLDivElement | null>(null)
+  const [scrollTop, setScrollTop] = useState(0)
 
   const filtered = useMemo(() => filterSchools(SCHOOLS, query), [query])
   const sections = useMemo(() => groupByLetter(filtered), [filtered])
@@ -61,9 +62,19 @@ export function SchoolSelectPage({
     return { url, protocol: detectProtocolFromUrl(url), matched: matchSchoolByDomain(url, SCHOOLS) }
   }, [isUrl, query])
 
+  const entries = useMemo(() => {
+    let top = 0
+    return sections.flatMap(sec => [
+      { key: sec.letter, letter: sec.letter, school: null as SchoolInfo | null, height: 32 },
+      ...sec.schools.map((school, index) => ({key: `${sec.letter}-${index}`,letter: sec.letter, school, height: 76})),
+    ]).map(row => { const entry = {...row, top}; top += row.height; return entry })
+  }, [sections])
+  const visible = entries.filter(row => row.top + row.height >= scrollTop - 180 && row.top < scrollTop + 850)
+  const totalHeight = entries.at(-1) ? entries.at(-1)!.top + entries.at(-1)!.height : 0
   function scrollToLetter(letter: string) {
-    const el = listRef.current?.querySelector<HTMLElement>(`[data-letter="${letter}"]`)
-    el?.scrollIntoView({ block: 'start' })
+    const top = entries.find(e => !e.school && e.letter === letter)?.top ?? 0
+    if (listRef.current) listRef.current.scrollTop = top
+    setScrollTop(top)
   }
 
   return (
@@ -73,7 +84,7 @@ export function SchoolSelectPage({
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => { setQuery(e.target.value); setScrollTop(0); if (listRef.current) listRef.current.scrollTop = 0 }}
           placeholder={t('search_school_url')}
           aria-label={t('select_school')}
           style={{
@@ -105,9 +116,12 @@ export function SchoolSelectPage({
 
       {urlPick && <UrlDirectRow pick={urlPick} typedUrl={query.trim()} onPick={() => onPickUrl(urlPick)} />}
 
+      {query.trim() === '' && <CityRecommendations onPick={onPickSchool} />}
+      <button type="button" className="m3-btn-regular" onClick={() => listRef.current?.parentElement?.parentElement?.querySelector('input')?.focus()}>自定义教务链接</button>
       <div style={{ display: 'flex', gap: 4 }}>
         <div
           ref={listRef}
+          onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
           role="listbox"
           aria-label={t('select_school')}
           style={{ flex: 1, minHeight: 0, maxHeight: 'calc(100vh - 250px)', overflowY: 'auto' }}
@@ -117,31 +131,12 @@ export function SchoolSelectPage({
               {SCHOOLS.length === 0 ? t('loading') : t('no_school_found')}
             </div>
           ) : (
-            sections.map((sec) => (
-              <div key={sec.letter}>
-                <div
-                  data-letter={sec.letter}
-                  className="m3-title-small"
-                  style={{
-                    fontWeight: 700,
-                    color: 'var(--md-on-primary-container)',
-                    background: 'var(--md-primary-container)',
-                    padding: '2px 10px',
-                    borderRadius: 8,
-                    margin: '6px 0',
-                    display: 'inline-block',
-                  }}
-                >
-                  {sec.letter}
-                </div>
-                {sec.schools.map((s, i) => (
-                  <div key={`${s.sortKey}-${s.name}-${i}`}>
-                    <SchoolRow school={s} onPick={() => onPickSchool(s)} />
-                    <HDiv />
-                  </div>
-                ))}
-              </div>
-            ))
+            <div style={{height:totalHeight,position:'relative'}}>
+              {visible.map(row => <div key={row.key} style={{position:'absolute',top:row.top,left:0,right:0,height:row.height,overflow:'hidden'}}>
+                {row.school ? <><SchoolRow school={row.school} onPick={()=>onPickSchool(row.school!)} /><HDiv /></> :
+                  <div data-letter={row.letter} className="m3-title-small" style={{padding:'6px 10px',color:'var(--md-primary)'}}>{row.letter}</div>}
+              </div>)}
+            </div>
           )}
         </div>
 
@@ -154,6 +149,7 @@ export function SchoolSelectPage({
             {sections.map((sec) => (
               <button
                 key={sec.letter}
+                className="m3-btn-regular"
                 type="button"
                 onClick={() => scrollToLetter(sec.letter)}
                 style={{
@@ -174,13 +170,14 @@ export function SchoolSelectPage({
 /** 学校行 — 36dp primaryContainer 图标块 + 名称/协议两行; 不可点时降透明度 */
 function SchoolRow({ school, onPick }: { school: SchoolInfo; onPick: () => void }) {
   const { t } = useTranslation()
-  const clickable = isSelectable(school)
+  const clickable = true
   const badge = statusBadge(school)
   return (
     <div
       role="option"
       aria-selected={false}
-      aria-disabled={!clickable}
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick() } }}
       aria-label={school.name}
       onClick={clickable ? onPick : undefined}
       style={{
@@ -244,6 +241,8 @@ function UrlDirectRow({ pick, typedUrl, onPick }: { pick: UrlPick; typedUrl: str
       role="option"
       aria-selected={false}
       aria-label={t('url_direct_login')}
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onPick() }}
       onClick={onPick}
       style={{
         display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px', cursor: 'pointer',

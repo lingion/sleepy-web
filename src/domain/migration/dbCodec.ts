@@ -30,6 +30,7 @@ export interface CourseRow {
   endTime: string
   credit: number
   level: number
+  fixedDate?: string | null
 }
 
 export interface TimeTableRow {
@@ -43,6 +44,8 @@ export interface TimeTableRow {
   isDefault: boolean
   /** ref #143 每表提醒开关。Android v1.0.61 备份无此字段 → 解码 `=== false` 判定, 旧包默认开 */
   reminderEnabled: boolean
+  reminderOverride?: boolean | null
+  importSourceJson?: string
   smartConfigJson: string
   createdAt: number
   periodTableId: number | null
@@ -83,6 +86,7 @@ export function courseToRow(c: Course): CourseRow {
     type: c.type, color: c.color, colorMode: c.colorMode, ownTime: c.ownTime,
     isIrregularNode: c.isIrregularNode, isIrregularTime: c.isIrregularTime,
     startTime: c.startTime, endTime: c.endTime, credit: c.credit, level: c.level,
+    fixedDate: c.fixedDate ?? null,
   }
 }
 
@@ -94,6 +98,7 @@ export function rowToCourse(r: CourseRow): Course {
     type: (r.type ?? 0) as Course['type'], color: r.color, colorMode: (r.colorMode ?? 0) as Course['colorMode'], ownTime: r.ownTime ?? false,
     isIrregularNode: r.isIrregularNode ?? false, isIrregularTime: r.isIrregularTime ?? false,
     startTime: r.startTime ?? '', endTime: r.endTime ?? '', credit: r.credit ?? 0, level: r.level ?? 0,
+    fixedDate: r.fixedDate ?? null,
   }
 }
 
@@ -104,6 +109,7 @@ export function tableToRow(t: Table): TimeTableRow {
     isDefault: t.isDefault === 1, reminderEnabled: t.reminderEnabled !== 0, smartConfigJson: t.smartConfigJson ?? '',
     createdAt: t.createdAt, periodTableId: t.periodTableId ?? null,
     preBindSnapshotJson: t.preBindSnapshotJson ?? '',
+    reminderOverride: t.reminderOverride ?? null, importSourceJson: t.importSourceJson ?? '',
   }
 }
 
@@ -115,6 +121,7 @@ export function rowToTable(r: TimeTableRow): Table {
     reminderEnabled: r.reminderEnabled === false ? 0 : 1, // 旧包缺字段 = 开 (Android DEFAULT 1 同语义)
     smartConfigJson: r.smartConfigJson ?? '', createdAt: r.createdAt,
     periodTableId: r.periodTableId ?? null, preBindSnapshotJson: r.preBindSnapshotJson ?? '',
+    reminderOverride: r.reminderOverride ?? null, importSourceJson: r.importSourceJson ?? '',
   }
 }
 

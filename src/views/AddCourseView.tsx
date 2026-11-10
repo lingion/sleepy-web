@@ -1,3 +1,4 @@
+import '../components/schedule/occurrence.css'
 /**
  * AddCourseView — Kotlin AddCourseScreen.kt 1:1 移植 (新建/编辑课程)
  * 基础信息(名称/别名) + 周次范围(可应用全部时段) + 每时段卡(MultiDayPicker/节次/
@@ -23,14 +24,22 @@ import {
   getTable,
   getCourses,
   getGroupCourses,
-  insertCourses,
-  applyDiff,
   deleteCourseGroup,
-  updateTable,
+  deleteCourse,
 } from '../data/repository'
-import { undoManager } from '../data/undoStore'
-import type { Course, WeekType, ColorMode } from '../data/types'
+import { hydratedWith, type Course, type Table, type WeekType, type ColorMode } from '../data/types'
+import type { HolidayTransferEntry } from '../domain/holiday/transfers'
+import { getHolidayTransfers } from '../state/holidayStore'
+import { dateOfWeekIso } from '../domain/courseOccurrence'
+import { occurrenceConflictDetails, resolveDraftDestinations } from '../domain/occurrenceSave'
+import { useOccurrenceDialogs } from '../components/schedule/useOccurrenceDialogs'
 import { localizedDay } from '../components/schedule/CardsGridView'
+import type { QuickAddSeed } from '../components/schedule/interactionTypes'
+import { IntRangeSlider } from '../components/IntRangeSlider'
+import { ColorPickerDialog } from '../components/ColorPickerDialog'
+import { AlertDialog } from '../components/AlertDialog'
+import { DialogActionButtons } from '../components/DialogActionButtons'
+import { groupSourceColorHex,parseHex,rgbToHex,SENTINEL_COLOR } from '../domain/courseColor'
 import { SegmentedSwitcher } from '../components/SegmentedSwitcher'
 import {
   groupSlotsForEdit,
@@ -38,8 +47,6 @@ import {
   initialMeetingBlock,
   buildCourseEntity,
   validateCourseDraft,
-  draftConflictDetails,
-  formatDetail,
   parseHm,
   blockEffectiveRange,
   type MeetingBlockDraft,
@@ -54,22 +61,33 @@ import {
   DEFAULT_TIME_JSON,
 } from '../domain/timeTable'
 
-type RowDiff = Parameters<typeof applyDiff>[1]
-
 export function AddCourseView({
   editingCourse,
+  quickAdd,
+  targetTableId,
   onBack,
   onSaved,
 }: {
   editingCourse?: Course | null
+  quickAdd?: QuickAddSeed | null
+  targetTableId?: number
   onBack: () => void
   onSaved: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) ?? []
-  const defaultTable = tables.find((x) => x.isDefault === 1) ?? tables[0]
+  const tableRows = useLiveQuery(async () => Promise.all((await db.timetables.orderBy('id').toArray()).map(async (table) => hydratedWith(table,table.periodTableId ? await db.periodTables.get(table.periodTableId) : null))), [])
+  const tables = tableRows ?? []
+  const selectedTableId = editingCourse?.tableId ?? targetTableId ?? quickAdd?.tableId
+  const defaultTable = selectedTableId != null
+    ? tables.find(table => table.id === selectedTableId)
+    : tables.find(table => table.isDefault === 1) ?? tables[0]
 
   const isEditing = editingCourse != null
+  const [compact, setCompact] = useState(!!quickAdd)
+  const [saving, setSaving] = useState(false)
+  const savingRef=useRef(false)
+  const [saveError,setSaveError]=useState('')
+  const { ask,host:saveDialogs }=useOccurrenceDialogs()
 
   // issue#23 逐卡: 待落库新建槽位/已有槽位时间编辑 — 落库前不污染 timeJson
   const [pendingEdgeInserts, setPendingEdgeInserts] = useState<
@@ -91,29 +109,33 @@ export function AddCourseView({
 
   const [courseName, setCourseName] = useState(editingCourse?.courseName ?? '')
   const [courseAlias, setCourseAlias] = useState(editingCourse?.alias ?? '')
-  const [startWeek, setStartWeek] = useState(editingCourse?.startWeek ?? 1)
-  const [endWeek, setEndWeek] = useState(editingCourse?.endWeek ?? 16)
+  const [startWeek, setStartWeek] = useState(editingCourse?.startWeek ?? quickAdd?.week ?? 1)
+  const [endWeek, setEndWeek] = useState(editingCourse?.endWeek ?? quickAdd?.week ?? 16)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
-  const [pendingConflictDetails, setPendingConflictDetails] = useState<string[]>([])
   // ref #144 (安卓 :255): 编辑模式初始卡按 editingCourse 自身回填 —
   // 空 groupId 存量课组回填为空 (防呆), 该初始卡即最终形态且 sourceIds 命中主键 →
   // 跳转照样落位; 组加载成功则整列表替换为多卡。
   const [meetingBlocks, setMeetingBlocks] = useState<MeetingBlockDraft[]>([
-    initialMeetingBlock(1, editingCourse ?? null),
+    { ...initialMeetingBlock(1, editingCourse ?? null), ...(quickAdd ? { days:[quickAdd.day],startNode:quickAdd.startNode,step:quickAdd.step,startWeek:quickAdd.week,endWeek:quickAdd.week } : {}) },
   ])
   const [blocksSynced, setBlocksSynced] = useState(!editingCourse)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [groupColor,setGroupColor]=useState(editingCourse?.colorMode===0 ? editingCourse.color : '')
+  const [showGroupPicker,setShowGroupPicker]=useState(false)
 
   // 用户点开课程胶囊 → 编辑页自动落到那颗胶囊所在时段卡 (ref #144, 安卓 LaunchedEffect :326)
   const blockRefs = useRef(new Map<number, HTMLDivElement>())
   const scrolledStage = useRef<string | null>(null)
 
   // 编辑模式: 同 groupId 全部课按时段特征分组回填多卡 (issue#22)
-  if (editingCourse && !blocksSynced && defaultTable) {
+  useEffect(() => {
+    if (!editingCourse || blocksSynced || !defaultTable) return
+    let active=true
     void (async () => {
       // ref #144: 空 groupId 不是组 — 跳过组回填 (安卓 :268 eg.groupId.isNotBlank() 同构)
       const group = editingCourse.groupId === '' ? [] : await getGroupCourses(defaultTable.id, editingCourse.groupId)
       if (group.length > 0) {
+        if(active)setGroupColor(groupSourceColorHex(group))
         const slots = groupSlotsForEdit(group)
         const edgeNodes = new Set(
           parseTimeSlotRows(effectiveTimeJson).filter((r) => r.edgeClass !== null).map((r) => r.node),
@@ -125,6 +147,7 @@ export function AddCourseView({
           const b: MeetingBlockDraft = {
             id: bid++,
             sourceIds: slotCourses.map((c) => c.id),
+            fixedDate: (first as Course & { fixedDate?: string|null }).fixedDate,
             days: [...new Set(slotCourses.map((c) => c.day))].sort((a, b) => a - b),
             startNode: first.startNode,
             step: first.step,
@@ -145,11 +168,12 @@ export function AddCourseView({
           }
           return b
         })
-        setMeetingBlocks(blocks)
+        if(active) setMeetingBlocks(blocks)
       }
-      setBlocksSynced(true)
+      if(active) setBlocksSynced(true)
     })()
-  }
+    return ()=>{ active=false }
+  },[editingCourse,blocksSynced,defaultTable?.id])
 
   // ref #144 跳转 (安卓 :326 LaunchedEffect(editingCourse?.id, meetingBlocks.size)):
   // 阶段 = 最终回填态 (synced) 或初始自身卡 (空组直开)。同课程同形态只滚一次 —
@@ -165,7 +189,7 @@ export function AddCourseView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, blocksSynced, meetingBlocks.length, editingCourse?.id])
 
-  const canSave = courseName.trim() !== '' && meetingBlocks.length > 0
+  const canSave = tableRows !== undefined && courseName.trim() !== '' && meetingBlocks.length > 0
 
   function updateBlock(id: number, patch: Partial<MeetingBlockDraft>) {
     setMeetingBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)))
@@ -190,102 +214,100 @@ export function AddCourseView({
     }
   }
 
-  /** performSave — 校验 → 草稿 → 冲突明细 → 落库 */
-  async function performSave(forceAfterConflict: boolean) {
-    const issues = validateCourseDraft(
-      courseName, meetingBlocks, startWeek, endWeek, effectiveTimeJson, validationStrs(),
-    )
+  /** All questions belong to this immutable draft and snapshot. */
+  async function performSave() {
+    if(savingRef.current) return
+    const issues=validateCourseDraft(courseName,meetingBlocks,startWeek,endWeek,effectiveTimeJson,validationStrs())
     setValidationIssues(issues)
-    if (issues.length > 0) return
-
-    let tableId = defaultTable?.id
-    if (!tableId) {
-      // 没表就自动建一张 — 命名去重递增、起始上周一、首张 isDefault (issue #19/Kotlin 同构)
-      const { insertTable, setDefault } = await import('../data/repository')
-      const existingNames = new Set(tables.map((tb) => tb.name))
-      let index = tables.length + 1
-      let name = t('default_table_with_num', { v1: index })
-      while (existingNames.has(name)) {
-        index++
-        name = t('default_table_with_num', { v1: index })
-      }
-      const d = new Date()
-      d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7)
-      const startDate = d.toISOString().slice(0, 10)
-      const isFirstTable = tables.length === 0
-      tableId = await insertTable({
-        name,
-        timeJson: DEFAULT_TIME_JSON,
-        smartConfigJson: '',
-        isDefault: isFirstTable ? 1 : 0,
-        startDate,
-        nodeCount: 12,
-        maxWeek: 20,
-        createdAt: Date.now(),
-      })
-      if (isFirstTable) await setDefault(tableId)
-    }
-
-    const drafts = meetingBlocks.flatMap((block) =>
-      block.days.slice().sort((a, b) => a - b).map((day) =>
-        buildCourseEntity(tableId!, '', courseName.trim(), block, day, courseAlias.trim(), effectiveTimeJson),
-      ),
-    )
-    const fixedDrafts = isEditing
-      ? drafts.map((d) => ({ ...d, groupId: editingCourse!.groupId }))
-      : drafts
-
-    // v7.10.16u: 不拦但讲清楚 — 编辑模式排除同组旧记录(自己撞自己)
-    if (!forceAfterConflict) {
-      const existing = (await getCourses(tableId)).filter((c) => c.groupId !== editingCourse?.groupId)
-      const dayNames = [1, 2, 3, 4, 5, 6, 7].map((d) => localizedDay(d, i18n.language))
-      const details = draftConflictDetails(fixedDrafts as Course[], existing, dayNames, effectiveTimeJson)
-        .map((d) => formatDetail(d, t('conflict_detail_line')))
-      if (details.length > 0) {
-        setPendingConflictDetails(details)
-        return
-      }
-    }
-
-    // v7.10.16v 撤回: 课程行 + timeJson 写回是一次动作 — beginBatch 让快照固定
-    // 在动作前, 撤回一次整步回退(否则第二写覆盖快照, 只回退一半)
-    undoManager.beginBatch()
+    if(issues.length) return
+    savingRef.current=true;setSaving(true);setSaveError('')
     try {
-      if (isEditing) {
-        // v7.10.16+: 行级 diff/patch 替换整组覆盖 — 不波及同表其他课程
-        const existing = (await getCourses(tableId)).filter((c) => c.groupId === editingCourse!.groupId)
-        const diff = rowKeyDiff(fixedDrafts as Course[], existing)
-        await applyDiff(tableId, diff)
-      } else {
-        const gid = cryptoGroupId()
-        await insertCourses(fixedDrafts.map((d) => ({ ...d, groupId: gid })))
+      let table:Table|undefined=defaultTable
+      if(!table) {
+        if(selectedTableId != null) throw new Error(t('import_target_missing'))
+        const { createEmptyTable }=await import('../data/repository')
+        const id=await createEmptyTable()
+        table=await getTable(id)
       }
-
-      // issue#23: 槽位变更在课程落库成功后写回 timeJson (批边界已开)
-      const table = await getTable(tableId)
-      if (table && (pendingEdgeInserts.length > 0 || pendingEdgeEdits.length > 0)) {
-        let json = table.timeJson
-        for (const ins of pendingEdgeInserts) json = insertEdgeNode(json, ins.edgeClass, ins.start, ins.end)
-        for (const ed of pendingEdgeEdits) json = updateEdgeNodeTimes(json, ed.node, ed.start, ed.end)
-        if (json !== table.timeJson) await updateTable({ ...table, timeJson: json })
+      if(!table) throw new Error('请重新选择课表')
+      if(quickAdd && quickAdd.tableId!==undefined && quickAdd.tableId!==table.id) throw new Error('课表已变化，请重新选择时段')
+      const expectedTable={...table}
+      const snapshot=await getCourses(table.id)
+      const transfers=getHolidayTransfers(table.id)
+      const groupId=editingCourse?.groupId ?? cryptoGroupId()
+      const drafts=meetingBlocks.flatMap((block)=>block.days.slice().sort((a,b)=>a-b).map((day)=>{
+        const colorBlock=block.colorMode===0 ? {...block,color:groupColor || block.color} : block
+        const course={...buildCourseEntity(table!.id,groupId,courseName.trim(),colorBlock,day,courseAlias.trim(),effectiveTimeJson),id:0} as Course
+        if(block.fixedDate) {
+          if(block.startWeek!==block.endWeek || block.days.length!==1) throw new Error('固定日期课程只能选择一天和一周')
+          return {...course,fixedDate:dateOfWeekIso(table!.startDate,block.startWeek,day)} as Course
+        }
+        return course
+      }))
+      const resolved=isEditing ? drafts : await resolveDraftDestinations(drafts,table,transfers,ask)
+      if(!resolved) return
+      const existing=snapshot.filter((course)=>isEditing ? (editingCourse!.groupId ? course.groupId!==editingCourse!.groupId : course.id!==editingCourse!.id) : true)
+      const details=occurrenceConflictDetails(resolved,existing,{...table,timeJson:effectiveTimeJson},transfers,[1,2,3,4,5,6,7].map((day)=>localizedDay(day,i18n.language)),t('conflict_detail_line'))
+      if(details.length && await ask(t('conflict_detail_title'),details.join('\n'),[t('conflict_detail_save_anyway')],true)===null) return
+      const repository=await import('../data/repository') as typeof import('../data/repository') & {
+        saveCourseDraft:(drafts:Course[],replacingGroupId:string|null,expectedCourses:Course[],expectedTable:Table,draftTimeJson:string,expectedTransfers:HolidayTransferEntry[],replacingCourseId?:number)=>Promise<boolean>
       }
-      await undoManager.endBatch()
-    } catch (e) {
-      await undoManager.endBatch()
-      throw e
-    }
-    onSaved()
+      if(!await repository.saveCourseDraft(resolved,isEditing ? editingCourse!.groupId : null,snapshot,expectedTable,effectiveTimeJson,transfers,isEditing && !editingCourse!.groupId ? editingCourse!.id : undefined)) throw new Error('课表或调休已变化，请重新打开编辑页')
+      onSaved()
+    } catch(error) {setSaveError(error instanceof Error ? error.message : '保存失败，请重试')}
+    finally {savingRef.current=false;setSaving(false)}
   }
 
   async function handleDeleteGroup() {
     if (!editingCourse || !defaultTable) return
-    await deleteCourseGroup(defaultTable.id, editingCourse.groupId)
+    if(editingCourse.groupId) await deleteCourseGroup(defaultTable.id, editingCourse.groupId)
+    else await deleteCourse(editingCourse.id)
     onSaved()
+  }
+
+  async function changeGroupColor(hex:string) {
+    setShowGroupPicker(false)
+    if(await ask(t('group_color_confirm_title','确认修改组色'),`${hex}\n${t('group_color_confirm_msg','组色会影响本课程所有跟随组色的节次。')}`)===null)return
+    if(savingRef.current)return
+    savingRef.current=true;setSaving(true);setSaveError('')
+    try {
+      if(editingCourse?.groupId && defaultTable) {
+        const repository=await import('../data/repository') as typeof import('../data/repository') & {setGroupSourceColor:(tableId:number,groupId:string,hex:string)=>Promise<void>}
+        await repository.setGroupSourceColor(defaultTable.id,editingCourse.groupId,hex)
+        const fresh=await getGroupCourses(defaultTable.id,editingCourse.groupId)
+        setGroupColor(groupSourceColorHex(fresh))
+      } else setGroupColor(hex)
+      setMeetingBlocks(blocks=>blocks.map(block=>block.colorMode===0 ? {...block,color:hex} : block))
+    } catch(error) {setSaveError(error instanceof Error ? error.message : '组色保存失败，请重试')}
+    finally {savingRef.current=false;setSaving(false)}
+  }
+
+  if (compact && quickAdd) {
+    const block=meetingBlocks[0]
+    return <div style={{ padding:16,display:'flex',flexDirection:'column',gap:16 }}>
+      <Header title="添加本次课程" onBack={()=>{if(!saving)onBack()}} />
+      <fieldset disabled={saving} style={{ margin:0,border:0,minWidth:0,padding:16,borderRadius:28,background:'var(--md-surface-container)',display:'flex',flexDirection:'column',gap:12 }}>
+        <div className="m3-body-medium">{quickAdd.date}，{localizedDay(quickAdd.day,i18n.language)}，第 {quickAdd.startNode}–{quickAdd.startNode+quickAdd.step-1} 节</div>
+        <Field label={t('course_name_required')} value={courseName} onChange={setCourseName} />
+        <Field label={t('course_alias')} value={courseAlias} onChange={setCourseAlias} />
+        <Field label={t('course_teacher')} value={block.teacher} onChange={(teacher) => updateBlock(block.id,{ teacher })} />
+        <Field label={t('course_room')} value={block.room} onChange={(room) => updateBlock(block.id,{ room })} />
+        <Field multiline label={t('course_note')} value={block.note} onChange={(note) => updateBlock(block.id,{ note })} />
+        <ColorSection block={block} groupColor={groupColor} onChange={(patch) => updateBlock(block.id,patch)} />
+        {validationIssues.map((issue,i) => <div key={i} role="alert" style={{ color:'var(--md-error)' }}>{issue.message}</div>)}
+      </fieldset>
+      <div className="quick-add-footer">
+      <button className="occurrence-primary" style={{minHeight:56}} disabled={!canSave || saving} onClick={() => void performSave()}>{saving ? '正在保存' : '保存课程'}</button>
+      <button className="occurrence-secondary" disabled={saving} onClick={() => setCompact(false)}>更多设置</button>
+      </div>
+      {saveError && <p role="alert" style={{color:'var(--md-error)'}}>{saveError}</p>}
+      {saveDialogs}
+    </div>
   }
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <Header onBack={onBack} title={isEditing ? t('edit_course') : t('create_course')} />
+      <Header onBack={()=>{if(!saving)onBack()}} title={isEditing ? t('edit_course') : t('create_course')} />
 
       {validationIssues.length > 0 && (
         <div
@@ -327,6 +349,13 @@ export function AddCourseView({
         </div>
         <Field label={t('course_name_required')} value={courseName} onChange={setCourseName} />
         <Field label={t('course_alias')} value={courseAlias} onChange={setCourseAlias} />
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <span className="m3-label-large" style={{color:'var(--md-on-surface-variant)'}}>{t('course_group_color','组色')}</span>
+          <div style={{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'center',gap:8}}>
+            <GroupColorValue hex={groupColor}/>
+            <button type="button" className="occurrence-secondary" disabled={saving} onClick={()=>setShowGroupPicker(true)}>{t('change_group_color','改组色')}</button>
+          </div>
+        </div>
       </div>
 
       {/* 周次范围 — 28dp 圆角 + surfaceContainer */}
@@ -343,10 +372,7 @@ export function AddCourseView({
           <div className="m3-title-medium" style={{ fontWeight: 600 }}>{t('week_range')}</div>
           <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('week_range_sub')}</div>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <NumberField label={t('start_week')} value={startWeek} onChange={setStartWeek} grow />
-          <NumberField label={t('end_week')} value={endWeek} onChange={setEndWeek} grow />
-        </div>
+        <IntRangeSlider label={`${t('week_range')} ${startWeek}–${endWeek}`} max={Math.max(defaultTable?.maxWeek ?? 20, endWeek)} start={startWeek} end={endWeek} initialStart={editingCourse?.startWeek} initialEnd={editingCourse?.endWeek} onChange={(s,e) => { setStartWeek(s); setEndWeek(e) }} />
         <button
           onClick={() => setMeetingBlocks((bs) => bs.map((b) => ({ ...b, startWeek, endWeek })))}
           style={{
@@ -367,7 +393,7 @@ export function AddCourseView({
 
       {meetingBlocks.map((block, index) => (
         <div
-          key={block.id}
+          key={`${block.id}:${block.sourceIds?.join(',') ?? 'new'}`}
           ref={(el) => {
             // ref #144: 记录卡 DOM 节点供跳转 scrollIntoView
             if (el) blockRefs.current.set(block.id, el)
@@ -377,6 +403,10 @@ export function AddCourseView({
         <MeetingBlockCard
           title={t('slot_n', { v1: index + 1 })}
           block={block}
+          groupColor={groupColor}
+          defaultExpanded={!isEditing || !block.sourceIds?.length || (blocksSynced && findTargetBlockIndex(meetingBlocks, editingCourse ?? null) === index)}
+          maxWeek={Math.max(defaultTable?.maxWeek ?? 20, block.endWeek)}
+          isEditing={isEditing}
           canRemove={meetingBlocks.length > 1}
           maxStd={maxStdOf(effectiveTimeJson)}
           timeJson={effectiveTimeJson}
@@ -449,8 +479,8 @@ export function AddCourseView({
       </button>
 
       <button
-        onClick={() => void performSave(false)}
-        disabled={!canSave}
+        onClick={() => void performSave()}
+        disabled={!canSave || saving}
         style={{
           height: 56, borderRadius: 16, padding: '0 16px', border: 'none', cursor: canSave ? 'pointer' : 'default',
           background: 'var(--md-primary)', color: 'var(--md-on-primary)',
@@ -477,63 +507,18 @@ export function AddCourseView({
         </button>
       )}
 
-      {/* 冲突明细弹窗 — 仍然保存 = 明确放行 */}
-      {pendingConflictDetails.length > 0 && (
-        <Overlay onDismiss={() => setPendingConflictDetails([])}>
-          <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('conflict_detail_title')}</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {pendingConflictDetails.slice(0, 6).map((line, i) => (
-              <div key={i} className="m3-body-small">• {line}</div>
-            ))}
-            {pendingConflictDetails.length > 6 && (
-              <div className="m3-label-small">{t('more_unexpanded', { v1: pendingConflictDetails.length - 6 })}</div>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setPendingConflictDetails([])} style={ghostStyle}>
-              {t('conflict_detail_go_back')}
-            </button>
-            <button
-              onClick={() => {
-                setPendingConflictDetails([])
-                void performSave(true)
-              }}
-              style={{
-                padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontWeight: 600,
-              }}
-            >
-              {t('conflict_detail_save_anyway')}
-            </button>
-          </div>
-        </Overlay>
-      )}
+      {saveError && <p role="alert" style={{color:'var(--md-error)'}}>{saveError}</p>}
+      {saveDialogs}
 
-      {/* 删除课程确认 — M3 AlertDialog 语义 (onSurface 标题 + error 色按钮) */}
+      {showGroupPicker && <ColorPickerDialog initialHex={groupColor || SENTINEL_COLOR} onDismiss={()=>setShowGroupPicker(false)} onConfirm={hex=>void changeGroupColor(hex)}/>}
+
       {showDeleteConfirm && (
-        <Overlay onDismiss={() => setShowDeleteConfirm(false)}>
-          <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('confirm_delete')}</h2>
+        <AlertDialog title={t('confirm_delete')} onDismiss={() => setShowDeleteConfirm(false)}>
           <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
             {t('delete_course_confirm', { v1: editingCourse?.courseName ?? '' })}
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowDeleteConfirm(false)} style={ghostStyle}>
-              {t('cancel')}
-            </button>
-            <button
-              onClick={() => {
-                setShowDeleteConfirm(false)
-                void handleDeleteGroup()
-              }}
-              style={{
-                padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: 'transparent', color: 'var(--md-error)', fontWeight: 600,
-              }}
-            >
-              {t('delete')}
-            </button>
-          </div>
-        </Overlay>
+          <div style={{marginTop:12}}><DialogActionButtons confirmText={t('delete')} destructive onConfirm={()=>{setShowDeleteConfirm(false);void handleDeleteGroup()}} dismissText={t('cancel')} onDismiss={()=>setShowDeleteConfirm(false)}/></div>
+        </AlertDialog>
       )}
     </div>
   )
@@ -542,11 +527,15 @@ export function AddCourseView({
 // ── MeetingBlockCard — 单时段卡 ─────────────────────────────────────────
 
 function MeetingBlockCard({
-  title, block, canRemove, maxStd, issues, timeJson, onRemove, onChange,
+  title, block, groupColor,defaultExpanded, maxWeek, isEditing, canRemove, maxStd, issues, timeJson, onRemove, onChange,
   onPickExistingEdge, onPickNewEdgeSlot, onEditExistingSlot, onDeselectEdge, onToggleIrregularTime,
 }: {
   title: string
+  defaultExpanded: boolean
+  maxWeek: number
+  isEditing: boolean
   block: MeetingBlockDraft
+  groupColor:string
   canRemove: boolean
   maxStd: number
   issues: string[]
@@ -560,6 +549,10 @@ function MeetingBlockCard({
   onToggleIrregularTime: (next: boolean) => void
 }) {
   const { t, i18n } = useTranslation()
+
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const baseline = useRef({ startNode: block.startNode, endNode: block.startNode + block.step - 1, startWeek: block.startWeek, endWeek: block.endWeek })
+  useEffect(() => { if (defaultExpanded) setExpanded(true) }, [defaultExpanded])
 
   // 受控折叠态 — 编辑已启用任一非常规项的卡时默认展开 (Android §4 IrregularOptionsSection)
   const [irregularOpen, setIrregularOpen] = useState(block.isIrregularNode || block.isIrregularTime)
@@ -628,14 +621,15 @@ function MeetingBlockCard({
           {t('slot_step_clamped_hint', { v3: maxStd })}
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div style={{ flex: 1 }}>
+      <div data-slot-header style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div role="button" tabIndex={0} aria-label={title} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded) } }} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
           <div className="m3-title-small" style={{ fontWeight: 600 }}>{title}</div>
           <div className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
             {block.days.length === 0
               ? t('select_at_least_one_day')
               : t('selected_days', { v1: block.days.slice().sort((a, b) => a - b).map((d) => localizedDay(d, i18n.language)).join(' / ') })}
           </div>
+          <div className="m3-label-small">第 {block.startWeek}–{block.endWeek} 周，{block.isIrregularTime ? `${block.startTime}–${block.endTime}` : `第 ${block.startNode}–${block.startNode + block.step - 1} 节`}{block.room ? `，${block.room}` : ''}{block.teacher ? `，${block.teacher}` : ''}</div>
         </div>
         {canRemove && (
           <button
@@ -643,15 +637,17 @@ function MeetingBlockCard({
             aria-label={t('delete_slot')}
             style={{
               border: 'none', background: 'transparent', cursor: 'pointer',
-              padding: 8, color: 'var(--md-on-surface-variant)',
+              padding: 0, width:48, height:48, flexShrink:0, borderRadius:24, color: 'var(--md-on-surface-variant)',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
             <IconClose size={18} />
           </button>
         )}
+        <button type="button" aria-label={expanded ? '收起时段' : '展开时段'} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} style={{ width: 48, height: 48, flexShrink:0, border: 'none', background: 'transparent', borderRadius: 18, cursor: 'pointer', transform: expanded ? 'rotate(90deg)' : 'none', color: 'var(--md-on-surface-variant)' }}><IconChevronRight size={20} /></button>
       </div>
 
+      {expanded && <>
       {/* 星期多选 — 两行网格: 4 列 × 2 行 + 第 2 行末占位 (Android MultiDayPicker §10) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
@@ -699,27 +695,7 @@ function MeetingBlockCard({
 
       {/* 标准节次 — max=maxStd (§10); 任一字段成功编辑复位 clamped */}
       {!block.isIrregularNode && (
-        <div style={{ display: 'flex', gap: 12 }}>
-          <NumberField
-            label={t('start_node')}
-            value={block.startNode}
-            max={maxStd}
-            onChange={(v) => {
-              const stepCap = Math.max(1, maxStd - v + 1)
-              onChange({ startNode: v, step: block.step > stepCap ? stepCap : block.step, clamped: false })
-            }}
-            onClamp={() => onChange({ clamped: true })}
-            grow
-          />
-          <NumberField
-            label={t('step_count')}
-            value={block.step}
-            max={Math.max(1, maxStd - block.startNode + 1)}
-            onChange={(v) => onChange({ step: v, clamped: false })}
-            onClamp={() => onChange({ clamped: true })}
-            grow
-          />
-        </div>
+        <IntRangeSlider label={`第 ${block.startNode}–${block.startNode + block.step - 1} 节`} max={maxStd} start={Math.max(1, Math.min(maxStd, block.startNode))} end={Math.max(1, Math.min(maxStd, block.startNode + block.step - 1))} initialStart={isEditing ? baseline.current.startNode : undefined} initialEnd={isEditing ? baseline.current.endNode : undefined} onChange={(s,e) => onChange({ startNode: s, step: e-s+1, clamped: false })} />
       )}
 
       {/* 非常规选项折叠栏 — surfaceContainerHighest 底, 12dp 圆角, chevron 旋转动画 (§4) */}
@@ -863,10 +839,7 @@ function MeetingBlockCard({
       </div>
 
       {/* 每卡周次 */}
-      <div style={{ display: 'flex', gap: 12 }}>
-        <NumberField label={`${t('slot_week_range')} ${t('start_week')}`} value={block.startWeek} onChange={(v) => onChange({ startWeek: v })} grow />
-        <NumberField label={`${t('slot_week_range')} ${t('end_week')}`} value={block.endWeek} onChange={(v) => onChange({ endWeek: v })} grow />
-      </div>
+      <IntRangeSlider label={`第 ${block.startWeek}–${block.endWeek} 周`} max={maxWeek} start={block.startWeek} end={block.endWeek} initialStart={isEditing ? baseline.current.startWeek : undefined} initialEnd={isEditing ? baseline.current.endWeek : undefined} onChange={(s,e) => onChange({ startWeek:s, endWeek:e })} />
 
       {/* 单双周 4 态 — AddCourseScreen.kt: SegmentedSwitcher fillMaxWidth, 默认容器 */}
       <SegmentedSwitcher
@@ -883,11 +856,13 @@ function MeetingBlockCard({
       </label>
 
       {/* 颜色三态 — 开关 + 32dp 圆点 + Switch 首次开 → AUTO (Android ColorSection §11) */}
-      <ColorSection block={block} onChange={onChange} />
+      <ColorSection block={block} groupColor={groupColor} onChange={onChange} />
 
       {issues.map((issue, i) => (
         <div key={i} className="m3-label-small" style={{ color: 'var(--md-error)' }}>{issue}</div>
       ))}
+
+      </>}
 
       {/* 候选节次弹层 — Before/After 两组, exists 行 secondaryContainer, else 行 surfaceContainerHighest (§2.2) */}
       {edgePickerOpen && (
@@ -1026,53 +1001,20 @@ function cryptoGroupId(): string {
   return `g_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-/** RowKeyDiffer.diff 1:1 — 行身份键 8 字段 (room/teacher 进 key; color/note/alias 不进);
- *  draft 命中 server → fieldsDiffer 才 update(保 server id); server 无匹配 → delete */
-function rowKeyDiff(drafts: Course[], existing: Course[]): RowDiff {
-  const keyOf = (c: Pick<Course, 'day' | 'startNode' | 'step' | 'startWeek' | 'endWeek' | 'type' | 'room' | 'teacher'>) =>
-    `${c.day}|${c.startNode}|${c.step}|${c.startWeek}|${c.endWeek}|${c.type}|${c.room}|${c.teacher}`
-  const toAdd: Omit<Course, 'id'>[] = []
-  const toUpdate: Course[] = []
-  const toDeleteIds: number[] = []
-  const sKeyToCourse = new Map(existing.map((c) => [keyOf(c), c] as const))
-  const dKeyToCourse = new Map(drafts.map((c) => [keyOf(c), c] as const))
-  for (const [key, draftCourse] of dKeyToCourse) {
-    const serverCourse = sKeyToCourse.get(key)
-    if (!serverCourse) {
-      toAdd.push(draftCourse)
-    } else if (fieldsDiffer(serverCourse, draftCourse)) {
-      toUpdate.push({ ...draftCourse, id: serverCourse.id })
-    }
-  }
-  for (const [key, serverCourse] of sKeyToCourse) {
-    if (!dKeyToCourse.has(key)) toDeleteIds.push(serverCourse.id)
-  }
-  return { toAdd, toUpdate, toDeleteIds }
-}
-
-/** fieldsDiffer — RowKey 外字段逐项比对 (alias 2026-09-11 纳入) */
-function fieldsDiffer(a: Course, b: Course): boolean {
-  return (
-    a.courseName !== b.courseName ||
-    a.alias !== b.alias ||
-    a.note !== b.note ||
-    a.color !== b.color ||
-    a.colorMode !== b.colorMode ||
-    a.ownTime !== b.ownTime ||
-    a.startTime !== b.startTime ||
-    a.endTime !== b.endTime ||
-    a.credit !== b.credit ||
-    a.level !== b.level ||
-    a.tableId !== b.tableId
-  )
-}
-
 // ── 颜色三态 (§11 ColorSection) ─────────────────────────────────────────
 
+function cssCourseColor(hex:string) {const rgb=parseHex(hex);return rgb ? rgbToHex(rgb) : 'var(--md-surface-variant)'}
+function GroupColorValue({hex}:{hex:string}) {
+  const {t}=useTranslation()
+  const custom=hex.trim()!=='' && hex.toUpperCase()!==SENTINEL_COLOR
+  return <div style={{display:'flex',alignItems:'center',gap:8,paddingRight:8}}><span aria-hidden style={{width:20,height:20,flexShrink:0,borderRadius:'50%',background:custom ? cssCourseColor(hex) : 'var(--md-surface-variant)'}}/><span className="m3-label-small" style={{color:'var(--md-on-surface-variant)'}}>{custom ? hex : t('color_group_auto','自动（黄金角色）')}</span></div>
+}
+
 function ColorSection({
-  block, onChange,
+  block, groupColor,onChange,
 }: {
   block: MeetingBlockDraft
+  groupColor:string
   onChange: (patch: Partial<MeetingBlockDraft>) => void
 }) {
   const { t } = useTranslation()
@@ -1087,9 +1029,10 @@ function ColorSection({
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
-            {useDifferent ? t('color_use_different') : t('color_follow_group')}
+            {t('color_custom_switch','自定义颜色')}
           </span>
           <Switch
+            label={t('color_custom_switch','自定义颜色')}
             checked={useDifferent}
             onChange={() => {
               if (useDifferent) {
@@ -1102,6 +1045,7 @@ function ColorSection({
           />
         </div>
       </div>
+      {!useDifferent && <GroupColorValue hex={groupColor}/>}
       {useDifferent && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* 自动 — 32dp 圆点, 选中 primaryContainer 底, 内文 t('label_from') 11px */}
@@ -1124,7 +1068,7 @@ function ColorSection({
             aria-label={t('color_custom')}
             style={{
               width: 32, height: 32, borderRadius: 16, border: 'none', cursor: 'pointer',
-              background: block.colorMode === 2 && block.color ? block.color : 'var(--md-surface-variant)',
+              background: block.colorMode === 2 && block.color ? cssCourseColor(block.color) : 'var(--md-surface-variant)',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 14, color: 'var(--md-on-surface-variant)',
             }}
@@ -1152,144 +1096,6 @@ function ColorSection({
   )
 }
 
-/** HSV 取色器弹窗 — SV 面板(白→透明 + 透明→黑 双层渐变) + 色相条(rainbow linear-gradient)
- *  + 预览圆 + hex (web 等价实现, 拖动事件省略, 仅支持点击 — 用户极少数触达路径) */
-function ColorPickerDialog({
-  initialHex, onConfirm, onDismiss,
-}: {
-  initialHex: string
-  onConfirm: (hex: string) => void
-  onDismiss: () => void
-}) {
-  const { t } = useTranslation()
-  const rgb = parseHexRgb(initialHex) ?? [103, 80, 164]
-  const initialHsv = rgbToHsv(rgb)
-  const [hue, setHue] = useState(initialHsv[0])
-  const [sat, setSat] = useState(initialHsv[1])
-  const [val, setVal] = useState(initialHsv[2])
-  const [hex, setHex] = useState(initialHex)
-
-  function commitHSV(h: number, s: number, v: number) {
-    setHue(h); setSat(s); setVal(v)
-    const rgb2 = hsvToRgb(h, s, v)
-    const rh = rgb2.map((x) => x.toString(16).padStart(2, '0')).join('')
-    setHex(`#FF${rh.toUpperCase()}`)
-  }
-
-  return (
-    <Overlay onDismiss={onDismiss}>
-      <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('course_color')}</h2>
-      {/* SV 面板 — 200dp 高 */}
-      <div
-        onClick={(e) => {
-          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-          const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-          const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
-          commitHSV(hue, x, 1 - y)
-        }}
-        style={{
-          position: 'relative', width: '100%', height: 200, borderRadius: 16,
-          background: `hsl(${hue}, 100%, 50%)`,
-          cursor: 'crosshair',
-        }}
-      >
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, white, transparent)', borderRadius: 16 }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, black)', borderRadius: 16 }} />
-        <div
-          style={{
-            position: 'absolute',
-            left: `${sat * 100}%`, top: `${(1 - val) * 100}%`,
-            width: 12, height: 12, borderRadius: 6,
-            transform: 'translate(-50%, -50%)',
-            background: 'white', boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
-          }}
-        />
-      </div>
-      {/* 色相滑条 — 36dp 高, 360° 彩虹 */}
-      <div
-        onClick={(e) => {
-          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-          const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-          commitHSV(x * 360, sat, val)
-        }}
-        style={{
-          position: 'relative', width: '100%', height: 36, borderRadius: 16,
-          background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
-          cursor: 'crosshair',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            left: `${(hue / 360) * 100}%`, top: '50%',
-            width: 12, height: 12, borderRadius: 6,
-            transform: 'translate(-50%, -50%)',
-            background: 'white', boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
-          }}
-        />
-      </div>
-      {/* 预览 + Hex */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div
-          style={{
-            width: 40, height: 40, borderRadius: 20,
-            background: `hsl(${hue}, ${sat * 100}%, ${val * 50}%)`,
-          }}
-        />
-        <span className="m3-label-large" style={{ color: 'var(--md-on-surface-variant)' }}>{hex}</span>
-      </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onDismiss} style={ghostStyle}>{t('cancel')}</button>
-        <button
-          onClick={() => onConfirm(hex)}
-          style={{
-            padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-            background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontWeight: 600,
-          }}
-        >
-          {t('ok')}
-        </button>
-      </div>
-    </Overlay>
-  )
-}
-
-// HSV/RGB 转换 (颜色三态拾色器用, 复用 domain/courseColor.ts 习惯)
-function parseHexRgb(hex: string): [number, number, number] | null {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.slice(0, 7))
-  if (!m) return null
-  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
-}
-function rgbToHsv(rgb: [number, number, number]): [number, number, number] {
-  const r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255
-  const max = Math.max(r, g, b), min = Math.min(r, g, b)
-  const d = max - min
-  let h = 0
-  if (d !== 0) {
-    if (max === r) h = ((g - b) / d) % 6
-    else if (max === g) h = (b - r) / d + 2
-    else h = (r - g) / d + 4
-    h *= 60
-    if (h < 0) h += 360
-  }
-  const s = max === 0 ? 0 : d / max
-  const v = max
-  return [h, s, v]
-}
-function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
-  const c = v * s
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-  const m = v - c
-  let r = 0, g = 0, b = 0
-  if (h < 60) { r = c; g = x }
-  else if (h < 120) { r = x; g = c }
-  else if (h < 180) { g = c; b = x }
-  else if (h < 240) { g = x; b = c }
-  else if (h < 300) { r = x; b = c }
-  else { r = c; b = x }
-  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)]
-}
-
 // ── 通用 UI ─────────────────────────────────────────────────────────────
 
 const fieldStyle: React.CSSProperties = {
@@ -1311,11 +1117,11 @@ const ghostStyle: React.CSSProperties = {
   fontSize: 13,
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Field({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} style={fieldStyle} />
+      {multiline ? <textarea rows={2} value={value} onChange={(e)=>onChange(e.target.value)} style={{...fieldStyle,resize:'vertical'}} /> : <input value={value} onChange={(e) => onChange(e.target.value)} style={fieldStyle} />}
     </label>
   )
 }
@@ -1436,8 +1242,8 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
         onClick={onBack}
         aria-label={t('back')}
         style={{
-          padding: '8px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
-          background: 'transparent', color: 'var(--md-on-surface)', fontSize: 18,
+          width:48,height:48,padding:0,display:'inline-flex',alignItems:'center',justifyContent:'center', borderRadius:24,border:'none',cursor:'pointer',
+          background:'transparent',color:'var(--md-on-surface)',fontSize:18,flexShrink:0,
         }}
       >
         <IconArrowBack size={20} />
@@ -1462,7 +1268,7 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
         aria-modal="true"
         className="m3-card"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 440, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
+        style={{ maxWidth: 440, width: '100%', minWidth:0,maxHeight:'calc(100dvh - 32px)',overflowY:'auto',boxSizing:'border-box',display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
       >
         {children}
       </div>

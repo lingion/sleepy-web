@@ -50,6 +50,8 @@ export interface Course {
   endTime: string
   credit: number
   level: number
+  /** A directly scheduled date bypasses holiday transfer projection. */
+  fixedDate?: string | null
 }
 
 /** 时间节点 — timeJson 数组元素 */
@@ -81,6 +83,10 @@ export interface Table {
    * Room INTEGER NOT NULL DEFAULT 1 → 可选字段: 缺列旧行 = 开 (undefined !== 0 判定), 升级零行为变化。
    */
   reminderEnabled?: 0 | 1
+  /** null follows the automatic reminder scope; true/false is an explicit choice. */
+  reminderOverride?: boolean | null
+  /** Original import identity and suggestions; confirmed timetable fields stay authoritative. */
+  importSourceJson?: string
   /** 学期开始周一 (yyyy-MM-dd), 空串=未设置 */
   startDate: string
   /** 每周节点数 (默认 12) */
@@ -205,6 +211,7 @@ export interface Holiday {
  * showDate=false, navDock=false, lang=zh-CN, widgetSeparator=true。
  */
 export interface Prefs {
+  uiStyle: 'classic' | 'liquid_glass'
   themeMode: 'system' | 'light' | 'dark'
   /** 预设 key(default/spring/ocean/peach/slate) | 'system' | 'custom:<uuid>' (AppPrefs themeKey 同构) */
   theme: string
@@ -247,6 +254,9 @@ export interface Prefs {
   widgetColorless: boolean
   /** App 课程胶囊无色模式, 默认 false */
   courseColorless: boolean
+  /** Android 0 classic, 1 follows theme, 2 custom hue. */
+  courseColorMode: 0 | 1 | 2
+  courseColorSeedHue: number
   /** WeekView 小组件课程间分隔线, 默认 true */
   widgetSeparator: boolean
   /** 法定节假日灰显开关 — 默认 true (AppPrefs KEY_HOLIDAY_GREY_HOLIDAY) */
@@ -279,6 +289,8 @@ export interface Prefs {
   periodHeaderHanging: number
   /** 单节时显示完整“第 X 节” */
   periodHeaderShowX: boolean
+  /** 旧式节次表头隐藏时间；三行布局保留此偏好但不应用。 */
+  periodHeaderHideTime: boolean
   /** 旧式两行表头时间轴对齐: dash=连字符字形中心轴 / center=卡片中心 (AppPrefs KEY_PERIOD_HEADER_TIME_ALIGNMENT, ref sleepy#259) */
   periodHeaderTimeAlignment: 'dash' | 'center'
   /** 实验室: 网格视图额外分隔线 — 默认 false (AppPrefs KEY_GRID_SHOW_SEPARATORS) */
@@ -303,6 +315,7 @@ export interface Prefs {
 }
 
 export const DEFAULT_PREFS: Prefs = {
+  uiStyle: 'classic',
   themeMode: 'system',
   theme: 'default',
   lang: 'zh-CN',
@@ -331,6 +344,8 @@ export const DEFAULT_PREFS: Prefs = {
   vertPunct: false,
   widgetColorless: false,
   courseColorless: false,
+  courseColorMode: 0,
+  courseColorSeedHue: -1,
   widgetSeparator: true,
   holidayGreyHoliday: true,
   holidayGreyWeekend: true,
@@ -347,6 +362,7 @@ export const DEFAULT_PREFS: Prefs = {
   periodHeaderStyle: 'arabic',
   periodHeaderHanging: 0,
   periodHeaderShowX: false,
+  periodHeaderHideTime: false,
   periodHeaderTimeAlignment: 'dash',
   gridShowSeparators: false,
   gridLongBreakSpacing: false,

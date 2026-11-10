@@ -21,6 +21,7 @@ import {
   type SmartPeriodConfig,
 } from '../../domain/smartPeriod'
 import { appendEmptyRow, removeAndRenumber, type TimeSlotRow } from '../../domain/timeTable'
+import { mergeAutoRows, resolveAutoPeriodConfig } from '../../domain/periodEditor'
 
 // ── 节次时间表折叠节 — TimeSlotEditor.kt 1:1 (手动/自动 Tab + 智慧节次) ─────
 
@@ -56,17 +57,18 @@ export function TimeSlotSection({
 
   // Android LaunchedEffect(mode, smartConfig): 自动模式下 config 一变即 derive rows 同步上层
   useEffect(() => {
-    if (mode === 'auto') onRowsChange(deriveRows(smartConfig))
+    if (mode === 'auto') onRowsChange(mergeAutoRows(rows, deriveRows(smartConfig)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, smartConfig])
 
   return (
-    <div style={{ overflow: 'hidden', borderRadius: 28, background: 'var(--md-surface-container)' }}>
+    <div style={{ borderRadius: 28, background: 'var(--md-surface-container)' }}>
       <div
         role="button"
         tabIndex={0}
+        aria-expanded={expanded}
         onClick={onToggle}
-        onKeyDown={(e) => e.key === 'Enter' && onToggle()}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
         style={{ display: 'flex', alignItems: 'center', padding: 16, cursor: 'pointer', gap: 8 }}
       >
         <div style={{ flex: 1 }}>
@@ -88,7 +90,10 @@ export function TimeSlotSection({
                 : [t('mode_manual'), t('mode_auto')]
             }
             selected={mode === 'manual' ? 0 : mode === 'auto' ? 1 : 2}
-            onSelect={(i) => setMode(i === 0 ? 'manual' : i === 1 ? 'auto' : 'periodTable')}
+            onSelect={(i) => {
+              if (i === 1) onSmartConfigChange(resolveAutoPeriodConfig(rows, smartConfig) ?? smartConfig)
+              setMode(i === 0 ? 'manual' : i === 1 ? 'auto' : 'periodTable')
+            }}
           />
           {mode === 'manual' ? (
             <ManualTimeSlotEditor rows={rows} onRowsChange={onRowsChange} />
@@ -157,7 +162,8 @@ function BindChoiceRow({
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      aria-pressed={selected}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       style={{
         display: 'flex', alignItems: 'center', gap: 8,
         borderRadius: 12, padding: '10px 12px', cursor: 'pointer',
@@ -240,7 +246,7 @@ function ManualTimeSlotEditor({
                 next[i] = { ...r, start: e.target.value }
                 onRowsChange(next)
               }}
-              style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
+              style={{ ...fieldStyle, flex: 1, minWidth: 0, textAlign: 'center' }}
             />
             <input
               type="time"
@@ -251,7 +257,7 @@ function ManualTimeSlotEditor({
                 next[i] = { ...r, end: e.target.value }
                 onRowsChange(next)
               }}
-              style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
+              style={{ ...fieldStyle, flex: 1, minWidth: 0, textAlign: 'center' }}
             />
             {rows.length > 1 ? (
               <button

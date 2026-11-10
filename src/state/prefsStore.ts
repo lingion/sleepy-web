@@ -10,6 +10,7 @@ import type { Prefs } from '../data/types'
 import { undoManager } from '../data/undoStore'
 import { changeLang } from '../i18n'
 import { applyTheme } from '../theme/themes'
+import { observeCourseHues, refreshCourseHues } from '../data/courseHueStore'
 
 interface PrefsState {
   prefs: Prefs
@@ -26,6 +27,8 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
     const prefs = await loadPrefs()
     set({ prefs, loaded: true })
     syncSideEffects(prefs)
+    await refreshCourseHues(prefs, resolveIsDark(prefs)).catch(() => 0)
+    observeCourseHues(() => get().prefs, resolveIsDark, () => set({ prefs: { ...get().prefs } }))
   },
 
   update: async (patch) => {
@@ -33,6 +36,8 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
     set({ prefs })
     syncSideEffects(prefs)
     await savePrefs(prefs)
+    await refreshCourseHues(prefs, resolveIsDark(prefs)).catch(() => 0)
+    set({ prefs: { ...get().prefs } })
   },
 }))
 
@@ -41,11 +46,15 @@ function clampPrefs(p: Prefs): Prefs {
   const cl = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
   return {
     ...p,
+    uiStyle: p.uiStyle === 'liquid_glass' ? 'liquid_glass' : 'classic',
+    courseColorMode: [0, 1, 2].includes(p.courseColorMode) ? p.courseColorMode : 0,
+    courseColorSeedHue: Number.isFinite(p.courseColorSeedHue) ? cl(p.courseColorSeedHue, -1, 360) : -1,
     gridScale: cl(p.gridScale, 0.7, 1.3),
     gridRowScale: cl(p.gridRowScale, 0.7, 1.8),
     weekScale: cl(p.weekScale, 0.7, 1.3),
     gridCornerRatio: cl(p.gridCornerRatio, 0, 2),
     periodHeaderHanging: cl(p.periodHeaderHanging, -1, 1),
+    periodHeaderHideTime: p.periodHeaderHideTime === true,
     conflictStackInset: cl(p.conflictStackInset, 4, 20),
     conflictRailInset: cl(p.conflictRailInset, 4, 20),
     conflictFoldSize: cl(p.conflictFoldSize, 8, 28),
@@ -55,6 +64,7 @@ function clampPrefs(p: Prefs): Prefs {
 
 /** 副作用: 主题/语言/撤回深度即时应用 (Android side-effect 同) */
 function syncSideEffects(prefs: Prefs): void {
+  document.documentElement.dataset.uiStyle = prefs.uiStyle
   const isDark = resolveIsDark(prefs)
   applyTheme(prefs.theme, isDark)
   changeLang(prefs.lang)
@@ -76,6 +86,7 @@ if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     const prefs = usePrefsStore.getState().prefs
     if (prefs.themeMode === 'system') {
       syncSideEffects(prefs)
+      void refreshCourseHues(prefs, resolveIsDark(prefs)).then(() => usePrefsStore.setState({ prefs: { ...usePrefsStore.getState().prefs } })).catch(() => {})
       usePrefsStore.setState({ prefs: { ...prefs } })
     }
   })

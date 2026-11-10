@@ -6,15 +6,31 @@
 import { db, nextTableId, nextCourseId, nextPeriodTableId } from './db'
 import { undoManager } from './undoStore'
 import type { Course, ImportDraft, PeriodTable, Table } from './types'
-import { restoredForUnbind, snapshotForBind } from './types'
+import { hydratedWith, restoredForUnbind, snapshotForBind } from './types'
 import { DEFAULT_TIME_JSON, reclaimUnusedEdgeNodes, remapCourseNodes, timeToNode } from '../domain/timeTable'
 import i18next from 'i18next'
 import { pruneConflictDefaultTop } from '../domain/conflictLayout'
 import { loadPrefs, savePrefs } from './db'
 import { suggestUniqueName } from '../views/mine/periodTableNames'
-import { clearHolidayTransfers } from '../state/holidayStore'
+import { clearHolidayTransfers, getHolidayTransfers } from '../state/holidayStore'
+import { resolveReminderTableScope } from '../domain/reminders/tableScope'
+import { withoutOccurrence, mergeMatchingRows, type CourseOccurrence } from '../domain/courseOccurrence'
+import type { HolidayTransferEntry } from '../domain/holiday/transfers'
 
 // ---- 读 ---------------------------------------------------------------
+
+export async function setTableReminderEnabled(id: number, enabled: boolean): Promise<void> {
+  await db.transaction('rw', db.timetables, db.periodTables, db.courses, async () => {
+    const tables = await db.timetables.toArray()
+    const effective = resolveReminderTableScope(tables)
+    if (!effective.some(table => table.id === id && (table.reminderEnabled !== 0) !== enabled)) return
+    await undoManager.capture('setTableReminderEnabled')
+    if (!tables.some(table => table.reminderOverride != null)) {
+      for (const table of effective) await db.timetables.update(table.id, { reminderOverride: table.reminderEnabled !== 0 })
+    }
+    await db.timetables.update(id, { reminderOverride: enabled })
+  })
+}
 
 export async function observeAllTables(): Promise<Table[]> {
   return db.timetables.toArray()
@@ -78,14 +94,18 @@ export async function updatePeriodTable(pt: PeriodTable): Promise<void> {
   await db.periodTables.put({ ...pt, updatedAt: Date.now() })
 }
 
-/** 17. deletePeriodTable — 删除。被课表绑定时拒绝 (Android 返回 false + blocked 提示,
- *  禁止产生悬空引用; 撤回可回滚删除)。返回 true = 已删。 */
-export async function deletePeriodTable(id: number): Promise<boolean> {
-  const bound = await db.timetables.where('periodTableId').equals(id).count()
-  if (bound > 0) return false
-  await undoManager.capture('deletePeriodTable')
-  await db.periodTables.delete(id)
-  return true
+/** Freeze shared timing into every bound timetable before deleting the source. */
+export async function deletePeriodTable(id: number, onlyIfUnbound = false): Promise<boolean> {
+  return db.transaction('rw', db.periodTables, db.timetables, db.courses, async () => {
+    const period = await db.periodTables.get(id)
+    if (!period) return false
+    const bound = await db.timetables.where('periodTableId').equals(id).toArray()
+    if (onlyIfUnbound && bound.length) return false
+    await undoManager.capture('deletePeriodTable')
+    for (const table of bound) await db.timetables.put({ ...hydratedWith(table, period), periodTableId: null, preBindSnapshotJson: '' })
+    await db.periodTables.delete(id)
+    return true
+  })
 }
 
 /** 18. bindPeriodTable — 课表绑定独立作息表 (Android bindPeriodTable C2 语义 1:1):
@@ -456,13 +476,13 @@ export async function insertCourses(courses: Omit<Course, 'id'>[]): Promise<numb
  *  按规范化课名分 key 共享 groupId; 原值非空保留, 空则生成随机 UUID。
  *  同名不同 token 的分区靠 sleepy-v1 authoritative 路径 (insertCoursesKeepingGroups)
  *  绕过本函数保留 — 与 Android 双路径分流同构。 */
-export function assignGroupIds(courses: Omit<Course, 'id'>[]): Omit<Course, 'id'>[] {
+export function assignGroupIds(courses: Omit<Course, 'id'>[], knownNameToGroup: ReadonlyMap<string, string> = new Map()): Omit<Course, 'id'>[] {
   const nameToGroupId = new Map<string, string>()
   return courses.map((c) => {
     const key = c.courseName.trim().replace(/\s+/g, ' ').toLowerCase()
     let gid = nameToGroupId.get(key)
     if (gid === undefined) {
-      gid = c.groupId.trim() !== '' ? c.groupId : randomUuid()
+      gid = knownNameToGroup.get(key) ?? (c.groupId.trim() !== '' ? c.groupId : randomUuid())
       nameToGroupId.set(key, gid)
     }
     return { ...c, groupId: gid }
@@ -510,6 +530,18 @@ export async function replaceCoursesKeepingGroups(tableId: number, courses: Cour
 export async function updateCourse(course: Course): Promise<void> {
   await undoManager.capture('updateCourse')
   await db.courses.put(course)
+}
+
+/** Android setGroupSourceColor: only GROUP rows follow the immediate source color. */
+export async function setGroupSourceColor(tableId: number, groupId: string, hex: string): Promise<void> {
+  if (!groupId.trim()) return
+  // Capture reads all three stores; include them so the update and undo share one boundary.
+  await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
+    const changed = (await getGroupCourses(tableId, groupId)).filter(row => row.colorMode === 0 && row.color !== hex)
+    if (!changed.length) return
+    await undoManager.capture('setGroupSourceColor')
+    await db.courses.bulkPut(changed.map(row => ({ ...row, color: hex })))
+  })
 }
 
 /** 11. updateCourseGroup — 整组覆盖 (编辑页保存路径)。
@@ -587,6 +619,124 @@ export async function applyDiff(
   await pruneDefaultTopPrefs()
 }
 
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return item
+    return Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+  })
+}
+
+function rowsKey(rows: Course[]): string {
+  return canonical([...rows].sort((a, b) => a.id - b.id).map(row => ({ ...row, fixedDate: row.fixedDate ?? null })))
+}
+
+/** Android RowKey: display metadata changes update in place; room/teacher are identity. */
+function courseRowKey(row: Course): string {
+  return JSON.stringify([row.groupId, row.day, row.startNode, row.step, row.startWeek,
+    row.endWeek, row.type, row.room, row.teacher, row.fixedDate ?? null])
+}
+
+/** Commit the exact approved draft, including edge slots, as one undoable transaction. */
+export async function saveCourseDraft(
+  drafts: Course[], replacingGroupId: string | null, expectedCourses: Course[],
+  expectedTable: Table, draftTimeJson: string, expectedTransfers: HolidayTransferEntry[],
+  replacingCourseId?: number,
+): Promise<boolean> {
+  const result = await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
+    const rawTable = await db.timetables.get(expectedTable.id)
+    if (!rawTable) return { saved: false, changed: false }
+    const period = rawTable.periodTableId == null ? undefined : await db.periodTables.get(rawTable.periodTableId)
+    const table = hydratedWith(rawTable, period)
+    const stored = await getCourses(table.id)
+    if (canonical(table) !== canonical(expectedTable) || rowsKey(stored) !== rowsKey(expectedCourses) ||
+        canonical(getHolidayTransfers(table.id)) !== canonical(expectedTransfers)) return { saved: false, changed: false }
+
+    let nextId = await nextCourseId()
+    let nextRows: Course[]
+    if (replacingGroupId === null) {
+      const roster = new Map<string, string>()
+      for (const row of await db.courses.orderBy('id').toArray()) {
+        const key = row.courseName.trim().replace(/\s+/g, ' ').toLowerCase()
+        if (key && row.groupId.trim() && !roster.has(key)) roster.set(key, row.groupId)
+      }
+      const added = assignGroupIds(drafts, roster).map(row => ({ ...row, id: nextId++, tableId: table.id }))
+      nextRows = [...stored, ...added]
+    } else if (!replacingGroupId.trim()) {
+      // A legacy empty group is not a group of all empty-group courses in the table.
+      const original = stored.find(row => row.id === replacingCourseId && !row.groupId.trim())
+      if (!original) return { saved: false, changed: false }
+      nextRows = [...stored.filter(row => row.id !== original.id), ...drafts.map(row => ({ ...row, id: nextId++, tableId: table.id, groupId: original.groupId }))]
+    } else {
+      const group = stored.filter(row => row.groupId === replacingGroupId)
+      const serverByKey = new Map(group.map(row => [courseRowKey(row), row]))
+      const draftByKey = new Map(drafts.map(row => [courseRowKey(row), row]))
+      const deleted = new Set([...serverByKey].filter(([key]) => !draftByKey.has(key)).map(([, row]) => row.id))
+      const updates = new Map<number, Course>()
+      const additions: Course[] = []
+      for (const [key, draft] of draftByKey) {
+        const server = serverByKey.get(key)
+        const row = { ...draft, id: server?.id ?? nextId++, tableId: table.id }
+        if (server) updates.set(server.id, row)
+        else additions.push(row)
+      }
+      const patched = [...group.filter(row => !deleted.has(row.id)).map(row => updates.get(row.id) ?? row), ...additions]
+      nextRows = [...stored.filter(row => row.groupId !== replacingGroupId), ...mergeMatchingRows(patched)]
+    }
+
+    if (rowsKey(stored) === rowsKey(nextRows) && table.timeJson === draftTimeJson) return { saved: true, changed: false }
+    await undoManager.capture('saveCourseDraft')
+    if (table.timeJson !== draftTimeJson) {
+      if (period) await db.periodTables.put({ ...period, timeJson: draftTimeJson })
+      else await db.timetables.put({ ...rawTable, timeJson: draftTimeJson })
+    }
+    const kept = new Set(nextRows.map(row => row.id))
+    await db.courses.bulkDelete(stored.filter(row => !kept.has(row.id)).map(row => row.id))
+    const updates = nextRows.filter(row => rowsKey([row]) !== rowsKey(stored.filter(old => old.id === row.id)))
+    if (updates.length) await db.courses.bulkPut(updates)
+    await reclaimUnusedEdgeNodesForTable(table.id)
+    return { saved: true, changed: true }
+  })
+  if (result.changed) await pruneDefaultTopPrefs()
+  return result.saved
+}
+
+/** Save one occurrence against the exact table/course/transfer snapshot shown in the editor. */
+export async function saveOccurrence(
+  occurrence: CourseOccurrence, replacement: Course | null, expectedCourses: Course[],
+  expectedTable: Table, expectedTransfers: HolidayTransferEntry[],
+): Promise<boolean> {
+  const result = await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
+    const rawTable = await db.timetables.get(expectedTable.id)
+    if (!rawTable) return { saved: false, changed: false }
+    const table = hydratedWith(rawTable, rawTable.periodTableId ? await db.periodTables.get(rawTable.periodTableId) : null)
+    const stored = await getCourses(table.id)
+    const original = stored.find(row => row.id === occurrence.course.id)
+    if (canonical(table) !== canonical(expectedTable) || rowsKey(stored) !== rowsKey(expectedCourses) ||
+        canonical(getHolidayTransfers(table.id)) !== canonical(expectedTransfers) ||
+        !original || rowsKey([original]) !== rowsKey([occurrence.course])) return { saved: false, changed: false }
+    let next = await nextCourseId()
+    const remaining = withoutOccurrence(original, occurrence.sourceDate, table.startDate)
+    const fragments = remaining.map(row => ({ ...row, id: row.id || next++ }))
+    if (replacement) fragments.push({ ...replacement, id: fragments.length ? next++ : original.id, tableId: table.id, groupId: original.groupId })
+    const unchanged = stored.filter(row => row.id !== original.id)
+    const merged = replacement && original.groupId.trim()
+      ? [...unchanged.filter(row => row.groupId !== original.groupId),
+        ...mergeMatchingRows([...unchanged.filter(row => row.groupId === original.groupId), ...fragments]
+          .map(row => ({ ...row, fixedDate: row.fixedDate ?? null })))]
+      : [...unchanged, ...fragments]
+    if (rowsKey(stored) === rowsKey(merged)) return { saved: true, changed: false }
+    await undoManager.capture('saveOccurrence')
+    const kept = new Set(merged.map(row => row.id))
+    await db.courses.bulkDelete(stored.filter(row => !kept.has(row.id)).map(row => row.id))
+    const updates = merged.filter(row => rowsKey([row]) !== rowsKey(stored.filter(old => old.id === row.id)))
+    if (updates.length) await db.courses.bulkPut(updates)
+    await reclaimUnusedEdgeNodesForTable(table.id)
+    return { saved: true, changed: true }
+  })
+  if (result.changed) await pruneDefaultTopPrefs()
+  return result.saved
+}
+
 /** 14b. replaceCourses */
 export async function replaceCourses(tableId: number, courses: Omit<Course, 'id'>[]): Promise<void> {
   await undoManager.capture('replaceCourses')
@@ -614,14 +764,20 @@ async function reassignDefaultIfEmpty(): Promise<void> {
 async function reclaimUnusedEdgeNodesForTable(tableId: number): Promise<void> {
   const table = await db.timetables.get(tableId)
   if (!table) return
-  const courses = await getCourses(tableId)
+  const period = table.periodTableId == null ? undefined : await db.periodTables.get(table.periodTableId)
+  const timeJson = period?.timeJson ?? table.timeJson
+  const owners = period ? await db.timetables.where('periodTableId').equals(period.id).toArray() : [table]
+  const courses = (await Promise.all(owners.map(owner => getCourses(owner.id)))).flat()
   const usedNodes = new Set<number>()
   for (const c of courses) {
+    const effectiveStart = c.ownTime ? timeToNode(c.startTime, c.endTime, timeJson)?.[0] ?? c.startNode : c.startNode
+    for (let n = effectiveStart; n < effectiveStart + c.step; n++) usedNodes.add(n)
     for (let n = c.startNode; n <= c.startNode + c.step - 1; n++) usedNodes.add(n)
   }
-  const cleaned = reclaimUnusedEdgeNodes(table.timeJson, usedNodes)
-  if (cleaned !== table.timeJson) {
-    await db.timetables.put({ ...table, timeJson: cleaned })
+  const cleaned = reclaimUnusedEdgeNodes(timeJson, usedNodes)
+  if (cleaned !== timeJson) {
+    if (period) await db.periodTables.put({ ...period, timeJson: cleaned })
+    else await db.timetables.put({ ...table, timeJson: cleaned })
   }
 }
 
@@ -640,7 +796,7 @@ async function pruneDefaultTopPrefs(): Promise<void> {
 /** duplicateTable — Android ScheduleViewModel.duplicateTable (v7.10.15/16w) 1:1
  *  全量复制表配置+课程; 副本不接管默认表不切选中; 命名去重 原名+"2"/"3"...;
  *  建表+插课一个撤回动作 (beginBatch 保首快照); groupId 整组映射新 UUID */
-export async function duplicateTable(id: number): Promise<number> {
+export async function duplicateTable(id: number, requestedName?: string): Promise<number> {
   const source = await getTable(id)
   if (!source) return -1
   const courses = await getCourses(id)
@@ -649,6 +805,10 @@ export async function duplicateTable(id: number): Promise<number> {
   let index = 2
   let name = `${source.name}2`
   while (existingNames.has(name)) { index++; name = `${source.name}${index}` }
+  if (requestedName !== undefined) {
+    if (!requestedName.trim()) throw new Error('Timetable name is required')
+    name = requestedName.trim()
+  }
   const { beginBatch, endBatch } = undoManager
   let newId = -1
   beginBatch()

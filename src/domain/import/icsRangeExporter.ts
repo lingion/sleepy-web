@@ -13,12 +13,13 @@
  */
 
 import { parseNodes } from '../timeTable'
-import { inWeek, normalizeNode } from '../../data/types'
+import { normalizeNode } from '../../data/types'
 import type { Course } from '../../data/types'
 import type { ExportCourse, ExportTable } from './scheduleExporter'
 import type { HolidayTransferEntry } from '../holiday/transfers'
-import { effectiveDayOfWeek } from '../holiday/transfers'
+import { courseDateForDate, coursesForDate } from '../courseOccurrence'
 import { mondayOfStart, currentWeek } from '../semester'
+import { icsDates, occurrenceCourse } from './icsProjection'
 
 export type IcsRange = 'NEXT_WEEK' | 'NEXT_MONTH' | 'SEMESTER'
 
@@ -44,32 +45,27 @@ export function buildDatedEvents(
 ): Array<{ date: Date; week: number; course: Course; start: string; end: string; transferred: boolean }> {
   const semesterStart = mondayOfStart(table.startDate)
   if (!semesterStart) return []
-  const semesterEnd = addDays(semesterStart, table.maxWeek * 7)
   const today = stripTime(opts.today)
-  const start = maxDate(today, semesterStart)
-  const requestedEnd =
-    opts.range === 'NEXT_WEEK' ? addDays(today, 7)
-      : opts.range === 'NEXT_MONTH' ? addMonths(today, 1)
-        : semesterEnd
-  const end = minDate(requestedEnd, semesterEnd)
-
+  const requestedEnd = opts.range === 'NEXT_WEEK' ? addDays(today, 7)
+    : opts.range === 'NEXT_MONTH' ? addMonths(today, 1) : null
   const nodeTimes = parseNodes(table.timeJson)
+  const rows = courses.map(occurrenceCourse)
   const out: ReturnType<typeof buildDatedEvents> = []
-  for (let date = start; date < end; date = addDays(date, 1)) {
+  for (const dayIso of icsDates(table, courses, opts.transfers)) {
+    const date = new Date(`${dayIso}T00:00:00`)
+    if (date < today || (requestedEnd && date >= requestedEnd)) continue
     const week = currentWeek(table.startDate, date)
-    const dayIso = localIso(date)
-    const classDay = effectiveDayOfWeek(dayIso, opts.transfers)
-    for (const c of courses) {
+    const projected = coursesForDate(dayIso, table.startDate, table.maxWeek, rows, opts.transfers)
+    for (const c of projected) {
       // ExportCourse ⊂ Course; normalizeNode 只读 ownTime/startTime/endTime。
       // 导出 DTO 自带 isIrregularTime (Android effectiveCourseTime 同源), 缺省补齐非边缘课。
       const norm = normalizeNode(
         { ...c, isIrregularNode: false, level: 0, credit: 0, colorMode: 0 } as Course,
         table.timeJson
       )
-      if (norm.day !== classDay || !inWeek(norm, week)) continue
       const times = courseTimes(norm, nodeTimes)
       if (!times || times[1] <= times[0]) continue // Android invalid++: 非法时段跳过
-      const transferred = classDay !== localDow(date)
+      const transferred = !(c as ExportCourse).fixedDate && courseDateForDate(dayIso, opts.transfers) !== dayIso
       out.push({ date, week, course: norm, start: times[0], end: times[1], transferred })
     }
   }
@@ -87,6 +83,8 @@ export function exportDatedIcs(table: ExportTable, courses: ExportCourse[], opts
   sb.push('CALSCALE:GREGORIAN')
   sb.push('METHOD:PUBLISH')
   sb.push(`X-WR-CALNAME:${esc(table.name)}`)
+  sb.push(`X-SLEEPY-START-DATE:${table.startDate}`)
+  sb.push(`X-SLEEPY-MAX-WEEK:${table.maxWeek}`)
   for (const ev of events) {
     const marker = `${SLEEPY_MARKER_PREFIX}${table.id}:${ev.course.id}:${localIso(ev.date)}`
     // 首日首课闹钟 — Android 单独 Alarm 在 ICS 侧以附加提醒行对位
@@ -100,6 +98,11 @@ export function exportDatedIcs(table: ExportTable, courses: ExportCourse[], opts
     sb.push(`DTSTAMP:${stamp()}`)
     sb.push(`DTSTART:${ymd}T${compact(ev.start)}`)
     sb.push(`DTEND:${ymd}T${compact(ev.end)}`)
+    sb.push(`X-SLEEPY-FIXED-DATE:${localIso(ev.date)}`)
+    if (ev.course.ownTime || ev.course.isIrregularTime) sb.push('X-SLEEPY-OWN-TIME:TRUE')
+    sb.push(`X-SLEEPY-NODES:${ev.course.startNode},${ev.course.step}`)
+    sb.push(`X-SLEEPY-TEACHER:${esc(ev.course.teacher)}`)
+    sb.push(`X-SLEEPY-NOTE:${esc(ev.course.note)}`)
     sb.push(`SUMMARY:${esc(ev.course.courseName)}`)
     if (ev.course.room.trim() !== '') sb.push(`LOCATION:${esc(ev.course.room)}`)
     let desc = `第${ev.week}周 · 第${ev.course.startNode}—${ev.course.startNode + ev.course.step - 1}节`
@@ -171,18 +174,9 @@ function addDays(d: Date, n: number): Date {
 function addMonths(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + n, d.getDate())
 }
-function maxDate(a: Date, b: Date): Date {
-  return a >= b ? a : b
-}
-function minDate(a: Date, b: Date): Date {
-  return a <= b ? a : b
-}
 function localIso(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
-function localDow(d: Date): number {
-  return d.getDay() === 0 ? 7 : d.getDay()
 }
 function stamp(): string {
   return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')

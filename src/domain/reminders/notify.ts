@@ -10,6 +10,7 @@ export interface NotifySpec {
   tag: string
   title: string
   body: string
+  targetHash?: string
 }
 
 export function notifySupported(): boolean {
@@ -27,6 +28,7 @@ export function postNotify(spec: NotifySpec): void {
     const n = new Notification(spec.title, { body: spec.body, tag: spec.tag })
     n.onclick = () => {
       window.focus()
+      if (spec.targetHash) window.dispatchEvent(new CustomEvent('sleepy:open-agenda', { detail: spec.targetHash }))
       n.close()
     }
   } catch {

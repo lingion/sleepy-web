@@ -5,7 +5,7 @@
  * 课程卡点击 → CourseDetailSheet (与课表页同一组件同一交互, TodayScreen.kt:162-173)。
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect,useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconSchedule } from '../components/icons'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -15,13 +15,16 @@ import { courseNeutralTokens } from '../theme/themes'
 import { weekLaneRows } from '../domain/conflictLayout'
 import { courseTimeString } from '../domain/timeTable'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../domain/courseColor'
-import { inWeek, normalizeNode } from '../data/types'
+import { normalizeNode, hydratedWith } from '../data/types'
 import type { Course } from '../data/types'
 import { localizedDay } from '../components/schedule/CardsGridView'
 import { getHolidayTransfers, useHolidayStore } from '../state/holidayStore'
-import { effectiveDayOfWeek } from '../domain/holiday/transfers'
+import { coursesForDate,courseDateForDate,weekOfDate } from '../domain/courseOccurrence'
 import { CourseDetailSheet } from '../components/CourseDetailSheet'
 import { AddCourseView } from './AddCourseView'
+import {validateTimeJson,periodValidationMessage} from '../domain/periodValidation'
+import {useOccurrenceActions} from '../components/schedule/useOccurrenceActions'
+import {installBackHandler,useBackStack} from '../state/backStack'
 
 // 学期三态/周次纯函数提取至 domain/semester (提醒引擎共用单一实现); re-export 保持
 // 既有消费方 (semesterStatus.test.ts 等) 的 import 路径不变。
@@ -43,13 +46,20 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
 
-  const defaultTable = useLiveQuery(() => db.timetables.where('isDefault').equals(1).first())
+  const defaultTable = useLiveQuery(async () => { const table = await db.timetables.where('isDefault').equals(1).first(); return table ? hydratedWith(table, table.periodTableId ? await db.periodTables.get(table.periodTableId) : null) : undefined })
   const transferRevision = useHolidayStore((s) => s.transferRevision)
   const defaultTableId = defaultTable?.id ?? null
   // transferRevision 仅作重读信号: 调休页写 localStorage 后递增
   const holidayTransfers = useMemo(() => getHolidayTransfers(defaultTableId), [defaultTableId, transferRevision])
-  const today = useMemo(() => new Date(), [])
-  const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay()
+  const [today,setToday]=useState(()=>new Date())
+  useEffect(()=>{const id=setInterval(()=>setToday(new Date()),60000);return ()=>clearInterval(id)},[])
+  const todayIso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+  const sourceDate=courseDateForDate(todayIso,holidayTransfers) ?? todayIso
+  const sourceDay=useMemo(()=>new Date(`${sourceDate}T12:00:00`),[sourceDate])
+  const occurrenceActions=useOccurrenceActions(defaultTable)
+  const push=useBackStack((state)=>state.push),back=useBackStack((state)=>state.pop)
+  useEffect(()=>installBackHandler((key)=>{if(key==='courseDetail')setDetailCourse(null);else if(key==='addCourse')setEditingCourse(null)}),[])
+  const showDetail=(course:Course)=>{push('courseDetail','#/今日/课程详情');setDetailCourse(course)}
   const allCourses = useLiveQuery(
     async () =>
       defaultTable ? await db.courses.where('tableId').equals(defaultTable.id).toArray() : ([] as Course[]),
@@ -57,33 +67,19 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   )
 
   const status = useMemo(
-    () => semesterStatus(defaultTable?.startDate ?? '', defaultTable?.maxWeek ?? 20, today),
-    [defaultTable?.startDate, defaultTable?.maxWeek, today]
+    () => semesterStatus(defaultTable?.startDate ?? '', defaultTable?.maxWeek ?? 20, sourceDay),
+    [defaultTable?.startDate, defaultTable?.maxWeek, sourceDay]
   )
   const actualWeek = useMemo(
-    () => (defaultTable?.startDate ? currentWeek(defaultTable.startDate, today) : 1),
-    [defaultTable?.startDate, today]
+    () => (defaultTable?.startDate ? currentWeek(defaultTable.startDate, sourceDay) : 1),
+    [defaultTable?.startDate, sourceDay]
   )
 
-  const isOut = status !== 'IN_RANGE'
-  const todayCourses = useMemo(() => {
-    if (isOut) return []
-    const eligible = (allCourses ?? []).filter((c) => inWeek(c, actualWeek))
-    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    const effectiveToday = effectiveDayOfWeek(todayIso, holidayTransfers)
-    const direct = eligible.filter((c) => c.day === effectiveToday)
-    const nearestDay = prefs.nearestBusyDay && direct.length === 0
-      ? Array.from(new Set(eligible.map((c) => c.day))).sort((a, b) => {
-          const da = Math.min(Math.abs(a - dayOfWeek), 7 - Math.abs(a - dayOfWeek))
-          const db = Math.min(Math.abs(b - dayOfWeek), 7 - Math.abs(b - dayOfWeek))
-          return da - db || a - b
-        })[0]
-      : effectiveToday
-    let list = eligible.filter((c) => c.day === nearestDay)
-    const tj = defaultTable?.timeJson
-    if (tj) list = list.map((c) => normalizeNode(c, tj))
-    return list.sort((a, b) => a.startNode - b.startNode)
-  }, [allCourses, dayOfWeek, actualWeek, isOut, defaultTable?.timeJson, prefs.nearestBusyDay, holidayTransfers, today])
+  const todayCourses=useMemo(()=>{
+    const list=coursesForDate(todayIso,defaultTable?.startDate ?? '',defaultTable?.maxWeek ?? 20,allCourses ?? [],holidayTransfers)
+    return list.map(course=>defaultTable?.timeJson ? normalizeNode(course,defaultTable.timeJson) : course).sort((a,b)=>a.startNode-b.startNode)
+  },[allCourses,defaultTable,holidayTransfers,todayIso])
+  const periodValidation=defaultTable ? validateTimeJson(defaultTable.timeJson) : null
 
   const laneRows = useMemo(
     () => weekLaneRows(todayCourses, defaultTable?.timeJson ?? null),
@@ -101,8 +97,8 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
     return (
       <AddCourseView
         editingCourse={editingCourse}
-        onBack={() => setEditingCourse(null)}
-        onSaved={() => setEditingCourse(null)}
+        onBack={() => {back();setEditingCourse(null)}}
+        onSaved={() => {back();setEditingCourse(null)}}
       />
     )
   }
@@ -116,6 +112,7 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
         semesterStatus={status}
         lang={i18n.language}
       />
+      {periodValidation && periodValidation.kind!=='valid' && <div role="alert" style={{padding:14,borderRadius:16,background:'var(--md-error-container)',color:'var(--md-on-error-container)',display:'flex',gap:10,alignItems:'center'}}><IconSchedule size={20}/><span className="m3-body-small">{t('period_conflict_detected_banner',{v1:periodValidationMessage(periodValidation,(key,options)=>t(key,options)),defaultValue:`节次时间存在冲突：${periodValidationMessage(periodValidation,(key,options)=>t(key,options))}`})}</span></div>}
       {todayCourses.length === 0 ? (
         <EmptyToday semesterStatus={status} />
       ) : (
@@ -140,7 +137,7 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
                   course={c}
                   timeJson={defaultTable?.timeJson}
                   groupRows={todayCourses.filter((x) => x.groupId === c.groupId)}
-                  onClick={() => setDetailCourse(c)}
+                  onClick={() => showDetail(c)}
                 />
               )
             }
@@ -166,7 +163,7 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
                             course={c}
                             timeJson={defaultTable?.timeJson}
                             groupRows={todayCourses.filter((x) => x.groupId === c.groupId)}
-                            onClick={() => setDetailCourse(c)}
+                            onClick={() => showDetail(c)}
                           />
                         ))}
                     </div>
@@ -177,6 +174,8 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
           })}
         </>
       )}
+
+      {occurrenceActions.overlays}
 
       {/* 课程详情弹层 — 与课表页同一组件同一交互 (TodayScreen.kt:162-173) */}
       {detailCourse && defaultTable && (
@@ -191,8 +190,11 @@ export function TodayView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
           }
           allCourses={todayCourses}
           timeJson={defaultTable.timeJson}
-          onDismiss={() => setDetailCourse(null)}
+          onDismiss={() => {back();setDetailCourse(null)}}
+          onAdjustOccurrence={(course)=>{setDetailCourse(null);void occurrenceActions.openEdit({...course,day:today.getDay()||7},weekOfDate(defaultTable.startDate,todayIso),true)}}
+          onDeleteOccurrence={(course)=>{void occurrenceActions.remove({...course,day:today.getDay()||7},weekOfDate(defaultTable.startDate,todayIso)).then((saved)=>{if(saved){back();setDetailCourse(null)}})}}
           onEdit={(c) => {
+            useBackStack.getState().replace('addCourse','#/今日/编辑课程')
             setDetailCourse(null)
             setEditingCourse(c)
           }}

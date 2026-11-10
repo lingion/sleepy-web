@@ -38,7 +38,7 @@ async function writeClipboard(text: string): Promise<void> {
   document.body.appendChild(ta)
   ta.select()
   try {
-    document.execCommand('copy')
+    if (!document.execCommand('copy')) throw Error('复制失败')
   } finally {
     document.body.removeChild(ta)
   }
@@ -54,6 +54,7 @@ export function FormatDetailDialog({
   const { t } = useTranslation()
   const keys = FORMAT_KEYS[format]
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState<string | null>(null)
 
   const specItems = toSpecItems(t(keys.spec, { returnObjects: true }) as unknown)
   const example = decodeExampleBlock(t(keys.example))
@@ -67,12 +68,14 @@ export function FormatDetailDialog({
   }, [copied])
 
   async function copyPrompt() {
+    setCopied(false)
+    setCopyError(null)
     try {
       await writeClipboard(decodePromptForClipboard(promptRaw))
+      setCopied(true)
     } catch {
-      // 剪贴板被浏览器拒绝时不弹错误 — 文本已在色块内可见, 用户可选中手抄
+      setCopyError(t('copy_failed', '复制失败，请检查浏览器权限或手动选择文本。'))
     }
-    setCopied(true)
   }
 
   return (
@@ -111,6 +114,10 @@ export function FormatDetailDialog({
         <p className="m3-body-medium" style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>
           {t(keys.when)}
         </p>
+        {format === 'WAKEUP_SHARE' && <p className="m3-body-medium">
+          {t('format_wakeup_online_hint', '也可粘贴 WakeUP 分享口令或含“分享口令”的完整文案，联网获取后预览。Sleepy 分享文本使用 sleepy-v1 标记，可离线导入。')}
+        </p>}
+        {copyError && <p role="alert" style={{color:'var(--md-error)'}}>{copyError}</p>}
 
         <div className="m3-title-small" style={{ fontWeight: 600 }}>{t('format_help_spec')}</div>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -7,22 +7,34 @@
  * 点遮罩 = onDismissRequest。
  */
 
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 export function AlertDialog({ title, onDismiss, children, buttons }: { title: string; onDismiss: () => void; children: ReactNode; buttons?: ReactNode }) {
+  const dialog=useRef<HTMLDivElement>(null)
+  const dismiss=useRef(onDismiss)
+  dismiss.current=onDismiss
+  useEffect(()=>{
+    const previous=document.activeElement as HTMLElement|null
+    dialog.current?.focus()
+    const escape=(event:KeyboardEvent)=>{ if(event.key==='Escape' && dialog.current?.contains(document.activeElement)) { event.preventDefault();event.stopPropagation();dismiss.current() } }
+    document.addEventListener('keydown',escape)
+    return ()=>{document.removeEventListener('keydown',escape);previous?.focus()}
+  },[])
   return (
     <div
       className="m3-scrim-overlay"
       onClick={onDismiss}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
     >
       <div
         role="dialog"
+        ref={dialog}
+        tabIndex={-1}
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
         style={{
-          minWidth: 280, maxWidth: 560, width: '100%', maxHeight: '100%', overflowY: 'auto', boxSizing: 'border-box',
+          minWidth: 0, maxWidth: 560, width: '100%', maxHeight: '100%', overflowY: 'auto', boxSizing: 'border-box',
           padding: 24, borderRadius: 28, background: 'var(--md-surface-container-high)',
         }}
       >

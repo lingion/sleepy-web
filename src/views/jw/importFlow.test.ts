@@ -300,66 +300,15 @@ describe('proxyClient', () => {
     expect(decodeBytes(bytes, 'not-a-real-charset')).toBe('课表')
   })
 
-  it('成功响应读上游状态头与最终 URL', async () => {
-    const fetchImpl = vi.fn(async () => fakeResponse('<html>ok</html>', 200, {
-      'Content-Type': 'text/html; charset=utf-8',
-      'X-Sleepy-Upstream-Status': '200',
-      'X-Sleepy-Upstream-Url': 'https://jw.example.edu.cn/kb',
-    }))
-    const out = await fetchViaProxy('https://jw.example.edu.cn/kb', {}, fetchImpl as unknown as typeof fetch)
-    expect(out.ok).toBe(true)
-    if (!out.ok) return
-    expect(out.body).toContain('ok')
-    expect(out.finalUrl).toBe('https://jw.example.edu.cn/kb')
-  })
-
-  it('上游 502 → kind=http 且带状态码', async () => {
-    const fetchImpl = vi.fn(async () => fakeResponse('{"error":"bad gateway"}', 200, {
-      'Content-Type': 'application/json',
-      'X-Sleepy-Upstream-Status': '502',
-    }))
-    const out = await fetchViaProxy('https://jw.example.edu.cn/kb', {}, fetchImpl as unknown as typeof fetch)
+  it('旧代理抓取无条件拒绝且不调用网络', async () => {
+    const fetchImpl = vi.fn()
+    const out = await fetchViaProxy('https://jw.example.edu.cn/kb', {}, fetchImpl)
     expect(out.ok).toBe(false)
-    if (out.ok) return
-    expect(out.kind).toBe('http')
-    expect(out.status).toBe(502)
-  })
-
-  it('fetch 抛错 → kind=network', async () => {
-    const fetchImpl = vi.fn(async () => {
-      throw new TypeError('Failed to fetch')
-    })
-    const out = await fetchViaProxy('https://jw.example.edu.cn/kb', {}, fetchImpl as unknown as typeof fetch)
-    expect(out.ok).toBe(false)
-    if (out.ok) return
-    expect(out.kind).toBe('network')
-  })
-
-  it('超时 → kind=timeout', async () => {
-    const fetchImpl = vi.fn(
-      (_url: string, init?: { signal?: AbortSignal }) =>
-        new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
-        })
-    )
-    const out = await fetchViaProxy('https://jw.example.edu.cn/kb', { timeoutMs: 5 }, fetchImpl as unknown as typeof fetch)
-    expect(out.ok).toBe(false)
-    if (out.ok) return
-    expect(out.kind).toBe('timeout')
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 })
 
-function fakeResponse(body: string, status: number, headers: Record<string, string>): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    headers: { get: (k: string) => headers[k] ?? null },
-    arrayBuffer: async () => {
-      const bytes = new TextEncoder().encode(body)
-      return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
-    },
-  } as unknown as Response
-}
+
 
 // ── 协议判型 / URL 工具 ─────────────────────────────────────────────────
 

@@ -50,6 +50,9 @@ interface PrefsFieldMap {
 }
 
 const PrefsFieldMap: PrefsFieldMap[] = [
+  { field: 'uiStyle', key: 'dock_theme', type: 'STRING' },
+  { field: 'courseColorMode', key: 'course_color_mode', type: 'INT' },
+  { field: 'courseColorSeedHue', key: 'course_color_seed_hue', type: 'FLOAT' },
   { field: 'themeMode', key: 'theme_mode', type: 'STRING' },
   { field: 'theme', key: 'theme_key', type: 'STRING' },
   { field: 'lang', key: 'language', type: 'STRING' },
@@ -75,6 +78,7 @@ const PrefsFieldMap: PrefsFieldMap[] = [
   { field: 'conflictDefaultTop', key: 'conflict_default_top', type: 'STRING', nonTrivial: (v) => Object.keys((v as object) ?? {}).length > 0 },
   { field: 'navDock', key: 'nav_dock', type: 'BOOL' },
   { field: 'highRefresh', key: 'high_refresh_rate', type: 'BOOL' },
+  { field: 'undoDepth', key: 'undo_depth', type: 'INT' },
   { field: 'vertPunct', key: 'vert_punct_replace', type: 'BOOL' },
   { field: 'widgetColorless', key: 'widget_colorless', type: 'BOOL' },
   { field: 'courseColorless', key: 'course_colorless', type: 'BOOL' },
@@ -93,6 +97,8 @@ const PrefsFieldMap: PrefsFieldMap[] = [
   { field: 'periodHeaderStyle', key: 'period_header_style', type: 'STRING' },
   { field: 'periodHeaderHanging', key: 'period_header_hanging', type: 'FLOAT' },
   { field: 'periodHeaderShowX', key: 'period_header_show_x', type: 'BOOL' },
+  { field: 'periodHeaderHideTime', key: 'period_header_hide_time', type: 'BOOL' },
+  { field: 'periodHeaderTimeAlignment', key: 'period_header_time_alignment', type: 'STRING' },
   { field: 'gridShowSeparators', key: 'grid_show_separators', type: 'BOOL' },
   { field: 'gridLongBreakSpacing', key: 'grid_long_break_spacing', type: 'BOOL' },
   { field: 'calendarImportRange', key: 'calendar_import_range', type: 'STRING' },
@@ -109,6 +115,12 @@ const KEY_TO_FIELD = new Map(PrefsFieldMap.map((m) => [m.key, m]))
 
 /** localStorage 键 (含 sleepy_ 前缀) → Android 键名 + 类型。仅导出实际存在的键。 */
 const LOCAL_KEYS: Array<{ local: string; key: string; type: PrefType; isJson?: boolean }> = [
+  { local: 'sleepy_holiday_reminder_rules_enabled', key: 'holiday_reminder_rules_enabled', type: 'BOOL' },
+  { local: 'sleepy_holiday_reminder_public_holiday', key: 'holiday_reminder_public_holiday', type: 'BOOL' },
+  { local: 'sleepy_holiday_reminder_transfer_holiday', key: 'holiday_reminder_transfer_holiday', type: 'BOOL' },
+  { local: 'sleepy_holiday_reminder_makeup_workday', key: 'holiday_reminder_makeup_workday', type: 'BOOL' },
+  { local: 'sleepy_holiday_reminder_ordinary_weekend', key: 'holiday_reminder_ordinary_weekend', type: 'BOOL' },
+
   // 提醒 (reminderStore)
   { local: 'sleepy_reminder_master', key: 'reminder_master', type: 'BOOL' },
   { local: 'sleepy_daily_reminder', key: 'daily_reminder', type: 'BOOL' },
@@ -116,6 +128,7 @@ const LOCAL_KEYS: Array<{ local: string; key: string; type: PrefType; isJson?: b
   { local: 'sleepy_daily_reminder_time', key: 'daily_reminder_time', type: 'STRING' },
   { local: 'sleepy_tomorrow_reminder', key: 'tomorrow_reminder', type: 'BOOL' },
   { local: 'sleepy_tomorrow_reminder_time', key: 'tomorrow_reminder_time', type: 'STRING' },
+  { local: 'sleepy_before_class_mode', key: 'before_class_mode', type: 'STRING' },
   { local: 'sleepy_before_class_enabled', key: 'before_class_enabled', type: 'BOOL' },
   { local: 'sleepy_before_class_minutes', key: 'before_class_minutes', type: 'INT' },
   { local: 'sleepy_before_class_banner', key: 'before_class_banner', type: 'BOOL' },

@@ -1,3 +1,4 @@
+import { JW_WEB_UNSUPPORTED } from '../../domain/jw/webPolicy'
 /**
  * proxyClient — 教务页面抓取客户端 (worker/sleepy-jw-proxy.ts 的调用侧)。
  *
@@ -71,43 +72,9 @@ export async function fetchViaProxy(
   options: ProxyFetchOptions = {},
   fetchImpl: typeof fetch = globalThis.fetch
 ): Promise<FetchOutcome> {
-  const timeoutMs = options.timeoutMs ?? FETCH_TIMEOUT_MS
-  const controller = new AbortController()
-  let timedOut = false
-  const timer = setTimeout(() => {
-    timedOut = true
-    controller.abort()
-  }, timeoutMs)
-
-  try {
-    const resp = await fetchImpl(proxyUrlFor(target), {
-      method: 'GET',
-      redirect: 'follow',
-      headers: options.headers,
-      signal: controller.signal,
-    })
-    const buffer = await resp.arrayBuffer()
-    const contentType = resp.headers.get('Content-Type')
-    const utf8Preview = decodeBytes(buffer, 'utf-8')
-    const charset = charsetFromContentType(contentType, utf8Preview)
-    const body = charset === 'utf-8' ? utf8Preview : decodeBytes(buffer, charset)
-    const upstreamStatus = Number(resp.headers.get('X-Sleepy-Upstream-Status') ?? '') || resp.status
-    const finalUrl = resp.headers.get('X-Sleepy-Upstream-Url') ?? target
-    if (!resp.ok || upstreamStatus >= 400) {
-      return { ok: false, kind: 'http', status: upstreamStatus, detail: `HTTP ${upstreamStatus}`, finalUrl }
-    }
-    return { ok: true, status: upstreamStatus, body, finalUrl, charset }
-  } catch (e) {
-    return {
-      ok: false,
-      kind: timedOut ? 'timeout' : 'network',
-      status: 0,
-      detail: e instanceof Error ? e.message : String(e),
-      finalUrl: target,
-    }
-  } finally {
-    clearTimeout(timer)
-  }
+  void options
+  void fetchImpl
+  return { ok: false, kind: 'invalid', status: 0, detail: JW_WEB_UNSUPPORTED, finalUrl: target }
 }
 
 /** 生产用 fetcher (依赖注入点集中在 fetchImpl) */

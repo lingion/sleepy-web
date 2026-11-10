@@ -32,12 +32,12 @@ afterEach(() => {
 
 describe('AboutPage', () => {
   it('卡片按 Android 顺序排列, web 独有下载卡在末尾', () => {
-    const { container } = render(<AboutPage onBack={() => {}} />)
-    const titles = ['版本信息', '获取更新', '作者', '开源地址', '反馈与建议', 'QQ 交流群', '开源声明', '自动检查更新', '下载 Android 安装包']
-    const text = container.textContent ?? ''
-    const positions = titles.map((title) => text.indexOf(title))
-    expect(positions.every((p) => p >= 0)).toBe(true)
-    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    render(<AboutPage onBack={() => {}} />)
+    const titles = ['版本信息', '获取更新', '自动检查更新', '反馈与建议', 'QQ 交流群', '作者', '开源地址', '开源声明', '下载 Android 安装包']
+    const nodes = titles.map((title) => screen.getAllByText(title, { exact: true }).find(node => node.classList.contains('m3-body-large')) ?? screen.getAllByText(title, { exact: true })[0])
+    for (let i = 1; i < nodes.length; i++) {
+      expect(nodes[i - 1].compareDocumentPosition(nodes[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
   })
 
   it('版本号与构建号来自 package.json', () => {

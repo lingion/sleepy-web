@@ -33,12 +33,7 @@ afterEach(async () => {
 /** 打开粘贴区 (默认折叠) + 填文本 + 点「预览导入」 */
 async function paste(text: string) {
   render(<ImportView onDone={vi.fn()} />)
-  // liveQuery 首帧是 [] — 等预置表到达再操作, 避免判重漏算 (Android getAllTableNamesOnce 等价时点)
-  // 空库才显示「将作为新课表创建」提示 → 消失 = 表数据已就位
-  for (let i = 0; i < 50; i++) {
-    if ((await db.timetables.count()) > 0 && screen.queryByText('（将作为新课表创建）') === null) break
-    await new Promise((r) => setTimeout(r, 20))
-  }
+  await waitFor(() => expect((screen.getByRole('button',{name:'粘贴课表文本'}) as HTMLButtonElement).disabled).toBe(false))
   // 默认折叠 — 展开
   fireEvent.click(screen.getByText('粘贴课表文本'))
   const ta = screen.getByLabelText('粘贴课表文本') as HTMLTextAreaElement

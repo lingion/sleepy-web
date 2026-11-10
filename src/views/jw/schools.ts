@@ -7,6 +7,7 @@
  */
 
 import raw from './schools.json'
+import cities from './schoolCities.json'
 
 export const STATUS_SUPPORTED = 'supported'
 export const STATUS_PENDING = 'pending'
@@ -19,7 +20,7 @@ const KNOWN_STATUS = new Set([
   STATUS_PENDING,
   STATUS_GRAD_SUPPORTED,
   STATUS_GRAD_PENDING,
-  STATUS_LEGACY,
+  STATUS_LEGACY, 'unverified', 'grad_unverified',
 ])
 
 /** JwSchoolInfo.kt 1:1 */
@@ -34,6 +35,8 @@ export interface SchoolInfo {
   /** 全拼 (pypinyin 离线预生成) — 仅用于组内排序, 不参与匹配 */
   sortKeyFull: string
   status: string
+  cities?: string[]
+  catalogId?: string
 }
 
 interface RawEntry {
@@ -61,7 +64,9 @@ export function parseSchoolsJson(entries: readonly RawEntry[]): SchoolInfo[] {
       type: typeof e.type === 'string' && e.type !== '' ? e.type : null,
       aliases: Array.isArray(e.aliases) ? e.aliases.filter((a): a is string => typeof a === 'string') : [],
       sortKeyFull: typeof e.sortKeyFull === 'string' ? e.sortKeyFull : '',
-      status: KNOWN_STATUS.has(status) ? status : STATUS_SUPPORTED,
+      status: KNOWN_STATUS.has(status) ? status : STATUS_PENDING,
+      catalogId: typeof e.catalogId === 'string' ? e.catalogId : '',
+      cities: (cities.schools as Record<string, string[]>)[String(e.name)] ?? [],
     })
   }
   return out
@@ -87,6 +92,9 @@ export function isSelectable(s: SchoolInfo): boolean {
 /** 行内状态徽标 — SchoolStatusBadge: supported 无徽标 */
 export function statusBadge(s: SchoolInfo): { labelKey: string; bg: string; fg: string } | null {
   switch (s.status) {
+    case 'unverified':
+    case 'grad_unverified':
+      return { labelKey: '未验证', bg: 'var(--md-tertiary-container)', fg: 'var(--md-on-tertiary-container)' }
     case STATUS_PENDING:
     case STATUS_GRAD_PENDING:
       return {

@@ -16,6 +16,7 @@ import { GeneralSettingsPage } from './mine/GeneralSettingsPage'
 import { AppearancePage } from './mine/AppearancePage'
 import { HolidayPage } from './mine/HolidayPage'
 import { ReminderPage } from './mine/ReminderPage'
+import { TableReminderPage } from './mine/TableReminderPage'
 import { AboutPage } from './mine/AboutPage'
 import { LicensePage } from './mine/LicensePage'
 import { AllTablesPage } from './mine/AllTablesPage'
@@ -23,19 +24,25 @@ import { PeriodTablesPage } from './mine/PeriodTablesPage'
 import { CustomThemeEditorView } from './mine/CustomThemeEditorView'
 import { CourseListPage } from './mine/CourseListPage'
 import { PeriodHeaderSettingsPage } from './mine/PeriodHeaderSettingsPage'
+import { WidgetGalleryPage, WidgetManagementPage } from './mine/WidgetGalleryPage'
+import { WidgetSettingsPage } from './mine/WidgetSettingsPage'
 import { ScheduleDisplayPage } from './mine/ScheduleDisplayPage'
 
 type Page =
   | 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder' | 'license'
-  | 'customTheme' | 'periodTables' | 'courseList' | 'periodHeader' | 'scheduleDisplay'
+  | 'widgetGallery' | 'widgetManagement' | 'backup' | 'widgets' | 'customTheme' | 'periodTables' | 'courseList' | 'periodHeader' | 'scheduleDisplay' | 'tableReminder'
 
 /** MineView 自己拥有的返回层 — popstate 只在这些 key 弹出时收回页面状态 */
-const MINE_KEYS = new Set<string>(['general', 'appearance', 'export', 'allTables', 'periodTables', 'about', 'reminder', 'license', 'courseList', 'periodHeader', 'scheduleDisplay'])
+const MINE_KEYS = new Set<string>(['backup', 'widgets', 'general', 'appearance', 'export', 'allTables', 'periodTables', 'about', 'reminder', 'license', 'courseList', 'periodHeader', 'scheduleDisplay'])
 
 /** 刷新/直达恢复: 栈链栈顶 → 初始 page (App 挂载 effect 同步 restoreChain 重建历史) */
 export function minePageFromHash(hash: string): Page {
   const chain = chainFromHash(hash)
   switch (chain[chain.length - 1]) {
+    case 'backup': return 'backup'
+    case 'widgets': return 'widgets'
+    case 'widgetManagement': return 'widgetManagement'
+    case 'widgetGallery': return 'widgetGallery'
     case 'general': return 'general'
     case 'holiday': return 'holiday'
     case 'appearance': return 'appearance'
@@ -43,6 +50,7 @@ export function minePageFromHash(hash: string): Page {
     case 'about': return 'about'
     case 'license': return 'license'
     case 'reminder': return 'reminder'
+    case 'tableReminder': return 'tableReminder'
     case 'periodTables': return 'periodTables'
     case 'courseList': return 'courseList'
     case 'periodHeader': return 'periodHeader'
@@ -61,10 +69,15 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   // 浏览器返回时同步本地 page state;否则只弹历史而页面仍停在二级页。
   useEffect(() => installBackHandler((key) => {
     // 只收回属于本页的层 — 别的 tab 的弹层 (课程详情/周次跳转…) 弹出时不得误跳
-    if (key === 'holiday') setPage('general')
+    if (key === 'holiday') setPage(useBackStack.getState().peek() === 'reminder' ? 'reminder' : 'main')
+    else if (key === 'widgetGallery') setPage('widgetManagement')
+    else if (key === 'widgetManagement') setPage('widgets')
+    else if (key === 'tableReminder') setPage('reminder')
     else if (key === 'customTheme') setPage('appearance')
     else if (key === 'license') setPage('about')
     else if (key === 'periodTableEdit') setPage('periodTables')
+    else if (key === 'periodHeader') setPage('scheduleDisplay')
+    else if (key === 'scheduleDisplay') setPage(useBackStack.getState().peek() === 'widgets' ? 'widgets' : 'appearance')
     else if (MINE_KEYS.has(key ?? '')) setPage('main')
   }), [])
 
@@ -88,8 +101,7 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
         />
       )
     case 'holiday':
-      // HolidaySettingsScreen 的 back 回通用设置页(GSS 的二级页), 非回主页
-      return <HolidayPage onBack={() => backTo('general')} />
+      return <HolidayPage onBack={() => backTo(useBackStack.getState().stack[useBackStack.getState().stack.length - 2] === 'reminder' ? 'reminder' : 'main')} />
     case 'appearance':
       return (
         <AppearancePage
@@ -98,7 +110,7 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
             setEditingThemeId(id)
             go('customTheme', 'customTheme')
           }}
-          onOpenPeriodHeader={() => go('periodHeader', 'periodHeader')}
+          onOpenScheduleDisplay={() => go('scheduleDisplay', 'scheduleDisplay')}
         />
       )
     case 'customTheme':
@@ -114,17 +126,30 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
     case 'license':
       return <LicensePage onBack={() => backTo('about')} />
     case 'reminder':
-      return <ReminderPage onBack={() => backTo('main')} />
+      return <ReminderPage onBack={() => backTo('main')} onOpenTableReminder={() => go('tableReminder', 'tableReminder')} onOpenHoliday={() => go('holiday', 'holiday')} />
+    case 'tableReminder':
+      return <TableReminderPage onBack={() => backTo('reminder')} />
     case 'courseList':
       return <CourseListPage onBack={() => backTo('main')} />
     case 'periodHeader':
-      return <PeriodHeaderSettingsPage onBack={() => backTo('appearance')} />
+      return <PeriodHeaderSettingsPage onBack={() => backTo('scheduleDisplay')} />
     case 'scheduleDisplay':
-      return <ScheduleDisplayPage onBack={() => backTo('appearance')} />
+      return <ScheduleDisplayPage onBack={() => backTo(useBackStack.getState().stack[useBackStack.getState().stack.length - 2] === 'widgets' ? 'widgets' : 'appearance')} onOpenPeriodHeader={() => go('periodHeader', 'periodHeader')} />
+    case 'backup':
+      return <GeneralSettingsPage onBack={() => backTo('main')} backupOnly />
+    case 'widgetManagement':
+      return <WidgetManagementPage onBack={() => backTo('widgets')} onOpenGallery={() => go('widgetGallery', 'widgetGallery')} />
+    case 'widgetGallery':
+      return <WidgetGalleryPage onBack={() => backTo('widgetManagement')} />
+    case 'widgets':
+      return <WidgetSettingsPage onOpenManagement={() => go('widgetManagement', 'widgetManagement')} onBack={() => backTo('main')} onOpenScheduleDisplay={() => go('scheduleDisplay', 'scheduleDisplay')} />
     default:
       return (
         <MineHome
           navExtraBottom={navExtraBottom}
+          onOpenHoliday={() => go('holiday', 'holiday')}
+          onOpenBackup={() => go('backup', 'backup')}
+          onOpenWidgets={() => go('widgets', 'widgets')}
           onOpenGeneral={() => go('general', 'general')}
           onOpenAppearance={() => go('appearance', 'appearance')}
           onOpenExport={() => go('export', 'export')}

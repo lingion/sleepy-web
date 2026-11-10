@@ -1,0 +1,17 @@
+.color-picker {display:flex;flex-direction:column;gap:12px;min-width:0;}
+.color-sv {position:relative;width:100%;height:200px;border-radius:16px;touch-action:none;cursor:crosshair;isolation:isolate;}
+.color-sv-white,.color-sv-black {position:absolute;inset:0;border-radius:inherit;pointer-events:none;}
+.color-sv-white {background:linear-gradient(to right,white,transparent);}
+.color-sv-black {background:linear-gradient(to bottom,transparent,black);}
+.color-sv-marker {position:absolute;width:12px;height:12px;translate:-50% -50%;border-radius:50%;background:white;box-shadow:0 0 0 1px #0005;pointer-events:none;}
+.color-picker-keyboard {position:absolute;width:1px;height:1px;opacity:0;clip-path:inset(50%);}
+.color-sv:focus-within {outline:2px solid var(--md-primary);outline-offset:4px;}
+.color-hue {position:relative;height:48px;flex-shrink:0;touch-action:none;cursor:ew-resize;background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
+.color-hue-thumb {position:absolute;top:50%;width:20px;height:20px;box-sizing:border-box;border:3px solid white;border-radius:50%;translate:-50% -50%;box-shadow:0 0 0 1px #0005;pointer-events:none;}
+.color-hue-ghost {position:absolute;top:0;bottom:0;width:2px;translate:-50% 0;background:white;box-shadow:0 0 0 1px #000d;pointer-events:none;}
+.color-picker-preview {display:flex;align-items:center;gap:12px;}
+.color-picker-preview > span {width:40px;height:40px;flex-shrink:0;border-radius:50%;}
+:root[data-ui-style="liquid_glass"] .color-hue {background-size:100% 16px;background-position:center;background-repeat:no-repeat;}
+:root[data-ui-style="liquid_glass"] .color-hue-thumb {top:12px;width:16px;height:24px;translate:calc(-50% + var(--lens-x,0px)) var(--lens-y,0px);scale:calc(1 + var(--lens-lift,0)*.08) calc(1 + var(--lens-lift,0)*.35);border-radius:14px;border:1px solid #fffc;box-shadow:inset 0 1px 1px #fffc,0 3px 8px #18355433;backdrop-filter:blur(8px);}
+:root[data-ui-style="liquid_glass"] .color-hue-ghost {top:12px;bottom:12px;width:16px;opacity:.4;border-radius:14px;box-shadow:inset 0 0 0 1px #0008;background:color-mix(in srgb,white 35%,transparent);}
+@media(prefers-reduced-motion:reduce){.color-hue-thumb {scale:1!important;}}

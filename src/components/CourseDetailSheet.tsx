@@ -28,6 +28,8 @@ export function CourseDetailSheet({
   onDismiss,
   onEdit,
   onDefaultTopChanged,
+  onAdjustOccurrence,
+  onDeleteOccurrence,
 }: {
   course: Course
   timeString?: string
@@ -35,6 +37,8 @@ export function CourseDetailSheet({
   timeJson?: string | null
   onDismiss: () => void
   onEdit?: (c: Course) => void
+  onAdjustOccurrence?: (c: Course) => void
+  onDeleteOccurrence?: (c: Course) => void
   /** v7.10.5 同 Android: 回调优先 — 同帧驱动网格换层(会话级 override); 无回调宿主退回纯持久化路径 */
   onDefaultTopChanged?: (clusterKey: string, layerRepId: number | null) => void
 }) {
@@ -172,6 +176,10 @@ export function CourseDetailSheet({
             </div>
           )}
 
+          {(onAdjustOccurrence || onDeleteOccurrence) && <div className="occurrence-inline">
+            {onAdjustOccurrence && <button className="occurrence-secondary" onClick={() => onAdjustOccurrence(course)}>调整本次</button>}
+            {onDeleteOccurrence && <button className="occurrence-danger" onClick={() => onDeleteOccurrence(course)}>删除本次</button>}
+          </div>}
           {onEdit && (
             <button
               onClick={() => onEdit(course)}

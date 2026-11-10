@@ -9,10 +9,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../data/db'
-import { computeCurrentWeek } from '../ScheduleView'
 import {
   IconEdit, IconShare, IconPalette, IconTune, IconInfo,
-  IconNotifications, IconSchedule, IconRefresh,
+  IconNotifications, IconSchedule,
 } from '../../components/icons'
 import type { Course } from '../../data/types'
 import { HDiv } from './shared'
@@ -22,8 +21,10 @@ import pkg from '../../../package.json'
 export function MineHome({
   navExtraBottom = 0,
   onOpenGeneral,
+  onOpenHoliday,
+  onOpenBackup,
+  onOpenWidgets,
   onOpenAppearance,
-  onOpenExport,
   onOpenAllTables,
   onOpenPeriodTables,
   onOpenAbout,
@@ -31,6 +32,9 @@ export function MineHome({
   onOpenCourseList,
 }: {
   navExtraBottom?: number
+  onOpenHoliday?: () => void
+  onOpenBackup?: () => void
+  onOpenWidgets?: () => void
   onOpenGeneral: () => void
   onOpenAppearance: () => void
   onOpenExport: () => void
@@ -41,7 +45,7 @@ export function MineHome({
   onOpenCourseList: () => void
 }) {
   const { t } = useTranslation()
-  const [toast, setToast] = useState('')
+  const [toast] = useState('')
   // updateNoticeVisible — UpdateNotifier.noticeVisible 同构: 会话首查 + 缓存命中则
   // About 行 primary@10% 高亮 (SleepyNavHost.kt:124/301 → MineScreen highlighted)
   const [refresh, setRefresh] = useState(0)
@@ -57,7 +61,7 @@ export function MineHome({
       defaultTable ? await db.courses.where('tableId').equals(defaultTable.id).toArray() : ([] as Course[]),
     [defaultTable?.id]
   )
-  const currentWeek = computeCurrentWeek(defaultTable?.startDate ?? '', defaultTable?.maxWeek ?? 20)
+  const periodCount = useLiveQuery(() => db.periodTables.count(), []) ?? 0
   // mine_stat_courses: distinctBy courseName.ifBlank{"#groupId"} (MineScreen.kt, 与 CourseListScreen 同口径)
   const courseCount = useMemo(
     () => new Set((courses ?? []).map((c) => (c.courseName.trim() === '' ? `#${c.groupId}` : c.courseName))).size,
@@ -78,7 +82,7 @@ export function MineHome({
         <VDivider />
         <button type="button" onClick={onOpenCourseList} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'inherit', padding: '4px 12px', borderRadius: 12 }}><StatItem value={String(courseCount)} label={t('mine_stat_courses')} /></button>
         <VDivider />
-        <StatItem value={String(currentWeek)} label={t('mine_stat_week')} />
+        <button type="button" onClick={onOpenPeriodTables} style={{ border: 0, background: 'transparent', color: 'inherit', cursor: 'pointer', padding: '4px 12px' }}><StatItem value={String(periodCount)} label={t('mine_stat_period_tables', '作息表')} /></button>
       </div>
 
       <div style={{ height: 16 }} />
@@ -90,7 +94,7 @@ export function MineHome({
         {/* issue#40: 时间节次表入口 — 与课表管理并列 (MineScreen.kt:119 SettingsItem 同位) */}
         <SettingsItem icon={<IconSchedule size={20} />} label={t('mine_period_tables')} onClick={onOpenPeriodTables} />
         <HDiv inset={72} />
-        <SettingsItem icon={<IconShare size={20} />} label={t('mine_export')} onClick={onOpenExport} />
+        <SettingsItem icon={<IconSchedule size={20} />} label={t('settings_holidays', '节假日')} onClick={() => onOpenHoliday?.()} />
         <HDiv inset={72} />
         {/* 提醒 — web 无系统通知通道, 入口保留接通 to-do 占位页 */}
         <SettingsItem icon={<IconNotifications size={20} />} label={t('reminder_title')} onClick={onOpenReminder} />
@@ -99,29 +103,12 @@ export function MineHome({
         <HDiv inset={72} />
         <SettingsItem icon={<IconTune size={20} />} label={t('mine_general')} onClick={onOpenGeneral} />
         <HDiv inset={72} />
+        <SettingsItem icon={<IconSchedule size={20} />} label={t('mine_widget', '桌面小组件')} onClick={() => onOpenWidgets?.()} />
+        <HDiv inset={72} />
+        <SettingsItem icon={<IconShare size={20} />} label={t('settings_backup', '备份')} onClick={() => onOpenBackup?.()} />
+        <HDiv inset={72} />
         <SettingsItem icon={<IconInfo size={20} />} label={t('about_title')} onClick={onOpenAbout} highlighted={updateNoticeVisible} />
       </div>
-
-      {/* 动作区 — 刷新所有小组件 (MineScreen.kt:148-163 FilledTonalButton 1:1 形态:
-          fillMaxWidth × regularHeight 48dp × secondaryContainer × Buttons.shape)。
-          Web 无小组件通道 → onClick 以 toast 说明, 布局节奏与 Android 一致。 */}
-      <div style={{ height: 16 }} />
-      <button
-        type="button"
-        onClick={() => {
-          setToast(t('web_widget_unavailable'))
-          window.setTimeout(() => setToast(''), 3000)
-        }}
-        className="m3-label-large"
-        style={{
-          width: '100%', height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)',
-        }}
-      >
-        <IconRefresh size={18} />
-        {t('mine_refresh_widgets')}
-      </button>
 
       {toast !== '' && (
         <div

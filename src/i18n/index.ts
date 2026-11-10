@@ -22,6 +22,7 @@ import { reminderExtra } from './extra/reminder'
 import { migrationExtra } from './extra/migration'
 import { calendarExportExtra } from './extra/calexport'
 import { widgetExtra } from './extra/widget'
+import { portableImportExtra } from './extra/portableImport'
 
 export const SUPPORTED_LANGS = ['en', 'zh-CN', 'zh-TW', 'ja', 'es', 'en-GB'] as const
 export type Lang = (typeof SUPPORTED_LANGS)[number]
@@ -75,6 +76,7 @@ const EXTRA_KEY_FILES: Array<Record<Lang, Record<string, string>>> = [
   migrationExtra,
   calendarExportExtra,
   widgetExtra,
+  portableImportExtra,
 ]
 
 /** 主 JSON 占位转换 + 逐层合并扩展键 → 该语言最终 translation 表。 */

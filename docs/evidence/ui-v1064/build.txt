@@ -1,0 +1,21 @@
+
+> sleepy-web@1.0.61 build
+> tsc -b && vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 237 modules transformed.
+[plugin:vite:reporter] [plugin vite:reporter]
+(!) /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/data/repository.ts is dynamically imported by /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/components/schedule/useOccurrenceActions.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/AddCourseView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/AddCourseView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/AddCourseView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/ScheduleView.tsx but also statically imported by /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/components/schedule/useOccurrenceActions.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/state/pendingTable.ts, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/AddCourseView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/EditTableView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/ExportView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/ImportView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/ManageView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/jw/JwImportView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/mine/AllTablesPage.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/mine/PeriodTableEditView.tsx, /Users/lingion_k/sleepy-worktrees/web-ui-v1064-20261110/src/views/mine/PeriodTablesPage.tsx, dynamic import will not move module into another chunk.
+
+rendering chunks...
+computing gzip size...
+dist/index.html                     1.51 kB │ gzip:   1.10 kB
+dist/assets/index-Dsdm4Cvr.css     24.27 kB │ gzip:   5.14 kB
+dist/assets/index-Bysr6NKT.js   1,349.62 kB │ gzip: 472.38 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 5.14s

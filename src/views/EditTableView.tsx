@@ -39,6 +39,7 @@ import {
 } from '../domain/smartPeriod'
 import { normalizeStartDateToMonday } from './importExportUtils'
 import { TimeSlotSection } from './mine/TimeSlotSection'
+import { resolveAutoPeriodConfig } from '../domain/periodEditor'
 
 /** normalizeStartDate — DateUtils.kt: 任意日期归一到该周周一 */
 function normalizeStartDate(raw: string): string {
@@ -87,6 +88,7 @@ export function EditTableView({
   // 编辑器直接改草稿, 主保存按钮持久化草稿 (旧版主保存用原始 rows, 编辑会被静默丢弃)
   const [rowsDraft, setRowsDraft] = useState<TimeSlotRow[] | null>(null)
   const [smartConfig, setSmartConfig] = useState<SmartPeriodConfig | null>(null)
+  const [editorSource, setEditorSource] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   // issue#40: 换绑选择(§5.3) — null 起始 = 未动过; 确认时才写 periodTableId。
@@ -134,13 +136,15 @@ export function EditTableView({
   if (table && startDate === null) setStartDate(table.startDate)
   if (table && maxWeekText === null) setMaxWeekText(String(table.maxWeek))
   if (table && reminderEnabled === null) setReminderEnabled(table.reminderEnabled !== 0)
-  if (table && rowsDraft === null) {
-    const initBindId = pendingBindInit ? pendingBind : (table.periodTableId ?? null)
-    const initPeriod = initBindId != null ? allPeriodTables.find((pt) => pt.id === initBindId) : undefined
-    const initTimeJson = initPeriod?.timeJson ?? table.timeJson
-    const initSmartJson = initPeriod?.smartConfigJson ?? table.smartConfigJson
-    setRowsDraft(parseTimeSlotRows(initTimeJson))
-    setSmartConfig(decodeSmartConfig(initSmartJson) ?? inferSmartConfig(parseTimeSlotRows(initTimeJson)))
+  const initBindId = pendingBindInit ? pendingBind : (table?.periodTableId ?? null)
+  const initPeriod = initBindId != null ? allPeriodTables.find((pt) => pt.id === initBindId) : undefined
+  const sourceKey = table ? JSON.stringify([table.id, initPeriod?.id ?? null, initPeriod?.timeJson ?? table.timeJson]) : null
+  if (table && allPeriodTablesLive !== undefined && (rowsDraft === null || editorSource !== sourceKey)) {
+    const rows = parseTimeSlotRows(initPeriod?.timeJson ?? table.timeJson)
+    const stored = decodeSmartConfig(initPeriod?.smartConfigJson ?? table.smartConfigJson)
+    setRowsDraft(rows)
+    setSmartConfig(resolveAutoPeriodConfig(rows, stored) ?? inferSmartConfig(rows))
+    setEditorSource(sourceKey)
   }
   // pendingBind 初始化一次性 — table.periodTableId (remember(table.id, table.periodTableId) 等价)
   if (table && !pendingBindInit) {
@@ -165,6 +169,7 @@ export function EditTableView({
   const tableName = name
   const tableStart = startDate
   const tableMaxWeek = maxWeekText
+  const config = smartConfig
   const smartJson = encodeSmartConfig(smartConfig)
   // issue#40: 编辑的就是"有效时间表" — 绑定了独立作息表时节次编辑区展示/修改该作息表
   // (多张绑定课表同享); 换绑修复: 有效表跟随 pendingBind(下拉改选立即切换编辑区来源),
@@ -173,8 +178,10 @@ export function EditTableView({
   // 跟随 pendingBind 同构); 未绑定时回退本表兼容列
   const effectivePeriodTable =
     pendingBind != null ? allPeriodTables.find((pt) => pt.id === pendingBind) ?? null : null
-  const effectiveTimeJson = effectivePeriodTable?.timeJson ?? tbl.timeJson
-  const effectiveSmartJson = effectivePeriodTable?.smartConfigJson ?? tbl.smartConfigJson
+  const draftScheduleCarrier = effectivePeriodTable ?? {
+    id: 0, name: tbl.name, timeJson: tbl.timeJson, smartConfigJson: tbl.smartConfigJson,
+    nodesPerDay: tbl.nodeCount, createdAt: 0, updatedAt: 0,
+  }
 
   /** 返回 true = 已提交(或异步提交中); false = 校验失败; 'confirm' = 弹出换绑确认框;
    *  'conflict' = 弹出作息三选项 Sheet (EditTableScreen.kt:397-422 三选项闸门) */
@@ -320,23 +327,27 @@ export function EditTableView({
         rows={slotRows}
         onRowsChange={(newRows) => {
           setRowsDraft(newRows)
+          const newConfig = resolveAutoPeriodConfig(newRows, config) ?? config
+          setSmartConfig(newConfig)
           // 甲案 §2.1: 节次编辑即草稿变化 — 同步进会话状态;
           // 策略已登记时自动失效 (invariant ⑤, 下次保存重弹)
-          if (effectivePeriodTable != null && editState) {
+          if (editState) {
             editState.updateDraft({
-              ...effectivePeriodTable,
+              ...draftScheduleCarrier,
               timeJson: buildTimeJsonFromRows(newRows),
+              smartConfigJson: encodeSmartConfig(newConfig),
               nodesPerDay: Math.max(1, newRows.length),
             })
           }
         }}
-        smartConfig={decodeSmartConfig(effectiveSmartJson) ?? inferSmartConfig(parseTimeSlotRows(effectiveTimeJson))}
+        smartConfig={config}
         onSmartConfigChange={(newCfg) => {
           setSmartConfig(newCfg)
           // 甲案 §2.1: 自动模式配置也属作息草稿 — 变化即同步+旧策略作废
-          if (effectivePeriodTable != null && editState) {
+          if (editState) {
             editState.updateDraft({
-              ...effectivePeriodTable,
+              ...draftScheduleCarrier,
+              timeJson: buildTimeJsonFromRows(slotRows),
               smartConfigJson: encodeSmartConfig(newCfg),
               nodesPerDay: Math.max(1, slotRows.length),
             })
@@ -346,7 +357,10 @@ export function EditTableView({
           id: pt.id, name: pt.name, nodesPerDay: pt.nodesPerDay,
         }))}
         selectedPeriodTableId={pendingBind}
-        onSelectPeriodTable={setPendingBind}
+        onSelectPeriodTable={(id) => {
+          setPendingBind(id)
+          editState?.selectPolicy(SchedulePolicy.NONE)
+        }}
       />
 
       {error && (
@@ -494,20 +508,22 @@ function Field({
 }
 
 function Header({ title, onBack }: { title: string; onBack: () => void }) {
+  const { t } = useTranslation()
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 64 }}>
       <button
         type="button"
         onClick={onBack}
-        aria-label="back"
+        aria-label={t('back', { defaultValue: '返回' })}
         style={{
-          padding: '8px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
+          width: 48, height: 48, padding: 0, borderRadius: 24, border: 'none', cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           background: 'transparent', color: 'var(--md-on-surface)', fontSize: 18,
         }}
       >
         <IconArrowBack size={20} />
       </button>
-      <h1 className="m3-headline-medium" style={{ margin: 0 }}>{title}</h1>
+      <h1 className="m3-title-large" style={{ margin: 0 }}>{title}</h1>
     </div>
   )
 }
@@ -527,7 +543,7 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
         aria-modal="true"
         className="m3-card"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
+        style={{ maxWidth: 400, width: '100%', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
       >
         {children}
       </div>

@@ -8,6 +8,9 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEve
 import { useTranslation } from 'react-i18next'
 import { IconArrowBack, IconCheck, IconExpandMore } from '../../components/icons'
 import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
+import '../../components/IntRangeSlider.css'
+import {useGlassLens} from '../../components/glass/useGlassLens'
+import {haptic} from '../../components/glass/physics'
 
 // AnimatedVisibility 默认 expandVertically/fadeIn = spring(StiffnessMediumLow) 临界阻尼 ≈330ms 收束
 const EXPAND_MS = 330
@@ -120,7 +123,7 @@ export function DisplayModeOption({ label, subtitle, selected, onClick }: { labe
  * ArrowBack 24 onBackground, 标题 titleLarge 起 56) + 内容 PaddingValues(16) / spacedBy(16)。
  * bg: 内容区底色 (TopAppBar 下方, Android Column.background 同位); 内容区撑满剩余高度
  */
-export function SettingsScaffold({ title, onBack, children, bg, gap = 16 }: { title: string; onBack: () => void; children: ReactNode; bg?: string; gap?: number }) {
+export function SettingsScaffold({ title, onBack, children, bg, gap = 16,actions }: { title: string; onBack: () => void; children: ReactNode; bg?: string; gap?: number;actions?:ReactNode }) {
   const { t } = useTranslation()
   return (
     <div style={{ height: '100%', overflow: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
@@ -138,10 +141,11 @@ export function SettingsScaffold({ title, onBack, children, bg, gap = 16 }: { ti
         </button>
         <span
           className="m3-title-large"
-          style={{ padding: '0 4px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          style={{ padding: '0 4px', minWidth: 0, flex:1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
           {title}
         </span>
+        {actions}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap, padding: 16, flexGrow: 1, background: bg }}>
         {children}
@@ -217,6 +221,7 @@ export function SliderRow({
   labelColor?: string
 }) {
   const [draft, setDraft] = useState(value)
+  const baseline=useRef(value)
   useLayoutEffect(() => setDraft(value), [value])
   const commit = (next: number) => {
     setDraft(next)
@@ -228,6 +233,8 @@ export function SliderRow({
   return (
     <label style={{ display: 'block' }}>
       <div className="m3-body-medium" style={{ color: labelColor }}>{displayLabel}</div>
+      <div className="single-slider">
+      {Number.isFinite(baseline.current) && Math.abs(draft-baseline.current)>step/2 && <span aria-hidden data-slider-ghost className="single-slider-ghost" style={{'--ghost-frac':Math.max(0,Math.min(1,(baseline.current-min)/(max-min)))} as CSSProperties}/>}
       <input
         className="m3-slider"
         type="range"
@@ -250,6 +257,7 @@ export function SliderRow({
         }}
         style={{ '--slider-progress': `${progress}%` } as CSSProperties}
       />
+      </div>
     </label>
   )
 }
@@ -263,12 +271,12 @@ export function ToggleRow({
   onChange: (v: boolean) => void
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', padding: '4px 4px' }}>
+    <div onClick={(event)=>{ if(!(event.target as Element).closest('button')) onChange(!checked) }} style={{ display: 'flex', alignItems: 'center', gap:12, padding: '4px 4px',cursor:'pointer' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="m3-body-large" style={{ color: 'var(--md-on-surface)' }}>{label}</div>
         {subtitle && <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{subtitle}</div>}
       </div>
-      <Switch checked={checked} onChange={onChange} />
+      <Switch checked={checked} onChange={onChange} label={label} />
     </div>
   )
 }
@@ -283,13 +291,23 @@ export function ToggleRow({
  * 布局高: minimumInteractiveComponentSize 把 Switch 撑到 48 (上下各留 8); compact = heightIn(max = 32)。
  */
 export function Switch({
-  checked, onChange, uncheckedTrack = 'var(--md-surface-container-highest)', compact = false,
-}: { checked: boolean; onChange: (v: boolean) => void; uncheckedTrack?: string; compact?: boolean }) {
+  checked, onChange, uncheckedTrack = 'var(--md-surface-container-highest)', compact = false, label,
+}: { checked: boolean; onChange: (v: boolean) => void; uncheckedTrack?: string; compact?: boolean; label?: string }) {
+  const track=useRef<HTMLButtonElement>(null)
+  const lens=useGlassLens(track)
+  const [held, setHeld] = useState(false)
+  const drag = useRef<{ x: number; changed: boolean } | null>(null)
   return (
     <button
+      ref={track} className="switch-track" data-glass-motion="off"
+      data-held={held}
+      onPointerDown={(e) => { if (e.button !== 0) return; drag.current = { x: e.clientX, changed: false }; setHeld(true);lens.press(e.clientX,e.clientY); e.currentTarget.setPointerCapture?.(e.pointerId) }}
+      onPointerMove={(e) => { if(held)lens.move(e.clientX,e.clientY); if (!drag.current || Math.abs(e.clientX - drag.current.x) < 8) return; drag.current.changed = true;const next=e.clientX > drag.current.x;if(next!==checked){haptic();onChange(next)} }}
+      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => { drag.current = null; setHeld(false);lens.release() }}
       type="button"
-      onClick={() => onChange(!checked)}
+      onClick={() => { if (!drag.current?.changed) {haptic();onChange(!checked)}; drag.current = null }}
       role="switch"
+      aria-label={label}
       aria-checked={checked}
       style={{
         width: 52, height: 32, margin: compact ? 0 : '8px 0', borderRadius: 16, border: 'none', padding: 0,
@@ -301,6 +319,7 @@ export function Switch({
       }}
     >
       <div
+        className="switch-thumb"
         style={{
           width: checked ? 24 : 16, height: checked ? 24 : 16, borderRadius: 16,
           background: checked ? 'var(--md-on-primary)' : 'var(--md-outline)',
