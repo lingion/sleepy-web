@@ -4,6 +4,7 @@ import { liquidGlassStyle, scaleGlassStyle, type GlassStyle, type GlassStyleRole
 import type { CornerRadii, OpticalShape } from './opticalMath'
 import { matchesOpaqueBackdrop, type OpaqueBackdropProof } from './opaqueBackdrop'
 
+export { proveOpaqueBackdrop } from './opaqueBackdrop'
 export { renderOpticalMaps, opticalSamplingPadding } from './opticalMaps'
 export { sampleGlassOptics, roundedBoxGeometry, combineGlassChannels, shadeGlassSample, OPTICAL_CONSTANTS } from './opticalMath'
 export { liquidGlassStyle, scaleGlassStyle, lerpGlassStyle, standardGlassStyle } from './styles'
