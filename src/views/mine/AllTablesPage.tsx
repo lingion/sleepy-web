@@ -15,7 +15,8 @@ import { computeCurrentWeek } from '../ScheduleView'
 import { EditTableView } from '../EditTableView'
 import { duplicateTable, setDefault } from '../../data/repository'
 import { IconCheckCircle, IconContentCopy, IconSettings, IconAdd } from '../../components/icons'
-import { AlertDialog, TextButton } from '../../components/AlertDialog'
+import { AlertDialog } from '../../components/AlertDialog'
+import { DialogActionButtons } from '../../components/DialogActionButtons'
 import type { Table } from '../../data/types'
 import { SettingsScaffold } from './shared'
 
@@ -53,10 +54,10 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
 
   return (
     <SettingsScaffold title={t('all_tables')} onBack={onBack}>
-      {copying && <AlertDialog title={t('all_tables_duplicate', '复制课表')} onDismiss={() => setCopying(null)} buttons={<><TextButton label={t('cancel')} onClick={() => setCopying(null)} /><TextButton label={t('confirm', '确定')} onClick={() => {
+      {copying && <AlertDialog glassRole={false} title={t('all_tables_duplicate', '复制课表')} onDismiss={() => setCopying(null)} buttons={<DialogActionButtons dismissText={t('cancel')} onDismiss={() => setCopying(null)} confirmText={t('confirm', '确定')} onConfirm={() => {
         if (!copyName.trim()) { setCopyError(t('table_name_required', '请输入课表名称')); return }
         void duplicateTable(copying.id, copyName).then(() => setCopying(null)).catch(() => setCopyError(t('save_failed', '保存失败，请重试')))
-      }} /></>}>
+      }} />}>
         <input aria-label={t('table_name', '课表名称')} value={copyName} autoFocus onChange={e => setCopyName(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, background: 'var(--md-surface-container)', color: 'var(--md-on-surface)', border: '1px solid var(--md-outline)' }} />
         {copyError && <p role="alert">{copyError}</p>}
       </AlertDialog>}
@@ -90,14 +91,14 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
                 </div>
               )}
             </div>
-            <button
+            <button data-glass-role="regular" data-glass-icon="true"
               onClick={(e) => { e.stopPropagation(); setCopying(tb); setCopyError(''); let suffix = 2; while (tables.some(t => t.name === `${tb.name}${suffix}`)) suffix++; setCopyName(`${tb.name}${suffix}`) }}
               aria-label={t('all_tables_duplicate')}
               style={iconBtnStyle}
             >
               <IconContentCopy size={20} />
             </button>
-            <button
+            <button data-glass-role="regular" data-glass-icon="true"
               onClick={(e) => { e.stopPropagation(); push('editTable'); setEditingId(tb.id) }}
               aria-label={t('action_settings')}
               style={iconBtnStyle}
@@ -107,7 +108,7 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
           </div>
         )
       })}
-      <button
+      <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)"
         onClick={() => {
           // 待保存新建 (MainActivity:311-317): 建空表不切选中 → EditTable, 不保存返回即丢弃
           void beginNewTable().then((id) => { push('editTable'); setEditingId(id) })
@@ -126,7 +127,7 @@ export function AllTablesPage({ onBack }: { onBack: () => void }) {
 }
 
 const iconBtnStyle: React.CSSProperties = {
-  width: 36, height: 36, borderRadius: 18, border: 'none', background: 'transparent',
+  width: 48, height: 48, borderRadius: 24, border: 'none', background: 'transparent',
   color: 'var(--md-on-surface-variant)', cursor: 'pointer', display: 'flex',
   alignItems: 'center', justifyContent: 'center', flexShrink: 0,
 }

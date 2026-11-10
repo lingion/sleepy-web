@@ -46,12 +46,12 @@ export function LanguageMenu({ lang, onChange }: { lang: Prefs['lang']; onChange
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
   }, [open])
   return <>
-    <button ref={anchor} type="button" className="language-menu-anchor" aria-haspopup="menu" aria-expanded={open} onClick={() => { if (!closing) setOpen(true) }}>
+    <button data-glass-plain ref={anchor} type="button" className="language-menu-anchor" aria-haspopup="menu" aria-expanded={open} onClick={() => { if (!closing) setOpen(true) }}>
       <span className="m3-title-small">{t('settings_language')}</span>
       <span className="language-menu-value m3-body-large">{current}<IconExpandMore size={20} /></span>
     </button>
     {open && createPortal(<div className="language-menu-layer" onPointerDown={event => { if (event.target === event.currentTarget) close() }}>
-      <div ref={menu} className={`language-menu-popup${closing ? ' language-menu-closing' : ''}`} role="menu" aria-label={t('settings_language')} style={{ top: position.top, left: position.left, width: position.width, maxHeight: position.height }} onKeyDown={event => {
+      <div data-glass-role="menu" data-glass-motion="static" ref={menu} className={`language-menu-popup${closing ? ' language-menu-closing' : ''}`} role="menu" aria-label={t('settings_language')} style={{ top: position.top, left: position.left, width: position.width, maxHeight: position.height }} onKeyDown={event => {
         const items = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? [])
         if (event.key === 'Escape') { event.preventDefault(); close() }
         else if (['ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'].includes(event.key)) {
@@ -61,7 +61,7 @@ export function LanguageMenu({ lang, onChange }: { lang: Prefs['lang']; onChange
           items[next]?.focus()
         }
       }}>
-        {LANGUAGES.map(([code, label]) => <button type="button" role="menuitemradio" aria-checked={lang === code} key={code} disabled={closing} onClick={() => close(code)}>
+        {LANGUAGES.map(([code, label]) => <button data-glass-plain type="button" role="menuitemradio" aria-checked={lang === code} key={code} disabled={closing} onClick={() => close(code)}>
           <span>{label}</span>{lang === code && <IconCheck size={20} />}
         </button>)}
       </div>

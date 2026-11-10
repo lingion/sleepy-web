@@ -197,7 +197,7 @@ export function PeriodTableEditView({
         <div role="alert" className="m3-body-medium" style={{ color: 'var(--md-error)' }}>{error}</div>
       )}
       {/* 保存 — Buttons.ctaHeight 56 / shape large r16 */}
-      <button
+      <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
         onClick={() => handleSave(rowsDraft)}
         style={{
           height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -209,7 +209,7 @@ export function PeriodTableEditView({
       </button>
       {/* 删除 (新建未保存的表不显示 — 退出即丢弃) — Buttons.regularHeight 48 / r16 */}
       {!unsavedNew && (
-        <button
+        <button data-glass-role="tinted" data-glass-tint="var(--md-error-container)"
           onClick={() => setShowDeleteConfirm(true)}
           style={{
             height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
@@ -298,7 +298,7 @@ function TopBar({ onShare, onCopy }: { onShare: () => void; onCopy: () => void }
   const { t } = useTranslation()
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-      <button
+      <button data-glass-role="regular" data-glass-icon="true"
         aria-label={t('period_table_share_sheet_title')}
         onClick={onShare}
         style={{
@@ -307,7 +307,7 @@ function TopBar({ onShare, onCopy }: { onShare: () => void; onCopy: () => void }
           alignItems: 'center', justifyContent: 'center',
         }}
       ><IconShare size={20} /></button>
-      <button
+      <button data-glass-role="regular" data-glass-icon="true"
         aria-label={t('period_table_copy')}
         onClick={onCopy}
         style={{
@@ -402,13 +402,13 @@ function ShareSheet({ onSelect, onDismiss }: { onSelect: (kind: 'native' | 'json
         background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16,
       }}
     >
-      <div
+      <div data-glass-role="menu" data-glass-motion="static"
         role="dialog" aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 480, width: '100%', display: 'flex', flexDirection: 'column', gap: 8, padding: 12, marginBottom: 16, borderRadius: 28, background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)' }}
       >
         <h3 className="m3-title-medium" style={{ margin: '4px 8px' }}>{t('period_table_share_sheet_title')}</h3>
-        <button
+        <button data-glass-plain
           onClick={() => onSelect('native')}
           style={{
             padding: 14, borderRadius: 12, border: 'none', cursor: 'pointer', textAlign: 'left',
@@ -418,7 +418,7 @@ function ShareSheet({ onSelect, onDismiss }: { onSelect: (kind: 'native' | 'json
           <div>{t('period_table_share_native_title')}</div>
           <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('period_table_share_native_sub')}</div>
         </button>
-        <button
+        <button data-glass-plain
           onClick={() => onSelect('json')}
           style={{
             padding: 14, borderRadius: 12, border: 'none', cursor: 'pointer', textAlign: 'left',
@@ -428,7 +428,7 @@ function ShareSheet({ onSelect, onDismiss }: { onSelect: (kind: 'native' | 'json
           <div>{t('period_table_share_json_title')}</div>
           <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('period_table_share_json_sub')}</div>
         </button>
-        <button onClick={onDismiss} style={{
+        <button data-glass-plain onClick={onDismiss} style={{
           padding: 10, borderRadius: 12, border: 'none', cursor: 'pointer',
           background: 'transparent', color: 'var(--md-on-surface-variant)', fontSize: 13,
         }}>{t('cancel')}</button>

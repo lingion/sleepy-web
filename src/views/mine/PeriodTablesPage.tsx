@@ -144,7 +144,7 @@ function PeriodTablesList({
           </div>
         )
       })}
-      <button
+      <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
         onClick={async () => {
           const courseNames = tables.map((tb) => tb.name)
           const periodNames = periodTables.map((p) => p.name)
@@ -213,11 +213,11 @@ function CopyDialog({
 
 function IconButton({ children, onClick, ...rest }: { children: React.ReactNode; onClick: () => void; 'aria-label'?: string }) {
   return (
-    <button
+    <button data-glass-role="regular" data-glass-icon="true"
       onClick={onClick}
       {...rest}
       style={{
-        width: 40, height: 40, borderRadius: 20, border: 'none', background: 'transparent',
+        width: 48, height: 48, borderRadius: 24, border: 'none', background: 'transparent',
         color: 'var(--md-on-surface-variant)', cursor: 'pointer', display: 'inline-flex',
         alignItems: 'center', justifyContent: 'center',
       }}
