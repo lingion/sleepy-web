@@ -325,4 +325,10 @@ button:focus-visible, [role="button"]:focus-visible, [role="slider"]:focus-visib
 .schedule-toolbar[data-grouped="true"] .week-controls > div {border-inline:1px solid var(--md-outline-variant);}
 
 :root[data-ui-style="liquid_glass"] .glass-control[data-glass-static] {position:relative;}
+:root[data-ui-style="liquid_glass"] .glass-control[data-glass-icon] {position:relative;background-color:transparent !important;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;overflow:visible;}
+:root[data-ui-style="liquid_glass"] .glass-control[data-glass-icon]::before {content:'';position:absolute;inset:max(0px,calc((100% - 36px)/2));border-radius:50%;background:var(--glass-control-tint,var(--glass-tint));backdrop-filter:blur(18px) saturate(1.65);-webkit-backdrop-filter:blur(18px) saturate(1.65);box-shadow:inset 0 1px 1px #fff9,inset 0 -1px 1px #18234326,0 3px 8px #14244810;pointer-events:none;}
+:root[data-ui-style="liquid_glass"] .glass-control[data-glass-icon]::after {inset:max(0px,calc((100% - 36px)/2));border-radius:50%;}
+:root[data-ui-style="liquid_glass"] .glass-control[data-glass-icon] > svg {position:relative;z-index:1;}
+:root[data-ui-style="liquid_glass"] .glass-moving[data-glass-icon] {translate:none;scale:none;box-shadow:none !important;}
+:root[data-ui-style="liquid_glass"] .glass-moving[data-glass-icon]::before,:root[data-ui-style="liquid_glass"] .glass-moving[data-glass-icon]::after,:root[data-ui-style="liquid_glass"] .glass-moving[data-glass-icon] > svg {translate:var(--glass-x,0px) var(--glass-y,0px);scale:calc(1 + var(--glass-lift,0) * .09 + var(--glass-stretch,0)) calc(1 + var(--glass-lift,0) * .12 - var(--glass-stretch,0));}
 :root[data-ui-style="liquid_glass"] :is(.navigation-lens,.segment-lens,.switch-thumb)::after {content:'';position:absolute;inset:-.5px;border-radius:inherit;padding:1.5px;pointer-events:none;background:conic-gradient(from 130deg,#ffb3b6cc,#c0a9ffbb,#8ce4ffcc,#aaffc4bb,#fff39fdd,#ffaed4bb,#98beffcc,#ffb3b6cc);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;opacity:calc(.45 + var(--lens-lift,0) * .55);}

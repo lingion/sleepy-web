@@ -14,6 +14,9 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
       if(enhanced.get(el)===signature) return
       el.classList.remove('glass-control')
       const computed=getComputedStyle(el)
+      const width=parseFloat(computed.width),height=parseFloat(computed.height)
+      if(el.tagName==='BUTTON' && el.querySelector('svg') && !el.textContent?.trim() && Math.abs(width-height)<1 && width>=24 && width<=56) el.dataset.glassIcon='true'
+      else delete el.dataset.glassIcon
       const background=computed.backgroundColor
       const transparent=background==='transparent' || /rgba\([^)]*,\s*0\)/.test(background)
       el.style.setProperty('--glass-control-tint',transparent ? 'var(--glass-tint)' : `color-mix(in srgb, ${background} 92%, transparent)`)
@@ -80,7 +83,7 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
     document.addEventListener('pointercancel', up, true)
     return () => {
       observer.disconnect()
-      for(const el of enhanced.keys()){el.classList.remove('glass-control','glass-moving');el.style.removeProperty('--glass-control-tint');delete el.dataset.glassStatic}
+      for(const el of enhanced.keys()){el.classList.remove('glass-control','glass-moving');el.style.removeProperty('--glass-control-tint');delete el.dataset.glassStatic;delete el.dataset.glassIcon}
       cancelAnimationFrame(frame)
       for (const el of motions.keys()) {
         el.classList.remove('glass-moving')

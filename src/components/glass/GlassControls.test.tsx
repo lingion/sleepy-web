@@ -23,4 +23,12 @@ describe('semantic glass control enhancement',()=>{
   await waitFor(()=>expect(screen.getByRole('button',{name:'新弹窗'}).classList.contains('glass-control')).toBe(true))
   expect(screen.getByRole('button',{name:'透镜按钮'}).classList.contains('glass-control')).toBe(false)
  })
+ it('separates a square icon touch target from its optical disc and restores classic markup',()=>{
+  function Example({style}:{style:'classic'|'liquid_glass'}) {return <><GlassControls style={style}/><button aria-label="返回" style={{width:48,height:48}}><svg/></button><button style={{width:48,height:48}}>保存</button></>}
+  const {rerender}=render(<Example style="liquid_glass"/>)
+  const icon=screen.getByRole('button',{name:'返回'})
+  expect(icon.hasAttribute('data-glass-icon')).toBe(true)
+  expect(screen.getByRole('button',{name:'保存'}).hasAttribute('data-glass-icon')).toBe(false)
+  rerender(<Example style="classic"/>);expect(icon.hasAttribute('data-glass-icon')).toBe(false)
+ })
 })
