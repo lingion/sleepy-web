@@ -7,6 +7,7 @@ import { useMemo, useRef, type TouchEvent, type WheelEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Course } from '../../data/types'
 import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
+import { runtimeMode } from '../../runtimeMode'
 import { courseNeutralTokens } from '../../theme/themes'
 import { findClusters, conflictClusterKey, layoutCluster } from '../../domain/conflictLayout'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
@@ -74,7 +75,7 @@ export function CardsGridView(props: CardsGridViewProps) {
       courses,
       timeJson,
       dayCount,
-      Math.max(containerWidth, 320),
+      Math.max(containerWidth, runtimeMode.demo || runtimeMode.embed ? 0 : 320),
       prefs.gridScale,
       {
         adaptiveHeight: prefs.gridAdaptiveHeight,

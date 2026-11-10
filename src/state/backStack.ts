@@ -14,6 +14,7 @@
  */
 
 import { create } from 'zustand'
+import { runtimeMode } from '../runtimeMode'
 
 export type BackKey =
   | 'addCourse'
@@ -136,6 +137,10 @@ export function chainFromHash(hash: string): BackKey[] {
  * 浏览器返回 = 回上层, 到顶再返回 = 回 tab 根, 语义与 push/pop 同构。
  */
 export function restoreChain(chain: BackKey[], hash: string): void {
+  if (runtimeMode.embed) {
+    useBackStack.setState({ stack: [...chain] })
+    return
+  }
   const tab = tabFromHash(hash)
   try {
     history.replaceState({ sleepyTab: true, tab }, '', HASH_BY_TAB[tab])
@@ -165,6 +170,7 @@ export const useBackStack = create<BackStackState>((set, get) => ({
 
   push: (key, hash = HASH_BY_KEY[key]) => {
     set((s) => ({ stack: [...s.stack, key] }))
+    if (runtimeMode.embed) return
     // 进栈写本层 hash — 浏览器返回键 → popstate → popHandler 出栈一层 + 通知活动视图
     try {
       history.pushState({ sleepyBack: true, key }, '', hash)
@@ -174,6 +180,7 @@ export const useBackStack = create<BackStackState>((set, get) => ({
   },
 
   pushTab: (tab) => {
+    if (runtimeMode.embed) return
     // tab 层专用入口 — 切 tab 写 hash (不进返回栈, tab 间返回由 popstate 直接切)
     try {
       if (location.hash !== HASH_BY_TAB[tab]) history.pushState({ sleepyTab: true, tab }, '', HASH_BY_TAB[tab])
@@ -183,6 +190,7 @@ export const useBackStack = create<BackStackState>((set, get) => ({
   },
 
   replaceTab: (tab) => {
+    if (runtimeMode.embed) return
     // 只规范化地址, 不新增历史 — 避免刷新/直达时在历史里留一个无内容的占位条目,
     // 那会让"从课表页按返回"多按一次才离开 (Android 双击退出只需一次)。
     try {
@@ -198,6 +206,10 @@ export const useBackStack = create<BackStackState>((set, get) => ({
     // 乐观出栈 (UI 立即响应), 再让浏览器退掉这条历史;
     // selfBackPending 记账 — popstate 到达时不得再弹一次 (否则一次返回跨两级)。
     set((s) => ({ stack: s.stack.slice(0, -1) }))
+    if (runtimeMode.embed) {
+      for (const listener of popListeners) listener(stack[stack.length - 1], '')
+      return
+    }
     try {
       if ((history.state as { sleepyBack?: boolean } | null)?.sleepyBack) {
         selfBackPending = Math.min(selfBackPending + 1, 8)
@@ -212,6 +224,7 @@ export const useBackStack = create<BackStackState>((set, get) => ({
     // 顶栏换层: 栈顶替换 + replaceState 改地址 — 历史条目数不变,
     // 浏览器返回 = 回到被换层之下的位置 (Android: sheet 关闭后 activity 返回直达管理页)。
     set((s) => ({ stack: [...s.stack.slice(0, -1), key] }))
+    if (runtimeMode.embed) return
     try {
       history.replaceState({ sleepyBack: true, key }, '', hash)
     } catch {
@@ -220,8 +233,13 @@ export const useBackStack = create<BackStackState>((set, get) => ({
   },
 
   popToRoot: () => {
+    const { stack } = get()
     // 一次清整摞 — 历史残留由 popHandler 的"栈空但历史仍是 sleepyBack"兜底逐条退
     set({ stack: [] })
+    if (runtimeMode.embed) {
+      for (const key of [...stack].reverse()) for (const listener of popListeners) listener(key, '')
+      return
+    }
     try {
       if ((history.state as { sleepyBack?: boolean } | null)?.sleepyBack) {
         selfBackPending = Math.min(selfBackPending + 1, 8)
@@ -259,7 +277,7 @@ let selfBackPending = 0
  */
 export function installBackHandler(onPop?: PopListener): () => void {
   if (onPop) popListeners.add(onPop)
-  if (!popstateInstalled) {
+  if (!runtimeMode.embed && !popstateInstalled) {
     window.addEventListener('popstate', onPopState)
     popstateInstalled = true
   }
