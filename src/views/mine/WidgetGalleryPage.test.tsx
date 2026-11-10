@@ -1,9 +1,9 @@
-import { beforeAll, afterEach, expect, it } from 'vitest'
+import { beforeAll, afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { initI18n } from '../../i18n'
 import { WidgetGalleryPage } from './WidgetGalleryPage'
 import variants from '../../data/widgetVariants.json'
-beforeAll(() => initI18n('zh-CN'))
+beforeAll(() => { initI18n('zh-CN'); vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }) })
 afterEach(cleanup)
 it('offers all fourteen Android variants in five accordion families and explains native installation', () => {
   const { container } = render(<WidgetGalleryPage onBack={() => {}} />)
