@@ -1,0 +1,408 @@
+{
+  "source": "lingion/sleepy v1.0.64 77b878fd5c8903a3f201ea938b3b152de4c4fbc0",
+  "contributors": [
+    {
+      "id": "contributor-jim139129",
+      "title": "jim139129",
+      "meta": "GitHub @jim139129",
+      "usage": "感谢代码贡献与持续反馈。全部提交与讨论记录见 github.com/jim139129"
+    },
+    {
+      "id": "contributor-YYiChen",
+      "title": "YYiChen",
+      "meta": "GitHub @YYiChen",
+      "usage": "感谢代码贡献与持续反馈。全部提交与讨论记录见 github.com/YYiChen"
+    },
+    {
+      "id": "contributor-LzBsA",
+      "title": "LzBsA",
+      "meta": "GitHub @LzBsA",
+      "usage": "感谢代码贡献与持续反馈。全部提交与讨论记录见 github.com/LzBsA"
+    },
+    {
+      "id": "contributor-Cold577",
+      "title": "冷冷冷 Cold577",
+      "meta": "GitHub @Cold577",
+      "usage": "感谢代码贡献与持续反馈。全部提交与讨论记录见 github.com/Cold577"
+    },
+    {
+      "id": "contributor-X-art-hash",
+      "title": "X-art-hash",
+      "meta": "GitHub @X-art-hash",
+      "usage": "感谢代码贡献与持续反馈。全部提交与讨论记录见 github.com/X-art-hash"
+    },
+    {
+      "id": "contributor-echo0731",
+      "title": "echo0731",
+      "meta": "GitHub @echo0731",
+      "usage": "感谢代码贡献与持续反馈。全部提交与讨论记录见 github.com/echo0731"
+    },
+    {
+      "id": "contributor-Kerry1020",
+      "title": "Kerry1020",
+      "meta": "GitHub @Kerry1020",
+      "usage": "感谢代码贡献与持续反馈。全部提交与讨论记录见 github.com/Kerry1020"
+    }
+  ],
+  "attributions": [
+    {
+      "id": "jw-cross-repository-sources",
+      "title": "教务协议跨仓参考",
+      "meta": "协议形态与字段核验",
+      "usage": "NanCunChild/elecon (elecon contributors, MIT); Cheukfung/ZFCrawler (Cheukfung Ho, MIT); FarmerChillax/new-school-sdk (FarmerChillax; dairoot, MIT); cuijinyu/qingguospider (cuijinyu, No LICENSE); ncc-devlab/elecon-adapters (ncc-devlab, No LICENSE); KnellInferno/zfn_api_ts (KnellInferno, MPL-2.0); moeshin/ai-schedule-chaoxing (moeshin, MIT); whoisnian/getMyCourses (whoisnian, MIT); WenqiOfficial/SHOU-URP-AiSchedule (WenqiOfficial, MIT); SaltGardenia/calm-schedule (SaltGardenia, GPL-3.0); Landon-3314/AHU-TimeTable (Landon-3314, No LICENSE); MoeclubM/AHU-AIO (MoeclubM, GPL-3.0); Zeraora-807/Anhui-Univ-DSH-Tool (Zeraora-807, GPL-3.0); abydym/Ahu_Plus (abydym, GPL-3.0)"
+    },
+    {
+      "id": "jw-reading-batch03",
+      "title": "教务协议调研补充（一）",
+      "meta": "owner/repo 标识仓库账号，版权另记；调研致谢不表示已集成",
+      "usage": "0-sprey/shiguang_warehouse [MIT; Copyright (c) 2025 星河欲转]\n00mjk/funhubu [license unconfirmed or undeclared; copyright unconfirmed]\n06xy/aischedule [license unconfirmed or undeclared; copyright unconfirmed; info.txt developer: 颜致恒]\n090012/ZFCheckScores [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]\n0x24bin/ZF-system [license unconfirmed or undeclared; copyright unconfirmed; ASPX meta credits zfsoft]\n0x65ca/QZAPI [license unconfirmed or undeclared; copyright unconfirmed]\n0x8ubb1e/cuit-ai-timetable [license unconfirmed or undeclared; copyright unconfirmed]\n0xiaobao0/school-api [MIT; Copyright (c) 2018 戴艺森; code author: dairoot]\n0XPYEX0/FaQ_Kingo [license unconfirmed or undeclared; copyright unconfirmed]\n1026266545/URP [license unconfirmed or undeclared; copyright unconfirmed; index.html creator: avastms@ghostunix.org]\n123zhuzhu61/shiguang_warehouse [MIT; Copyright (c) 2025 星河欲转]\n1246365871/school-api [MIT; Copyright (c) 2018 dairoot]\n1246365871/zf-tools [GPL-3.0; README Copyright (C) 2020 sunnysab; AES helper has separate credits]\n1250422131/tjdz-aischedule-adapter [license unconfirmed or undeclared; copyright unconfirmed]\n1252158112/AISchedule_ECJTU [license unconfirmed or undeclared; copyright unconfirmed]\n1253818934/MI-AICourseTable [AGPL-3.0; copyright holder unfilled; historical README: horizon86, Zhaosn]\n1375272391/ZFCheckScores-AHDY [Apache-2.0; copyright holder unfilled in LICENSE]\n1434334/zhengfang-xuanke [Apache-2.0; copyright holder unfilled in LICENSE]\n1443690715/ZfsoftCampusAssit [Apache-2.0; copyright holder unfilled; README contact: huangjiawendanny; code author: hjw]\n15098424032/zhengfang-jwc01-password [license unconfirmed or undeclared; copyright unconfirmed]\n1531691629/ZF_Spider [MIT; Copyright (c) 2018, holder unfilled; README: vhyz]\n1547119495/fudgeclass [MulanPSL-2.0; copyright year and holder unfilled in LICENSE template]\n1713344511/zfnew [license conflict: root LICENSE MIT; setup classifier GPLv3; Copyright (c) 2019 Wenhao Liao; setup author: NeroAsmar]\n1757526725/jwmis [license unconfirmed or undeclared; copyright unconfirmed]"
+    },
+    {
+      "id": "jw-reading-batch04",
+      "title": "教务协议调研补充（二）",
+      "meta": "owner/repo 标识仓库账号，版权另记；调研致谢不表示已集成",
+      "usage": "1757526725/kingoHelper [license conflict: root LICENSE GPL-3.0; file headers Apache Licence; code author: itacajsj; copyright unconfirmed]\n1757526725/tit-client [license unconfirmed or undeclared; copyright unconfirmed]\n1757526725/zhkuas_ssm_maven [MIT; Copyright (c) 2017 灿]\n1816586742-stack/course-research-tool [MIT; Copyright (c) 2026 湖汽猫学长]\n18214091046/school-api [MIT; Copyright (c) 2018 dairoot]\n187155317/ZCrawler [Apache-2.0; source Copyright 2017 yuan1994 all rights reserved; composer author: yuan1994]\n1963077475/WeCourseService [MIT; Copyright (c) 2020 清丶风]\n1itt1eB0y/NEAU-URP [GPL-3.0; copyright holder unfilled; script contact: adobe17]\n1ming1/zucc_xk_ZhengFang [license unconfirmed or undeclared; copyright unconfirmed]\n1wang-cell/ZFCheckScores [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]\n1zhangyy1/WeCourseService [MIT; Copyright (c) 2020 清丶风]\n2018wzh/ecnu-eams-client [GPL-3.0; project copyright unconfirmed in generic LICENSE]\n20231009/ZFCheckScores [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]\n2029881498/ZFCheckScores [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]\n2041818984/coursetable [license unconfirmed or undeclared; copyright unconfirmed]\n2151834060/ZFCheckScores [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]\n2239828197/ZF_Spider [MIT; Copyright (c) 2018, holder unfilled; README: vhyz]\n2250127831/zero-one-eams [license unconfirmed or undeclared; copyright unconfirmed; eams-frontstu template credit: KeJun]\n2317715129p-droid/ZFCheckScores [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]\n2601869897-hue/new-school-sdk [MIT; Copyright (c) 2018 dairoot; code author: -Farmer]\n2601869897-hue/ZFCheckScores [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]\n26560/ZFCheckScores [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]\n2705496023/eams [license unconfirmed or undeclared; copyright unconfirmed]\n2746267826/kebiao-to-ics [license unconfirmed or undeclared; copyright unconfirmed]\n2889563008/zhishuidezhengfang [Apache-2.0; Copyright © 2024 NianBroken; root copyright template unfilled]"
+    },
+    {
+      "id": "old-qz-audit",
+      "title": "Old-QZ 协议核对",
+      "meta": "历史协议参考",
+      "usage": "Old-QZ protocol verification: Crazy-ChenMiLin/TableAPK (Apache-2.0; protocol reference); LonelyMarch/OpenWakeUp (AGPL-3.0; protocol reference); ThaiCao/WakeupSchedule_Kotlin (Apache-2.0; protocol reference); YuZhangWang/Java-Demo (GPL-3.0; protocol reference); dIT8Zv/WakeupSchedule_BUPT (Apache-2.0; protocol reference); ershiyidian/WakeUp_SHU (NOASSERTION; protocol reference); historical WakeUp APK (YZune; closed-source protocol reference, no code reused)."
+    },
+    {
+      "id": "foundational-wakeup",
+      "title": "WakeUp 课程表 (YZune)",
+      "meta": "Apache-2.0",
+      "usage": "JwCourse / JwParser 中间结构语义与强智系 HTML 解析的参考实现"
+    },
+    {
+      "id": "foundational-wakeup-bupt",
+      "title": "WakeupSchedule_BUPT (dIT8Zv)",
+      "meta": "Apache-2.0",
+      "usage": "十二个教务解析器的上游: 强智全家族 (qz/qz_with_node/qz_br/qz_crazy/qz_old)、老版正方、URP、青果、新正方、HNUST 与 Parser 设计"
+    },
+    {
+      "id": "foundational-wakeup-kotlin",
+      "title": "WakeupSchedule_Kotlin (YZune)",
+      "meta": "Apache-2.0",
+      "usage": "经典金智 EAMS 导入实现 (TaskActivity 位图解析) 的参考"
+    },
+    {
+      "id": "foundational-cqu-js",
+      "title": "时光课程表 cqu.js",
+      "meta": "",
+      "usage": "重庆大学门户 REST 协议 (session / 课表 / 作息三接口) 的分析依据"
+    },
+    {
+      "id": "foundational-shiguang",
+      "title": "shiguang_warehouse (XingHeYuZhuan)",
+      "meta": "MIT",
+      "usage": "武汉理工大学 kcbcxby 协议、经典金智 EAMS (hunnu/uestc/hpu) 与新正方网格视图 (zhengfang_01) 的协议形态参考；264 校适配清单与 starlink.js、wake_up.js 在线协议链形态调研；282 个教务适配脚本以 MIT 原文随包分发于 assets/third_party/shiguang/"
+    },
+    {
+      "id": "foundational-lumaschedule",
+      "title": "LumaSchedule (Junyxor)",
+      "meta": "Apache-2.0",
+      "usage": "WakeUP 官方教务目录 6.6.2 吸收战役的边界交叉验证: 其 convert-wakeup-school-info.mjs / compat.md 证明 WakeUp 兼容层只做 profile 与登录元数据迁移、不复制服务端解析器;未复用代码"
+    },
+    {
+      "id": "foundational-zfn",
+      "title": "zfn_api (openschoolcn)",
+      "meta": "MPL-2.0",
+      "usage": "新正方 jwglxt kbList 接口形态交叉验证"
+    },
+    {
+      "id": "foundational-flow",
+      "title": "FlowCourse (jiaweiyaya)",
+      "meta": "GPL-3.0",
+      "usage": "新正方 kbList 主流形态与 jc 多形态交叉验证"
+    },
+    {
+      "id": "foundational-iwut",
+      "title": "iwut (TokenTeam)",
+      "meta": "AGPL-3.0 · 仅参考协议形态",
+      "usage": "武汉理工大学节次 DM 映射的协议佐证 (未引用代码)"
+    },
+    {
+      "id": "foundational-shangkeschedule",
+      "title": "「上课」shangkeschedule (qiqqqqq517)",
+      "meta": "Apache-2.0",
+      "usage": "1776 校学校登记表在名单交叉复核中的对照数据源"
+    },
+    {
+      "id": "wengine-vpn-refs",
+      "title": "wengine WebVPN 协议族调研对照 (NBCC 2026-10)",
+      "meta": "跨校协议参考",
+      "usage": "wengine WebVPN protocol family references: StevenWin818/wenginetunnel (StevenWin818; MPL-2.0; protocol reference); xiaobei97/wengine-vpn-decryptor (xiaobei97; no LICENSE; protocol reference); lcandy2/webvpn-converter (lcandy2; MIT; protocol reference); ESWZY/webvpn-dlut (ESWZY; no LICENSE; protocol reference); ZYTEric/BUU-WebVPN-Convertor (ZYTEric; MIT; protocol reference); YDX-2147483647/virtual-BIT-network (YDX-2147483647; MIT; protocol reference); FHfanshu/ZJXU-CampusHub (FHfanshu; GPL-3.0; password-passing precedent, protocol reference)."
+    },
+    {
+      "id": "wengine-vpn-family-refs",
+      "title": "wengine/正方协议族横向参考(268 候选全量调研)",
+      "meta": "跨校协议参考",
+      "usage": "NBCC Step 3 full-survey cross-references (101 repos of 268 candidates; protocol reference only, no code reused):\nMIT: 974294341-bit/stdu-cli (MIT; protocol reference); genshen/wssocks-plugin-ustb (MIT; protocol reference); yang-er/HandSchool (MIT; protocol reference); w43322/neu-webvpn-anysite (MIT; protocol reference); Tenor-John/obsidian-scholarium (MIT; protocol reference); kagg886/SYLU-Educational-Office-Accesser (MIT; protocol reference); RekaYOO/NEU-JWXT-Toolkit (MIT; protocol reference); 0patsick0/danxi-daily-skill (MIT; protocol reference); LittlePorcupine/dlut-webvpn-web (MIT; protocol reference); sapphire-xu/nidong (MIT; protocol reference); Frank-678/hitwh-webvpn-reverse (MIT; protocol reference); key-zhzr/BJUT-Auto-Login (MIT; protocol reference); Limour-dev/webvpn-fudan (MIT; protocol reference); Yummy-He/JLU-WebVPN (MIT; protocol reference); Tiosa205g/touda_wifi_float (MIT; protocol reference); linf04/TcpOverWebvpn (MIT; protocol reference); MilLoong/UESTC-EAMS-Helper-Python (MIT; protocol reference); lunarx3/webvpn-converter (MIT; protocol reference); vivym/buaa-webvpn-tunnel (MIT; protocol reference); 2745518585/thu-auth (MIT; protocol reference); BH4GMI/sues-campus-entry (MIT; protocol reference); spx86/papervpn (MIT; protocol reference); fsfgrafb/tcp-over-websocket (MIT; protocol reference); kaaass/jlu-webvpn-assistant (MIT; protocol reference); MiracleHYH/EasyLife_XJTU (MIT; protocol reference); lNwNl/webvpn-proxy (MIT; protocol reference); Zhanhao-liu/doi-fetch (MIT; protocol reference); cherrchen/swufe-webvpn-codec (MIT; protocol reference); qwasd7680/nbt-cal-export (MIT; protocol reference); guoPhineas/WRD-WengineVPN-Proxy-Converter-App (MIT; protocol reference); guoPhineas/WRD-WengineVPN-Proxy-Converter (MIT; protocol reference); KaranocaVe/uestc-webvpn-redirector-userscript (MIT; protocol reference); LyuFG1999/xjtu-webvpn-extension (MIT; protocol reference); mcitem/webvpn-converter (MIT; protocol reference); 3-Tian/zju-paper-fetcher (MIT; protocol reference); njydsz/ydsz-micro (MIT; protocol reference); au-to/dingding-login-mini (MIT; protocol reference); wuhanzaina/jenkins-login-dingding (MIT; protocol reference)\nGPL-3.0: yeliqin666/xjtu-toolbox-android (GPL-3.0; protocol reference); DanXi-Dev/DanXi (GPL-3.0; protocol reference); yan-xiaoo/XJTUToolBox (GPL-3.0; protocol reference); HF-CYGG/Dawn-Course (GPL-3.0; protocol reference); Lucent-Snow/zju-scholar (GPL-3.0; protocol reference); BobH233/LexueSwiftUI (GPL-3.0; protocol reference); abcde2333/NcepuJw (GPL-3.0; protocol reference); Mythologyli/websocket-via-webvpn (GPL-3.0; protocol reference); gaowanlu/Cours (GPL-3.0; protocol reference); DE3PDARKFANTASY/cauc-campus-assistant (GPL-3.0; protocol reference); likangxian1007/danta-mcp (GPL-3.0; protocol reference); FangZhangDev/zju-course-digest (GPL-3.0; protocol reference); liujiaqi7998/Clash.Meta_webvpn_pass (GPL-3.0; protocol reference)\nApache-2.0: cywd123/WebVPN-Converter (Apache-2.0; protocol reference); ninthseason/nuist-vpn.io (Apache-2.0; protocol reference); Johnsheng1/JUST-ToolKit (Apache-2.0; protocol reference)\nMPL-2.0: Metaphorme/webVPN_mitm (MPL-2.0; protocol reference)\nAGPL-3.0: IShiraiKurokoI/DLUTModernWebvpnBrowser (AGPL-3.0; protocol reference)\nWTFPL: eWloYW8/ZJUWebVPN (WTFPL; protocol reference)\nno LICENSE file, credited by author handle: forget-forever/mark (forget-forever; protocol reference); LeafCreeper/Fudan_iCourse_Subscriber (LeafCreeper; protocol reference); spencerwooo/bit-webvpn-converter (spencerwooo; protocol reference); smartThise/OneTHU (smartThise; protocol reference); Runa-Asahi/SuperJLU (Runa-Asahi; protocol reference); keyi6/webvpn4dut (keyi6; protocol reference); CreamPig233/neu_wisedu2wakeup (CreamPig233; protocol reference); LeafCreeper/New_Fudan_Course_Grade_Checker (LeafCreeper; protocol reference); ZYYO666/fuck-shuwei (ZYYO666; protocol reference); xianfei/BUPT-Course-Assistant (xianfei; protocol reference); Limour-dev/daily_fudan_core (Limour-dev; protocol reference); BeautyyuYanli/DLUT-login (BeautyyuYanli; protocol reference); KaranocaVe/uestc-redirect-extension (KaranocaVe; protocol reference); vivym/webvpn-ng (vivym; protocol reference); vivym/webvpn-py (vivym; protocol reference); zeife4/zzuli-grade-monitor (zeife4; protocol reference); Fighting05/NKU-GradeTracker (Fighting05; protocol reference); foxdogcmd/toolbox (foxdogcmd; protocol reference); wilinz/webvpn-guet (wilinz; protocol reference); liyue983/nku_lib_reservation (liyue983; protocol reference); SMU-CAA/webv2ray-updater (SMU-CAA; protocol reference); Slowist-Lee/website-converter (Slowist-Lee; protocol reference); HanversionOvO/UESTC-WebVPN-Converter (HanversionOvO; protocol reference); WilliamPeterMatthew/webvpn-url-page (WilliamPeterMatthew; protocol reference); BIT-BOBH/WebvpnExploit (BIT-BOBH; protocol reference); xqNO5/ahu-campus-card (xqNO5; protocol reference); Yqloss/neu-webvpn-converter (Yqloss; protocol reference); Walvez/hebmu-library-skill (Walvez; protocol reference); RekaYOO/NEU-Academic-WebVPN (RekaYOO; protocol reference); zymooll/Better-Sicau (zymooll; protocol reference); liyue983/nankai-webvpn (liyue983; protocol reference); CrackTC/jlu_cas (CrackTC; protocol reference); 123456lj7q/Jsoup-Android-Timetable [license unconfirmed or undeclared; account: 123456lj7q; copyright unconfirmed]; SwufeFox/swufe-cnki (SwufeFox; protocol reference); sansssssss1/hhu-vpn-agent (sansssssss1; protocol reference); wy723161060/neuq-classroom-query (wy723161060; protocol reference); Tianyvli/SCUTScoreChecker (Tianyvli; protocol reference); Agoin-314260/XiaoAi-timetable-adapted-for-Shuwei-education-management-system-import (Agoin-314260; protocol reference); SJYssr/FuckShuwei (SJYssr; protocol reference); xswxswb/fuck-shuwei (xswxswb; protocol reference); DustinKarl004/eams_mobileapp (DustinKarl004; protocol reference); klren0312/dingdingQrcodeLoginDemo (klren0312; protocol reference); JackYanzhe/dingding-login (JackYanzhe; protocol reference); chenzhuoxi/GDUST_timetable (chenzhuoxi; protocol reference)"
+    },
+    {
+      "id": "classic-eams-taskdetail-family-refs",
+      "title": "经典EAMS课节详情横向参考(27 仓终局调研)",
+      "meta": "跨校协议参考",
+      "usage": "NBCC classic_eams course-detail time research (2026-10-27 third batch, 27 repos of the endgame survey; protocol reference only, no code reused): tequed232/Dolphin-Schedule (MIT; protocol reference; course import chain referencing detail fetch); RO-M-A/better-class-schedule (MIT; protocol reference; EAMS schedule DOM parser); iLOVESZU-1/szu-course-scraper (MIT; protocol reference; content script with taskTable detail links); ChuXuanbbll/kissTJU (MIT; protocol reference; opens taskTable URLs without parsing); weNEU/neu-eone (MIT; protocol reference; NEU spider detail chain); sharpdeep/assistant-server (Apache-2.0; protocol reference; taskTable anchor in server assistant); sunshineclt/NKU-Helper (GPL-3.0; protocol reference; iOS course detail table controller); hua-yi-yi/CourseSchedule (GPL-3.0; protocol reference; real courseTable fixture with row-header clock variance); openurp/edu-eams-webapp (GPL-3.0; protocol reference; server-side taskTable assembles timeSetting); tjuse/tju-python (GPL-3.0; protocol reference; row-header clock time precedent); GDUTMeow/gdut-course-grabber (AGPL-3.0; protocol reference; course grabber client page); RinnMoe/CHDXK (AGPL-3.0; protocol reference; standalone course detail fixture); horizon86/MI-AICourseTable (AGPL-3.0; protocol reference; provider stops at period index); beangle/bui (LGPL-3.0; protocol reference; bg.Go proves plain same-origin GET); openurp/edu-api4j (LGPL-3.0; protocol reference; CourseUnit indexno beginAt endAt clock model); code-cycler/course_schedule_for_CHD (code-cycler; protocol reference; EAMS endpoint inventory); AST-hong/swust-course-grabber (AST-hong; protocol reference; SWUST course grabber); Anya1014CN/SmartSNUT.cn (Anya1014CN; protocol reference; official-shaped course table user manual); duzhaokun123/XSYU_AI_schedule (duzhaokun123; protocol reference; clock-less header deployment fixture); mayapony/AIschedule (mayapony; protocol reference; EAMS page and detail popup shape); jqorz/JavaTestArray (jqorz; protocol reference; TaskActivity-style parser); uestcio/uestc-sdk (uestcio; protocol reference; URL builder with taskTable anchors only); yuexps/cqust-schedule-miuix (yuexps; protocol reference; CQUST EAMS parser); SJF-ECNU/ECNUCourseTableToolForIOS (SJF-ECNU; protocol reference; hardcoded local time slots counter-example); asliujinhe/NeuEams (asliujinhe; protocol reference; TaskActivity embedded JS without clock map); openurp/base (openurp; protocol reference; timesetting admin template); WeCuit/WeCuit-Backen-JAVA (WeCuit; protocol reference; custom fork without clock map).\n"
+    }
+  ],
+  "schools": [
+    {
+      "id": "school-bfa-gdbyxy-sources",
+      "title": "北京电影学院与广东白云学院协议参考",
+      "usage": "danbaixi/UAAS-API (蛋白熙, MIT)\nshixiang123/XJTU-SE-project (shixiang123；XJTU-API-main 作者蛋白熙, 子目录 MIT；根目录未声明许可)\nwpplane/sheep-reptile (wpplane, 未声明许可)\nDragonBaiMo/baiyunu-school (DragonBaiMo, 未声明许可)\ncursimple/cursimple-app (CurSimple Team, MIT)\nHolyn/BaiYun2 (Holyn, 未声明许可)：用于教务入口和课程字段交叉核对，未复用源码。"
+    },
+    {
+      "id": "school-swust-source",
+      "title": "西南科技大学 SWUST",
+      "usage": "flben233/SWUST-Schedule-Export (ShirakawaTyu, MIT): 课名、教师字段及两节一行布局的协议交叉参考；未复用脚本代码。"
+    },
+    {
+      "id": "school-hfut",
+      "title": "合肥工业大学 HFUT",
+      "usage": "HFUT-Schedule (Chiu-xaH, Apache-2.0\nHfutOpenApi (BoynChan, MIT)\nhfut_schedule_hacker (Aoi-cn)\ndjango-hfut-auth (elonzh, MIT)\nhfut-api (hfut-soft-ware)\nhfut-api (SnowingFox)\nhfut_api_service (onlineG2)\nHFUTer (BrikerMan)\nHFUTICS (ssyu0808)\nAiSchedule-for-hfut (imnuke, GPL-3.0)\nAISchedule (HualiNox)\nclassduck (luyishui)"
+    },
+    {
+      "id": "school-seu",
+      "title": "东南大学 SEU",
+      "usage": "SEUTimetable (sakimidare, Apache-2.0)\nAetik-yue/hormone (SEU SSO 入口)\nluzy99/SEUAutoLogin\nHaa1024/SEU-Timetable (MIT)\nOFRabby/seu-routine-maker (OFRabby, UMS PDF negative evidence)\nHeraldStudio/herald-webservice (MIT)\n131AIClub/seu-xiaoai-course (LGPL-2.1)\nluyishui/classduck\nWheretoSleepinNJU/NJU-Class-Shedule-Flutter (Apache-2.0)"
+    },
+    {
+      "id": "school-zju",
+      "title": "浙江大学 ZJU",
+      "usage": "zju-ical-py (Xecades, LGPL-2.1)"
+    },
+    {
+      "id": "school-ustc",
+      "title": "中国科学技术大学 USTC",
+      "usage": "USTC-timetable-to-ics (1970633640)\nustc-course-timetable (HowardZorn, GPL-3.0)\nustc-timetable (kirsh1, AGPL-3.0)\nUSTC-XeF2/pyustc (XeF2, MIT)"
+    },
+    {
+      "id": "school-scu",
+      "title": "四川大学 SCU",
+      "usage": "ScuTimetable (Z-P-J)"
+    },
+    {
+      "id": "school-neu",
+      "title": "东北大学 NEU",
+      "usage": "neu_wisedu2wakeup (CreamPig233)\nPopulusYang/NeuTimetable\nneucn/elise\nRekaYOO/NEU-JWXT-Toolkit\nPeterPtroc/neu-jwxt-to-wakeup\nleavesvv-source/NEU-Timetable"
+    },
+    {
+      "id": "school-cqu",
+      "title": "重庆大学 CQU",
+      "usage": "时光课程表 cqu.js (茵符草)\n321CQU/pymycqu\nBillYang2016/CQU-class2ics\nhaowang02/CourseMonitor\nLengerHu/CQU_classtabletoics\nHagb/cqu_timetable_new\nVayneDuan/CQU-Grade-Monitor\nweearc/cm-http-api\nbarryZZJ/course_to_calander_converter"
+    },
+    {
+      "id": "school-whut",
+      "title": "武汉理工大学 WHUT",
+      "usage": "courseTable (acm910)"
+    },
+    {
+      "id": "school-uestc",
+      "title": "电子科技大学 UESTC",
+      "usage": "MilLoong/UESTC-EAMS-Helper-App\nMilLoong/UESTC-EAMS-Helper-Python\nKaranocaVe/UESTCJWCWatchdog\nwhtsky/uestc-eams-cleartimeout-userscript\nSunmxt/UESTC-EAMS"
+    },
+    {
+      "id": "school-gdut",
+      "title": "广东工业大学 GDUT",
+      "usage": "N0tExpectErr0r/GDUT-ClassTimeTable\nRichard-Zheng/GDUT-Schedule-ng\nStarArchive/gdut-course-frontend\nStarArchive/gdut-course-backend\nHoneQ7/GDUT_iOS_Timetable"
+    },
+    {
+      "id": "school-gdufe",
+      "title": "广东财经大学 GDUFE",
+      "usage": "jkgeekJack/Android-GDUFE-JWC-SDK-1.0.0\nKiteio/GDUFE-wrapper"
+    },
+    {
+      "id": "school-gduf",
+      "title": "广东金融学院 GDUf",
+      "usage": "Kiteio/Punica\ngduf-finmind"
+    },
+    {
+      "id": "school-gdufs",
+      "title": "广东外语外贸大学 GDUFS",
+      "usage": "yongjianzheng/Gdufszhushou\nCrazioker/agency"
+    },
+    {
+      "id": "school-gdmu",
+      "title": "广东医科大学 GDMU",
+      "usage": "用户采集包实锤 zf_new 协议形态 (新正方 zftal-ui-v5 裸 /kbcx/ 路径), 参见 docs/release-notes-v1.0.49.md"
+    },
+    {
+      "id": "school-csust",
+      "title": "长沙理工大学 CSUST",
+      "usage": "zHElEARN/CSUSTKit\nCreaMakers/EduSpider\ntimeisthe/CSUSTDataGet\nJulius-lq/EduAdminSystem\nJS-CAUTION/csust-course-schedule"
+    },
+    {
+      "id": "school-bupt",
+      "title": "北京邮电大学 BUPT",
+      "usage": "helium777/bupt-course-grab\nJmPotato/BUPT-Grader\nSeizzzz/Auto-Login-BUPT"
+    },
+    {
+      "id": "school-pku",
+      "title": "北京大学 PKU",
+      "usage": "zhongxinghong/PKUAutoElective\nthezzisu/pku-elective\nHovennnnn/PKUAutoElective2023\nLihhan/AutoElective_4_PKU\nAuYang261/PKU_Elective_Toolset"
+    },
+    {
+      "id": "school-buct",
+      "title": "北京化工大学 BUCT",
+      "usage": "MarkYangKp/ZhengFangJY"
+    },
+    {
+      "id": "school-ucas",
+      "title": "中国科学院大学 UCAS",
+      "usage": "ldiex/UCAS_Course_Schedule_Convertor\nHurray0/UCAS_GET_Course\ncld378632668/ucas_course_tool\nGentleCP/UCAS-Helper\nwirsbf/TraintimePda-UCAS\ntbjuechen/sep-api"
+    },
+    {
+      "id": "school-bjfu",
+      "title": "北京林业大学 BJFU",
+      "usage": "Bloomberg2000/bjfu_course_ics_generator\nBloomberg2000/bjfu_util.py"
+    },
+    {
+      "id": "school-ahu",
+      "title": "安徽大学 AHU",
+      "usage": "Tonyseth/AHU_JW_GPA_Calculator\nAhu_Plus (abydym, GPL-3.0)"
+    },
+    {
+      "id": "school-nefu",
+      "title": "东北林业大学 NEFU",
+      "usage": "bboy-xp/nefu-crawler\nheyMahalo/crouse_select"
+    },
+    {
+      "id": "school-dhu",
+      "title": "东华大学 DHU",
+      "usage": "tk.dcmmcc\nBad-086/DHU_CourseMonitor"
+    },
+    {
+      "id": "school-ynufe",
+      "title": "云南财经大学 YNUFE",
+      "usage": "NINIYOYYO/ynufe-campus-app\nMiaoWuNYA/ynufeRealLogin"
+    },
+    {
+      "id": "school-bit",
+      "title": "北京理工大学 BIT",
+      "usage": "BIT-Login (BIT101-dev)"
+    },
+    {
+      "id": "school-bistu",
+      "title": "北京信息科技大学 BISTU",
+      "usage": "iBistu (ProjektMing)"
+    },
+    {
+      "id": "school-ahujz",
+      "title": "安徽建筑大学 AHU-JZ",
+      "usage": "JdaAssist (CH4019, MIT)"
+    },
+    {
+      "id": "school-cqytu",
+      "title": "重庆邮电大学移通学院 CQYTU",
+      "usage": "CQYTZFCheckScores (xM3GAN, Apache-2.0)"
+    },
+    {
+      "id": "school-scau",
+      "title": "华南农业大学 SCAU (2026-10 SOP cross-verified)",
+      "usage": "greyovo/ScheduleXParser_SCAU (Njw2017 Element UI 实页)\ngreyovo/AIScheduleSCAU (el-table__body-wrapper 参考)\nSCAU-Grad-Automatically-Fill-Evaluation-Form-JS (jiefing, 致谢清单)\nN0B0d7-rzddn/SCAU-course-tool (强智新教务 API 旁证)\nCberYellowstone/Course-Hunter-SCAU (iframe 表单旁证)\nWeather174/SCAU-Course-Assistant (zzxkyzbjk_* API 端点确认)\nToMo517/Scau_Course_bot-main (正方 V9.0 历史旁证)\nvisionyimian/scau_class_table (老正方历史旁证)\nKerryChia/ruc-schedule-extension (JZ protocol reference)"
+    },
+    {
+      "id": "school-qlu",
+      "title": "齐鲁工业大学 QLU",
+      "usage": "JW-spider (Zhy423310825)"
+    },
+    {
+      "id": "school-bhu",
+      "title": "渤海大学 BHU",
+      "usage": "BohaiServiceDome (joun233)"
+    },
+    {
+      "id": "school-nepu",
+      "title": "东北石油大学 NEPU",
+      "usage": "WeNEPU (cutiechi)"
+    },
+    {
+      "id": "school-nust",
+      "title": "南京理工大学 NUST",
+      "usage": "HeraldStudentCurriculum (idailylife)"
+    },
+    {
+      "id": "school-buaa-byxt",
+      "title": "北京航空航天大学 byxt (2026-09)",
+      "usage": "fontlos/buaa-api (Rust, MIT)\nBUAASubnet/UBAA (Kotlin, MIT)\nCoolwindHF/buaa2wakeup (Python, MIT)\nawesome-buaa-cs/buaa-curriculum (API.md 旁证)\ncantBeFoundGroup/OpenBUAA (Python)\nel-ev/BUAA-ics-gen (Python, MIT)\nKrignd/KAgenda (Kotlin)\nYiki21/iclass_buaa_tui (Rust, GPL-3.0)\nLidozs55/BUAAer-Smart-Schedule-on-electron (Vue)\nWhXcjm/buaa-byxt-aischedule (JS, GPL-3.0)\nMeanZhang/buaa-ai-schedule (JS, MIT, archived)\nAlyssumira/BUAA-Schedule (Kotlin, MIT)\nlyy1119/BuaaScheduleRender (Go, MIT, GSMIS 研究生形态参考)\nzjafb/BUAA-Hangzhou-Schedule (MIT, UBAA fork, 杭州校区旁证)"
+    },
+    {
+      "id": "school-bjtu",
+      "title": "北京交通大学 BJTU",
+      "usage": "bjtu_mis_Android (wan300, MIT)\nBJTU-MIS-HarmonyOS (Anyes666, MIT)\nBJTUselfService (HFDLYS, MIT)\nbjtu-cli (fish2lab)\nBJTUselfService-macOS (fish2lab)\nBJTU-course-assistant (s1y4x1)\nZiuChen/userscript (MIT)\nBJTU-iCalendar-Generator (ymzhang-cs, MIT)\nbjtu-timetable (Moliseeee)\nBJTU-course-autoget-program (hyskr)\nBjtuCoursePlatform (57Darling02)\nbjtuDean (jlytwhx, MIT)\nbjtubox_python (jlytwhx)\nCampus-Mate (Orien233)\nBJTU-STU-MCP (ymzhang-cs)\nCourseRobber (xschur)\nFuturemind-BJTU\nBJTU_ezRate (Yukikasu, MIT)\nbjtu_teaching_assessment (xxxand, MIT)\nBJTU-script (Coconut00)\nBJTU-CC (aooxin)\nCourseTable (etherealviator, MIT)\nZF-Assistant (mcdona1d)\nGreasy Fork 430918 北交大iCalender课表生成"
+    },
+    {
+      "id": "school-jou",
+      "title": "江苏海洋大学 JOU",
+      "usage": "酱海带 jianghaidai (sunjingquan, 闭源参考, 仅协议分析未复用)\nJOU-Campus-Guide (sunjingquan)\njou_course_bot (brodamndamn)\nWehhit-server (dengjj)\nWehhit (zqy1)\nGrain (LeeReindeer, 浙江海洋大学, GPL-3.0)\n家庭记账系统 finance (GeorgeLeoo)\nfinance-server (GeorgeLeoo)\nJStore (GeorgeLeoo)\nRSSHub jou 路由 (RSSHub, MIT)"
+    },
+    {
+      "id": "school-ysu",
+      "title": "燕山大学 YSU",
+      "usage": "LzBsA (github.com/LzBsA, boya_pp 协议适配原始提交, PR 复活)\nqnxg/hnu_query (qnxg, AGPL-3.0)\nqnxg/weihuda_backend (qnxg)\nheriec/suda-yjs-shedule (heriec)\ndlutor/chaoxingbook (dlutor, MIT)"
+    },
+    {
+      "id": "school-swjtu",
+      "title": "西南交通大学 SWJTU",
+      "usage": "AmaneSuzuha000/SWJTU_Login (YHXT CAS + ytoken cookie + common API 直接证据)\n1-nuo/swjtu-course-grabber (ytoken 请求头 + JWT sub 学号 + SM2 选课加密)\nArex-lbb/auto-course-grabber (JWT + SM2 + A0422 失效码)\n1837634311/SWJTU-Course-Management-Script (GPL-3.0, TMS/vatuu 反向证据)\nHackSwjtu/Postime (MIT, 老教务网反向证据)\nlpzams/swjtu-course-crawler (旧 vatuu 反向证据)\n949144093/SWJTU-JiaoWuAutoLogin (旧 vatuu 反向证据)\nkakasearch/course_download (旧 vatuu 反向证据)\nzx1411057234/VatuuSpider (旧 vatuu 反向证据)\nkashaku/no-vatuu-evaluation (旧 vatuu 反向证据)\nJoe-create-star/swjtu-dektx-reminder (MIT, OCW/YETHAN 多租户旁证)"
+    },
+    {
+      "id": "school-kingo-zx",
+      "title": "新青果 super 协议适配（2026-10）",
+      "usage": "WakeUp NewKingosoftSuperParser smali 主参考 (YZune, 反向)\nOpenWakeUp NewKingosoftSuperParser (LonelyMarch, AGPL-3.0)\nNYIST-CIPS/CourseTable (NYIST-CIPS, MIT, 间接协议旁证)\nicepie/aischedule-lit-kingosoft (MIT, 间接协议旁证)\nlizhengqiang/kingosoft_api (间接接口旁证)\nershiyidian/WakeUp_SHU (ershiyidian, 同源青果协议旁证)\n52funny/KINGOSOFT-LOGIN (青果登录端点)\nXTAI9/SYU_KINGGOClassSel (青果选课端点旁证)\nwzj1122/jxufe-auto-evaluate (MIT, 青果族批量请求)\nKou-JunHao/mi-schedule (MIT, 青果族渲染)\nDaydream357/WakeUpSchedule (MIT, WakeUp 通用反混淆)\nicepie/oh-my-lit (AGPL-3.0, negative layout control)"
+    },
+    {
+      "id": "school-wakeup-family",
+      "title": "WakeUp 兼容协议族调研",
+      "usage": "Dawn-Course (HF-CYGG, GPL-3.0)\nWakeUp_SHU (ershiyidian)\nCourseHelper (jiangyiqi99, GPL-3.0)\naischedule-lit-kingosoft (icepie, MIT)\nXiaoAISchedule_hebust (web1n)\nai-schedule-chaoxing (moeshin, MIT)\ntzvcst-schedule-chaoxing (Sittymin, AGPL-3.0)\nxiaoai-shuwei-course (ZKJJaker, 反向证据)\njxufe-auto-evaluate (wzj1122, MIT)\nKINGOSOFT-LOGIN (52funny)\nxiaoaiSchedule (xiaxiaoyu8)\nmi-schedule (Kou-JunHao, MIT)\nAISchedule-xjsf (ltxhhz, MIT)\nAIScheduleSCAU (greyovo)\nMI_AI_Course_Schedule (ceresOPA)\nAISchedule-QiangZhi (MyLikeGirl)\nclasspush (sungithub270, GPL-3.0)\nXiaoAiScheduleOfSUOT (trueWangSyutung)\nXiaoAiCurriculumSchedule (LukeJean)\ngetICS (Konata09)\nWITClassScheduleToCalendar (DOROMOLLL, MIT)\nCrawlerCourseTable (canliture)\nSYU_KINGGOClassSel (XTAI9)\nhait_AICourseTable (zzzsq1)\nAIShedule_cqwu (cqwu-ehall, AGPL-3.0)\nWakeUpSchedule (Daydream357, MIT)\nshike-android (sw7943604-del)\nshiguang_Tester (XingHeYuZhuan, MIT)\ndutsso (yuanyuanzijin)\npub-docs (zfman, 青果接口文档)\neduData-GoBack (huhu415)\nNUISTTable (zyc-816)\nSCAU-Grad-Automatically-Fill-Evaluation-Form-JS (jiefing, Gwork 族控件命名旁证)"
+    },
+    {
+      "id": "school-four-school-jw",
+      "title": "四校教务协议交叉验证（2026-09）",
+      "usage": "NWUPL: dream2333/NWUPL-Pure-EMS (间接协议旁证)\nLIXIN: classic EAMS 采集形态（未复制代码）\nKMUST: linling-zy/kust-schedule (间接协议旁证, Apache-2.0)\nNUIT: 3056810551/nuit-class-schedule (直接字段旁证, 未复制代码)"
+    },
+    {
+      "id": "school-thu",
+      "title": "清华大学 THU (2026-10 固定源码复核)",
+      "usage": "Compultra/BistuSchedule (BISTU XLSX tool; unrelated)\nfengh16/CourseDataGet (reviewed; no matching timetable protocol)\nrobertying/CourseRegistrationHelper (reviewed; no matching timetable protocol)\nFztTony/Tsinghua-CourseSpider (GPL-3.0; course catalog, not timetable)\nsmartThise/NextTHUxk (same ztkbSearch script fields; historical corroboration)\npiggyham/thu_timetable (different JSONP timetable; indirect)\nlingion/wakeup-mod (decompiled historical periods; facts only)\nStarrah/THUCourseHelper (MIT; historical timetable script parser)\nxbcfantasy/tanwei-course-guide (reviewed; no matching timetable protocol)\nhuangkaka666/thu-course-helper (MIT; ratings integration, not timetable)\nDelthin/thu-graduate-course-helper (MIT; indirect, different workflow)\ndenny2001/thu_courses2ics (MIT; indirect timetable export)\nYZune/WakeUpSchedule (cited THUParser absent from pinned source)\nheyeshuang/YAATO (2012 rendered DOM timetable; historical corroboration)\ncircleLZY/thu-courses (course notes; no timetable parser)\nbrightcolin/thu-course-pilot (scheduling assistant; parser not verified)"
+    },
+    {
+      "id": "school-ecupl",
+      "title": "华东政法大学 ECUPL",
+      "usage": "LonelyMarch/OpenWakeUp (AGPL-3.0; CourseTable 脚本协议参考)\nlingion/wakeup-mod (历史 WakeUp APK 归档；仅核实 TaskActivity/index 协议；原作者许可未确认)\n调研对照，尚未证实适用于 ECUPL 课表字段：ershiyidian/WakeUp_SHU、zimo0o0omiz/wisedu-unified-login-api、only9464/HEU-Wisedu、CreamPig233/neu_wisedu2wakeup、wisedu/bh-mobile-sdk"
+    },
+    {
+      "id": "school-hzcu",
+      "title": "浙大城市学院 HZCU",
+      "usage": "用户采集包实锤 zf_new 协议 (新正方 zftal-ui-v5 裸 /kbcx/ 路径, SSO /sso/ddlogin 专用入口, issue #90)\nqiqqqqq517/shangkeschedule (Apache-2.0, 该校 zhengfang_new 条目互证)\nXu-Jack11/MySchedule (MIT, 同端点直接旁证)\nLanternCX/HZCUCourseChoose (MIT, 选课端点旁证)"
+    },
+    {
+      "id": "school-hbsm",
+      "title": "湖北商贸学院 HBSM",
+      "usage": "用户采集包实锤 zf_new 协议 (新正方 zftal-ui-v5 裸 /kbcx/ 路径, xskbcx_cxXsgrkb kbList JSON)\nqiqqqqq517/shangkeschedule (Apache-2.0, 该校 zhengfang_new 条目互证)\nLonelyMarch/OpenWakeUp (AGPL-3.0, 该校 type=zf 伞型收录同域旁证, 未复用代码)"
+    },
+    {
+      "id": "school-nwpu-post",
+      "title": "西北工业大学研究生教务 NWPU Post",
+      "usage": "WakeUp 反编译 smali 实锤 sample-table-1 HTML 一维清单协议层; 51 候选 GitHub 仓库跨仓求证 (0 POSITIVE / 20 INDIRECT / 31 NEGATIVE), 协议层无任何开源实现, 全量迁移至新门户 jwxt.nwpu.edu.cn print-data JSON 端点; 致谢 20 个 NWPU 同校生态仓 (新门户 print-data / 智慧校园 ecampus / 强智 URP):\nLorcas-Zephyr/aoxiang-assistant\nShiGuangSchedule/shiguang_warehouse (MIT, nwpu_01.js 跨校适配)\nQingQiz/AoxiangRobot (LGPL-3.0, archived 旧 EAMS courseTableForStd)\nqiqqqqq517/shangkeschchedule (Apache-2.0, 时光 NWPU 适配镜像)\nqllokirin/nonebot-plugin-npu (MIT, ecampus + print-data 双轨)\nCR200J1-A/NPU-Course-picker (新门户 print-data 油猴脚本)\nJungod1121/nwpu-jwxt (强智 URP + Playwright 自动化)\nNikaidou-Shinku/sjw (WTFPL, course-selection-api 选课端点)\nstevexyh/AutoAoxiang (WTFPL, 翱翔 NCP/图书馆辅助)\ncheanus/SelectCourseEasily (新门户 lesson-search 排课抓取)\nfantian-bilibili/NWPU_COURSE_MONITOR (ecampus WebView 历史课表)\nzengzoxiong/aoxiang-jwxt-enhance (西工大研究生系统挂载)\nzhanghaoran124/NWPU_AISchedule (iframe course-table 解析)\nHydrostic/NWPU-EAMS-helper (Svelte userscript jwxt iframe)\nfantian-bilibili/NCP-NWPU-Course-Parser (Aoxiang localStorage 缓存)\ntop-tree/nwpu-edu-plus (显式 print-data 端点 + studentTableVm)\nLiYulin-s/nwpu-coursetable (jwxt localStorage cs-selectedLessons)\nPanoramasx/aoxiang-harmonyos (HarmonyOS api_collect.js 镜像)\niiijiashu/guagua-course (NwpuPrintDataParser + NwpuJwxtExtractor 双端点)\nxiaozhuang357/NPU-eCampus-ICS-Exporter (智慧校园 studentTableVm 导出)\nDy1anT/NWPUgrade (NEGATIVE, 教务相关协议边界)\n2ndelement/nwpu-lesson-select-enhance (NEGATIVE, 教务相关协议边界)\nzymelaii/nwpu-toy-scripts (NEGATIVE, 教务相关协议边界)\nFlowingFrost/NWPU-Course-Helper (NEGATIVE, 教务相关协议边界)\nPhoenix-ZH/NWPU_GPA (NEGATIVE, 教务相关协议边界)\nMoeMion/NPU-Course-Evalue-Script (NEGATIVE, 教务相关协议边界)\nchurehill/JWhelper (NEGATIVE, 教务相关协议边界)\nBakerBunker/nwpu_helper (NEGATIVE, 教务相关协议边界)\nBakerBunker/NpuGpa (NEGATIVE, 教务相关协议边界)\nNaraLan0502/AoxiangHelp_QQBotPlugin (NEGATIVE, 教务相关协议边界)\nDryzk/nwpu-gpa-and-rank (NEGATIVE, 教务相关协议边界)\nXio-Shark/aoxiang-kebiao (NEGATIVE, 教务相关协议边界)\nhuohuo132/Aoxiang-assistant-for-HarmonyOS (NEGATIVE, 教务相关协议边界)\nnpuNancy/AoXiangGrades (NEGATIVE, 教务相关协议边界)\nsjrsjz/nwpu-gpa-rank (NEGATIVE, 教务相关协议边界)"
+    },
+    {
+      "id": "school-new-urp-super",
+      "title": "新 URP 数组变体（跨校协议）",
+      "usage": "WakeUp NewUrpSuperParser 反编译提供字段模型；39 个相关仓库仅为间接生态或协议边界参考，未证实同款接口：\nAirmole/ShellBox\ndanbaixi/yunxiaozhi\ndairoot/school-api\nfrederick-wang/scu-urp-assistant\nLeonidasCl/seu-jwc-catcher\nHaoZai000/NexioSchedule\nStageGuard/SuperCourseTimetableBot (NEGATIVE, 协议边界)\nyeliqin666/xjtu-toolbox-android\nLittFlower/SCU-URP-Helper\nLorcas-Zephyr/aoxiang-assistant\nShiGuangSchedule/shiguang_warehouse\nBIT101-dev/BIT101-Android\nxiaomanjun233/SleepDown-Schedule\nMutx163/mikcb\nAriaPokotengYe/SEU-NewSystem-catcher\nhiguangke/Higk\nyuchenii/HHUClassSchedule\nHeraldStudio/herald-webservice\nyuan1994/ZCrawler\nsuperdaobo/mini-hbut\nBIT101-dev/BIT101-GO\ndemocard/xmu_assistant\nki-ljl/ncepu-edm\nwcomaqsw/indulge-in-study\nCrazyRunning/MyStudyHelper\nchaolan2019/SCU-URP-plusplus\nmlkgrnt/ScheduleX\nHolit/HEU_edusys_miui\nershiyidian/WakeUp_SHU\nBritneyOvO/swun_ehall\nleavesvv-source/NEU-Timetable\nArrogHie/XMUTimeTabel\nyuchenii/AIschedule-HHU-URP\nshouDeveloper/shou-api\nkuailiaojie/classtable (NEGATIVE, 无匹配源码)\nadminerest/SHOU-urp-auto-choose-lessons\nneiro-o/seuGrabber\narnoliudaxia/shanghaitech-chooseCourse-query\nfangd123/funhubu"
+    },
+    {
+      "id": "school-nbcc",
+      "title": "宁波城市职业技术学院 NBCC",
+      "usage": "Wangxiaolu0716/class-schedule (Wangxiaolu0716, PolyForm Noncommercial 1.0.0, GitHub API NOASSERTION)\nLonelyMarch/OpenWakeUp (LonelyMarch, AGPL-3.0)\nChiu-xaH/HFUT-Schedule (Chiu-xaH, wengine 原生链形态参照与 hex 盐值互证)\nMilLoong/UESTC-EAMS-Helper-App (MilLoong, MIT, 移动教务 JWT 形态旁证)"
+    },
+    {
+      "id": "school-nankai-eamis",
+      "title": "南开大学 EAMIS",
+      "usage": "南开大学 EAMIS 课表导入适配的多仓交叉验证, 38 候选全量致谢 (OpenWakeUp、hormone、shangkeschedule 沿用既有致谢条目, 不在此重复):\nzawnpn/NKU-EAMIS (MIT)\nzawnpn/NKU-EAMIS_Server (MIT)\nzawnpn/NKU-EAMIS_MiniApp (MIT)\nsuhipek/eamis-helper (WTFPL)\nRYX0309/NKU-eamis (AGPL-3.0)\nSazzzzzz/SchedulEase (Unlicense)\nStevenSai/Nku-Score-By-Steven (Apache-2.0)\nsunshineclt/NKU-Helper (GPL-3.0)\njxy18100/nku- (未声明)\naugustlies/tangli (GPL-3.0)\nbaoozak/timetable (MIT)\nshuakami/timetable (GPL-3.0)\nKeenTeam1990/HutHelper (LGPL-2.1)\nBecause66666/nkuwiki_web (MIT)\nMineGuYan/MineGuYan.github.io (MIT, 仅 README 声明)\nNKUCS-ICU/NKUCS.ICU (GPL-3.0, 教务相关协议边界)\nSunriseFox/FuckNKUCourses (未声明, README 反许可声明, 仅引用协议事实)\nTsXor/NK-eamis (未声明)\nFighting05/NKU-GradeTracker (未声明)\nLoveGump/Nankai-Scripts (未声明)\nLetsStudyTogether/OneClickEvaluate (未声明)\nLetsStudyTogether/NKU_eamis_semester_grade (未声明)\na4001234567/NKU_Project (未声明)\nEverything-in-NKU/NKU-CourseHelper (未声明)\nChing-Yee-Chan/NKUCH (未声明)\nFun-James/NKU-SearchEngine (未声明)\nwusir96/Nk-University-Search-System (未声明)\nLllsir0202/IR (未声明)\nXmShrine/trick_1 (未声明)\nliyue983/nankai-webvpn (未声明)\nWangshuXC/Ir (未声明)\nZSH0608/NKU_CS_homework_materials (未声明, 教务相关协议边界)\nDucky97/CDN_checker (未声明, 教务相关协议边界)\nxiong-ZH-zq/NKU-Lecture-Helper (未声明, 空仓库, 教务相关协议边界)\njohn8654john/nankai-schedule (未声明, 日本南海电铁同名误命中, 教务相关协议边界)"
+    }
+  ]
+}
