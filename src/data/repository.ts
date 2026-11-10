@@ -705,31 +705,36 @@ export async function saveOccurrence(
   occurrence: CourseOccurrence, replacement: Course | null, expectedCourses: Course[],
   expectedTable: Table, expectedTransfers: HolidayTransferEntry[],
 ): Promise<boolean> {
-  const saved = await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
+  const result = await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
     const rawTable = await db.timetables.get(expectedTable.id)
-    if (!rawTable) return false
+    if (!rawTable) return { saved: false, changed: false }
     const table = hydratedWith(rawTable, rawTable.periodTableId ? await db.periodTables.get(rawTable.periodTableId) : null)
     const stored = await getCourses(table.id)
     const original = stored.find(row => row.id === occurrence.course.id)
     if (canonical(table) !== canonical(expectedTable) || rowsKey(stored) !== rowsKey(expectedCourses) ||
         canonical(getHolidayTransfers(table.id)) !== canonical(expectedTransfers) ||
-        !original || rowsKey([original]) !== rowsKey([occurrence.course])) return false
+        !original || rowsKey([original]) !== rowsKey([occurrence.course])) return { saved: false, changed: false }
     let next = await nextCourseId()
     const remaining = withoutOccurrence(original, occurrence.sourceDate, table.startDate)
     const fragments = remaining.map(row => ({ ...row, id: row.id || next++ }))
     if (replacement) fragments.push({ ...replacement, id: fragments.length ? next++ : original.id, tableId: table.id, groupId: original.groupId })
     const unchanged = stored.filter(row => row.id !== original.id)
-    const merged = replacement ? mergeMatchingRows([...unchanged, ...fragments]) : [...unchanged, ...fragments]
-    if (rowsKey(stored) === rowsKey(merged)) return true
+    const merged = replacement && original.groupId.trim()
+      ? [...unchanged.filter(row => row.groupId !== original.groupId),
+        ...mergeMatchingRows([...unchanged.filter(row => row.groupId === original.groupId), ...fragments]
+          .map(row => ({ ...row, fixedDate: row.fixedDate ?? null })))]
+      : [...unchanged, ...fragments]
+    if (rowsKey(stored) === rowsKey(merged)) return { saved: true, changed: false }
     await undoManager.capture('saveOccurrence')
     const kept = new Set(merged.map(row => row.id))
     await db.courses.bulkDelete(stored.filter(row => !kept.has(row.id)).map(row => row.id))
-    await db.courses.bulkPut(merged)
+    const updates = merged.filter(row => rowsKey([row]) !== rowsKey(stored.filter(old => old.id === row.id)))
+    if (updates.length) await db.courses.bulkPut(updates)
     await reclaimUnusedEdgeNodesForTable(table.id)
-    return true
+    return { saved: true, changed: true }
   })
-  if (saved) await pruneDefaultTopPrefs()
-  return saved
+  if (result.changed) await pruneDefaultTopPrefs()
+  return result.saved
 }
 
 /** 14b. replaceCourses */
