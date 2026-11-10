@@ -9,6 +9,9 @@
 
 import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 
+import {useGlassLens} from './glass/useGlassLens'
+import {haptic} from './glass/physics'
+
 const THUMB_TRANSITION = '150ms cubic-bezier(0.2, 0, 0, 1)'
 
 export function SegmentedSwitcher({
@@ -23,21 +26,24 @@ export function SegmentedSwitcher({
   style?: CSSProperties
 }) {
   const [held, setHeld] = useState(false)
-  const dragSelect = (x: number) => { const r = rootRef.current?.getBoundingClientRect(); if (r && r.width > 0) onSelect(Math.max(0, Math.min(options.length - 1, Math.floor((x - r.left) / r.width * options.length)))) }
+  const lastSelected=useRef(selected)
+  lastSelected.current=selected
+  const dragSelect = (x: number) => { const r = rootRef.current?.getBoundingClientRect(); if (r && r.width > 0) {const next=Math.max(0, Math.min(options.length-1,Math.floor((x-r.left)/r.width*options.length)));if(next!==lastSelected.current){lastSelected.current=next;haptic();onSelect(next)}} }
   const count = Math.max(1, options.length)
   const index = Math.min(Math.max(0, selected), count - 1)
   const rootRef = useRef<HTMLDivElement>(null)
+  const lens=useGlassLens(rootRef)
   const segmentWidth = useMeasuredSegmentWidth(rootRef, fit ? options : null)
   const width = fit ? (segmentWidth === null ? 'max-content' : segmentWidth * count + 8) : '100%'
 
   return (
     <div
       ref={rootRef}
-      className="segmented-track"
+      className="segmented-track" data-glass-motion="off"
       data-held={held}
-      onPointerDown={(e) => { if (e.button !== 0) return; setHeld(true); e.currentTarget.setPointerCapture?.(e.pointerId); dragSelect(e.clientX) }}
-      onPointerMove={(e) => { if (held) dragSelect(e.clientX) }}
-      onPointerUp={() => setHeld(false)} onPointerCancel={() => setHeld(false)}
+      onPointerDown={(e) => { if (e.button !== 0) return; setHeld(true);lens.press(e.clientX,e.clientY); e.currentTarget.setPointerCapture?.(e.pointerId); dragSelect(e.clientX) }}
+      onPointerMove={(e) => { if (held) {dragSelect(e.clientX);lens.move(e.clientX,e.clientY)} }}
+      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => {setHeld(false);lens.release()}}
       style={{
         position: 'relative', display: 'grid', gridAutoFlow: 'column', gridAutoColumns: '1fr',
         width, height, flexShrink: 0, boxSizing: 'border-box', padding: 4, borderRadius: 14,

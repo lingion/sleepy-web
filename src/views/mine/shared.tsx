@@ -9,6 +9,8 @@ import { useTranslation } from 'react-i18next'
 import { IconArrowBack, IconCheck, IconExpandMore } from '../../components/icons'
 import { SegmentedSwitcher } from '../../components/SegmentedSwitcher'
 import '../../components/IntRangeSlider.css'
+import {useGlassLens} from '../../components/glass/useGlassLens'
+import {haptic} from '../../components/glass/physics'
 
 // AnimatedVisibility 默认 expandVertically/fadeIn = spring(StiffnessMediumLow) 临界阻尼 ≈330ms 收束
 const EXPAND_MS = 330
@@ -291,17 +293,19 @@ export function ToggleRow({
 export function Switch({
   checked, onChange, uncheckedTrack = 'var(--md-surface-container-highest)', compact = false, label,
 }: { checked: boolean; onChange: (v: boolean) => void; uncheckedTrack?: string; compact?: boolean; label?: string }) {
+  const track=useRef<HTMLButtonElement>(null)
+  const lens=useGlassLens(track)
   const [held, setHeld] = useState(false)
   const drag = useRef<{ x: number; changed: boolean } | null>(null)
   return (
     <button
-      className="switch-track"
+      ref={track} className="switch-track" data-glass-motion="off"
       data-held={held}
-      onPointerDown={(e) => { if (e.button !== 0) return; drag.current = { x: e.clientX, changed: false }; setHeld(true); e.currentTarget.setPointerCapture?.(e.pointerId) }}
-      onPointerMove={(e) => { if (!drag.current || Math.abs(e.clientX - drag.current.x) < 8) return; drag.current.changed = true; onChange(e.clientX > drag.current.x) }}
-      onPointerUp={() => setHeld(false)} onPointerCancel={() => { drag.current = null; setHeld(false) }}
+      onPointerDown={(e) => { if (e.button !== 0) return; drag.current = { x: e.clientX, changed: false }; setHeld(true);lens.press(e.clientX,e.clientY); e.currentTarget.setPointerCapture?.(e.pointerId) }}
+      onPointerMove={(e) => { if(held)lens.move(e.clientX,e.clientY); if (!drag.current || Math.abs(e.clientX - drag.current.x) < 8) return; drag.current.changed = true;const next=e.clientX > drag.current.x;if(next!==checked){haptic();onChange(next)} }}
+      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => { drag.current = null; setHeld(false);lens.release() }}
       type="button"
-      onClick={() => { if (!drag.current?.changed) onChange(!checked); drag.current = null }}
+      onClick={() => { if (!drag.current?.changed) {haptic();onChange(!checked)}; drag.current = null }}
       role="switch"
       aria-label={label}
       aria-checked={checked}
