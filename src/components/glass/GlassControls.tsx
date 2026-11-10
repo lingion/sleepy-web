@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { GlassPressMotion, haptic } from './physics'
-import { installLensOptics } from './optics'
+import { getPreparedGlassRuntime } from './runtime'
+import type { LensOpticsController } from './optics'
 import type { GlassStyleRole } from './styles'
 
 const selector = '[data-glass-role]'
@@ -8,9 +9,11 @@ const roles = new Set<GlassStyleRole>(['regular','tinted','pill','menu','alert']
 /** Only native-equivalent declarations opt in. HTML semantics never choose a material. */
 export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) {
   useEffect(() => {
+    const runtime = style === 'liquid_glass' ? getPreparedGlassRuntime() : undefined
     document.documentElement.dataset.uiStyle = style
-    if (style !== 'liquid_glass') return
-    const enhanced = new Map<HTMLElement,{ signature:string; optics:ReturnType<typeof installLensOptics> }>()
+    if (!runtime) return
+    const { installLensOptics } = runtime
+    const enhanced = new Map<HTMLElement,{ signature:string; optics:LensOpticsController }>()
     const motions = new Map<HTMLElement,GlassPressMotion>()
     const pointers = new Map<number,{ element:HTMLElement; x:number; y:number; side:number }>()
     const clear = (el:HTMLElement) => {

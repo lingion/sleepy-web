@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { GlassControls } from './GlassControls'
+import { prepareGlassRuntime } from './runtime'
 
 afterEach(() => {
   cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals()
@@ -17,6 +18,7 @@ describe('declared controls material updates', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,controls')
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(48)
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(48)
+    await prepareGlassRuntime('liquid_glass')
     render(<><GlassControls style="liquid_glass"/><button data-glass-role="tinted" data-glass-tint="#6750a4">保存</button></>)
     const button = screen.getByRole<HTMLButtonElement>('button'), url = button.style.getPropertyValue('--glass-optics-filter')
     const tint = button.style.getPropertyValue('--glass-style-tint')

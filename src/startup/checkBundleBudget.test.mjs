@@ -49,3 +49,33 @@ test('rejects a compressed initial graph over the byte budget', () => {
   const report = { scheduleZhCNGzip: 300_001, lateCriticalChunks: [], forbiddenChunks: [] }
   assert.match(failures(report)[0], /300001 exceeds 300000/)
 })
+
+test('rejects static optics but allows a conditionally loaded optical runtime', () => fixture((root, write) => {
+  write('index.html', '<script type="module" src="./assets/index-a.js"></script>')
+  write('assets/index-a.js', 'import "./optics-a.js"')
+  write('assets/optics-a.js', 'export const ready = true')
+  assert.ok(failures(inspectBuild(root)).some(error => error.includes('optics-a.js')))
+  write('assets/index-a.js', 'export const prepare = () => import("./optics-a.js")')
+  assert.deepEqual(failures(inspectBuild(root)), [])
+}))
+
+test('finds optical implementation behind a barrel while allowing types and a conditional import', () => fixture((root, write) => {
+  write('src/main.tsx', 'import { install } from "./runtime"; import type { Lens } from "./components/glass/opticalMath"')
+  write('src/views/ScheduleView.tsx', 'export const ScheduleView = null')
+  write('src/runtime.ts', 'export { install } from "./components/glass/optics"')
+  write('src/components/glass/optics.ts', 'export const install = () => null')
+  write('src/components/glass/opticalMath.ts', 'export type Lens = string')
+  assert.deepEqual(inspectStartupSources(root), ['src/components/glass/optics.ts'])
+  write('src/runtime.ts', 'export const install = () => import("./components/glass/optics")')
+  assert.deepEqual(inspectStartupSources(root), [])
+}))
+
+test('checks the independent data bootstrap for an inlined optical dependency', () => fixture((root, write) => {
+  write('src/main.tsx', 'export const main = true')
+  write('src/views/ScheduleView.tsx', 'export const schedule = true')
+  write('src/startup/data.ts', 'import { maps } from "../components/glass/opticalMaps"')
+  write('src/components/glass/opticalMaps.ts', 'export const maps = true')
+  assert.deepEqual(inspectStartupSources(root), ['src/components/glass/opticalMaps.ts'])
+  write('src/startup/data.ts', 'export const prepare = () => import("../components/glass/opticalMaps")')
+  assert.deepEqual(inspectStartupSources(root), [])
+}))

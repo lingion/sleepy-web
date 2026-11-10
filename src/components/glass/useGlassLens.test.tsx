@@ -1,6 +1,8 @@
-import {afterEach,describe,expect,it,vi} from 'vitest'
+import {afterEach,beforeAll,describe,expect,it,vi} from 'vitest'
 import {act,cleanup,renderHook} from '@testing-library/react'
 import {lensGeometry,useGlassLens} from './useGlassLens'
+import {prepareGlassRuntime} from './runtime'
+beforeAll(()=>prepareGlassRuntime('liquid_glass'))
 afterEach(()=>{cleanup();vi.unstubAllGlobals();delete document.documentElement.dataset.uiStyle})
 describe('complete glass lens motion',()=>{
  it('reuses track measurements during motion and refreshes exact geometry on resize',()=>{

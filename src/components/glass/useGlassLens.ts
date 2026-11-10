@@ -1,9 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import { GlassControlMotion, GlassPressMotion, haptic, rubberBand } from './physics'
-import { installLensOptics, liquidGlassStyle, opticalSamplingPadding } from './optics'
-import { proveOpaqueBackdrop } from './opaqueBackdrop'
-
-const backdropPadding = opticalSamplingPadding(liquidGlassStyle('lens'))
+import { getPreparedGlassRuntime } from './runtime'
+import type { LensOpticsController } from './optics'
 
 type LensKind = 'segment' | 'dock' | 'switch' | 'slider'
 interface Selection {
@@ -55,7 +53,7 @@ export function useGlassLens(track: RefObject<HTMLElement | null>, selection?: S
   const pull = useRef(new GlassPressMotion())
   const origin = useRef({ x: 0, y: 0, side: 32, index: 0, dragging: false })
   const candidate = useRef(Math.round(selection?.index ?? 0))
-  const optical = useRef<ReturnType<typeof installLensOptics>[]>([])
+  const optical = useRef<LensOpticsController[]>([])
   const layout = useRef({ width: 16, height: 24, outside: null as HTMLElement | null, lens: null as HTMLElement | null })
   const painted = useRef(new Map<string, string>())
   const frame = useRef(0), previous = useRef(0), suppressClick = useRef(0)
@@ -81,11 +79,12 @@ export function useGlassLens(track: RefObject<HTMLElement | null>, selection?: S
     const size = { width: Math.round(g.width), height: Math.round(g.height) }
     // Read the prospective capture before changing any lens styles. A failed
     // proof retains the full alpha graph, including during page transitions.
-    const backdrop = lens && lens !== el && optical.current.length ? proveOpaqueBackdrop(lens, () => {
+    const runtime = lens && lens !== el && optical.current.length ? getPreparedGlassRuntime() : undefined
+    const backdrop = runtime && lens ? runtime.proveOpaqueBackdrop(lens, () => {
       const rect = el.getBoundingClientRect()
       if (Math.abs(rect.width - rootW) > 1 || Math.abs(rect.height - rootH) > 1) return
       return {left: rect.left + el.clientLeft + g.left, top: rect.top + el.clientTop + g.top + pull.current.y.value, ...size}
-    }, backdropPadding) : undefined
+    }, runtime.lensBackdropPadding) : undefined
     const set = (name: string, value: string) => {
       if (painted.current.get(name) === value) return
       el.style.setProperty(name, value); painted.current.set(name, value)
@@ -193,6 +192,7 @@ export function useGlassLens(track: RefObject<HTMLElement | null>, selection?: S
       }
       measure(); paint()
       if (enabled) {
+        const { installLensOptics } = getPreparedGlassRuntime()
         if (lens) optical.current.push(installLensOptics(lens, { role: 'lens', target: 'backdrop' }))
         if (glyph) optical.current.push(installLensOptics(glyph, { role: 'lensContent' }))
       }
