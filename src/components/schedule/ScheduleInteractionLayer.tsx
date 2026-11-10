@@ -151,7 +151,7 @@ export function ScheduleInteractionLayer({ rootRef, table, courses, week, readOn
       if (state.current?.dragging) void commit(false)
     }
     const cancel = (e:PointerEvent) => { if (drag.current?.pointer===e.pointerId) { cancelHold(); endEdge();cancelAnimationFrame(scrollFrame);scrollFrame=0; drag.current=null; if (state.current?.dragging) set(null) } }
-    const click = (e:MouseEvent) => { if (!(e.target instanceof Element && e.target.closest('[data-float-ui]')) && performance.now()<ignoreClicks.current) { e.preventDefault(); e.stopPropagation() } }
+    const click = (e:MouseEvent) => { if (!(e.target instanceof Element && e.target.closest('[data-float-ui],[role="dialog"]')) && performance.now()<ignoreClicks.current) { e.preventDefault(); e.stopPropagation() } }
     document.addEventListener('pointerdown',down,true)
     const touch=(event:TouchEvent)=>{if(drag.current?.active && event.cancelable) event.preventDefault()}
     document.addEventListener('touchmove',touch,{passive:false,capture:true})
