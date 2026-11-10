@@ -13,6 +13,8 @@ import { lazyPage, PageSuspense } from '../startup/lazyPage'
 import { preparePageTranslations } from '../i18n'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { shallow } from 'zustand/shallow'
+import { useShallow } from 'zustand/react/shallow'
 import {
   IconChevronLeft, IconChevronRight,
   IconAdd, IconIosShare, IconCheck, IconClose, IconCalendarMonth,
@@ -29,8 +31,16 @@ import { useScheduleSessionStore } from '../state/scheduleSessionStore'
 import { undoManager, useUndoStore } from '../data/undoStore'
 import { CardsGridView, dateOfWeek } from '../components/schedule/CardsGridView'
 import { FullWeekView } from '../components/schedule/FullWeekView'
-const MemoCardsGridView = memo(CardsGridView)
-const MemoFullWeekView = memo(FullWeekView)
+// A holiday response can replace year data without changing any visible day.
+// Compare that small set by value; every other prop still requires its identity.
+function sameWeekViewProps<P extends { greyDays?: Set<number> }>(previous: P, next: P): boolean {
+  const { greyDays: previousDays, ...previousProps } = previous
+  const { greyDays: nextDays, ...nextProps } = next
+  return shallow(previousProps, nextProps) && (previousDays === nextDays ||
+    !!previousDays && !!nextDays && previousDays.size === nextDays.size && [...previousDays].every(day => nextDays.has(day)))
+}
+const MemoCardsGridView = memo(CardsGridView, sameWeekViewProps)
+const MemoFullWeekView = memo(FullWeekView, sameWeekViewProps)
 const CourseDetailSheet = lazyPage(() => import('../components/CourseDetailSheet').then(module => ({ default: module.CourseDetailSheet })))
 const AddCourseView = lazyPage(() => import('./AddCourseView').then(module => ({ default: module.AddCourseView })))
 const ImportView = lazyPage(() => import('./ImportView').then(module => ({ default: module.ImportView })), preparePageTranslations)
@@ -121,7 +131,7 @@ export function ScheduleView(props: { navExtraBottom?: number; readOnly?: boolea
 
 function ScheduleContent({ navExtraBottom = 0, readOnly = false }: { navExtraBottom?: number; readOnly?: boolean }) {
   const { t } = useTranslation()
-  const prefs = usePrefsStore((s) => s.prefs)
+  const prefs = usePrefsStore(useShallow((s) => s.prefs))
   const updatePrefs = usePrefsStore((s) => s.update)
   // 视图模式 + 周次: 会话层持有 (useScheduleSessionStore — 基线 §1.4 AppRoot 会话契约) —
   // 本组件随 overlay/tab 切换卸载重建, 状态在 store 里不丢。
@@ -264,10 +274,12 @@ function ScheduleContent({ navExtraBottom = 0, readOnly = false }: { navExtraBot
     measureRo.current?.disconnect()
     measureRo.current = null
     if (!el) return
-    setPageWidth(el.clientWidth)
-    const ro = new ResizeObserver((entries) => {
-      for (const e of entries) setPageWidth(e.contentRect.width)
-    })
+    // Keep the ref measurement and observer in the same client-box units as
+    // the grids. Switching to fractional contentRect widths causes a second
+    // three-page layout even when the available client width has not changed.
+    const measure = () => setPageWidth(el.clientWidth)
+    measure()
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
     measureRo.current = ro
   }, [])
@@ -590,7 +602,9 @@ function ScheduleContent({ navExtraBottom = 0, readOnly = false }: { navExtraBot
       <div
         data-schedule-scroll
         ref={attachScheduleScroll}
-        style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', touchAction: 'pan-y', userSelect: 'none', overscrollBehaviorX: 'contain' }}
+        // Reserve the vertical scrollbar before the empty pager is measured;
+        // mounting the three weeks must not shrink their shared client width.
+        style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', scrollbarGutter: 'stable', touchAction: 'pan-y', userSelect: 'none', overscrollBehaviorX: 'contain' }}
         {...pagerHandlers}
       >
         {tableList === undefined ? null : !hasTable ? (
@@ -656,10 +670,10 @@ function ScheduleContent({ navExtraBottom = 0, readOnly = false }: { navExtraBot
                       timeJson={defaultTable.timeJson}
                       startDate={defaultTable.startDate}
                       currentWeek={w}
-                      // -32: wrapper '0 8px' 左右 16 + CardsGridView 自身 padding 8px 四边 16 —
+                      // wrapper 左右 16 + CardsGridView 左右 16 * gridScale —
                       // colW 按 padding 内真实可用宽算 (Android BoxWithConstraints
                       // 在 padding(8dp) 内测量同构), 不扣则 minWidth > 容器 → 周日列截断
-                      containerWidth={pageWidth - 32}
+                      containerWidth={pageWidth - 16 - 16 * prefs.gridScale}
                       greyDays={greyDaysByWeek.get(w) ?? greyDays}
                       topOverrides={topOverrides}
                       onSetTopOverride={setTopOverride}

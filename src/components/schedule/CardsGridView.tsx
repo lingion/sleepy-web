@@ -6,6 +6,7 @@ import './mealBreak.css'
 
 import { useLayoutEffect, useMemo, useRef, useState, type TouchEvent, type WheelEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useShallow } from 'zustand/react/shallow'
 import type { Course } from '../../data/types'
 import { usePrefsStore, resolveIsDark } from '../../state/prefsStore'
 import { courseNeutralTokens } from '../../theme/themes'
@@ -56,7 +57,9 @@ export function CardsGridView(props: CardsGridViewProps) {
   } = props
 
   const { t } = useTranslation()
-  const prefs = usePrefsStore((s) => s.prefs)
+  // Hue refreshes notify through an equal prefs clone. Color cards subscribe
+  // independently below; the grid layout and headers need only changed prefs.
+  const prefs = usePrefsStore(useShallow((s) => s.prefs))
   const hideTime=!!(prefs as typeof prefs & {periodHeaderHideTime?:boolean}).periodHeaderHideTime
 
   const sortedDays = useMemo(
@@ -71,7 +74,7 @@ export function CardsGridView(props: CardsGridViewProps) {
     if (!root) return
     const measure = () => {
       const style = getComputedStyle(root)
-      const width = root.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      const width = root.clientWidth - (parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
       if (width > 0) setMeasuredWidth(previous => previous === null && width === containerWidth ? null : width)
     }
     measure()
