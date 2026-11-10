@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import worker from '../../../worker/sleepy-jw-proxy'
 const relay = (target: string, method = 'POST', body = 'data=example') => worker.fetch(new Request(`https://relay.example/?url=${encodeURIComponent(target)}`, { method, ...(method === 'POST' ? { body } : {}) }), {}, {})
 afterEach(() => vi.unstubAllGlobals())
-it('blocks academic URLs, credentials, lookalike hosts, queries, redirects and wrong methods before any upstream request', async () => {
+it('blocks academic URLs, credentials, lookalike hosts, queries and wrong methods before any upstream request', async () => {
   const upstream = vi.fn(async () => new Response('ok'));vi.stubGlobal('fetch',upstream)
   for (const target of ['https://jw.example.edu/login','https://api.wakeup.fun.evil.test/pluto/app/antispam','http://api.wakeup.fun/pluto/app/antispam','https://user@api.wakeup.fun/pluto/app/antispam','https://api.wakeup.fun/pluto/app/antispam?url=x','https://api.wakeup.fun/other','https://api.wakeup.fun/share_schedule/getv2#x']) expect((await relay(target)).status).toBe(403)
   expect((await relay('https://api.wakeup.fun/share_schedule/getv2','GET')).status).toBe(405)
@@ -16,11 +16,21 @@ it('supports CORS and relays only WakeUP headers and the exact form body', async
   const request=new Request('https://relay.example/?url=https%3A%2F%2Fapi.wakeup.fun%2Fshare_schedule%2Fgetv2',{method:'POST',headers:{Authorization:'private',Cookie:'private','zyb-cuid':'device'},body:'data=a%2Bb'})
   const response=await worker.fetch(request,{}, {})
   const [url,init]=upstream.mock.calls[0] as unknown as [string,RequestInit]
-  expect(url).toBe('https://api.wakeup.fun/share_schedule/getv2');expect(init.redirect).toBe('error')
+  expect(url).toBe('https://api.wakeup.fun/share_schedule/getv2');expect(init.redirect).toBe('manual')
   const headers=new Headers(init.headers);expect(headers.get('zyb-cuid')).toBe('device');expect(headers.get('Authorization')).toBeNull();expect(headers.get('Cookie')).toBeNull()
   expect(new TextDecoder().decode(init.body as ArrayBuffer)).toBe('data=a%2Bb')
   expect(response.status).toBe(201);expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');expect(response.headers.get('Set-Cookie')).toBeNull()
   expect(await response.json()).toEqual({result:'ok'})
+})
+it.each([301,302,303,307,308])('rejects upstream HTTP %i without fetching its redirect destination', async status => {
+  const upstream=vi.fn(async()=>new Response(null,{status,headers:{Location:'https://unapproved.example/target'}}))
+  vi.stubGlobal('fetch',upstream)
+  const response=await relay('https://api.wakeup.fun/pluto/app/antispam')
+  expect(response.status).toBe(502)
+  expect(await response.json()).toEqual({error:'上游不允许重定向'})
+  expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
+  expect(response.headers.get('Location')).toBeNull()
+  expect(upstream).toHaveBeenCalledTimes(1)
 })
 it('bounds request and streaming response sizes and converts network failure to a CORS error', async () => {
   const upstream=vi.fn(async()=>new Response(new ReadableStream({start(c){c.enqueue(new Uint8Array(8*1024*1024+1));c.close()}})));vi.stubGlobal('fetch',upstream)
