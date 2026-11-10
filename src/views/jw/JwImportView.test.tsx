@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { beforeAll, afterEach, it, expect, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { JwCapturePage } from './JwCapturePage'
 import { JwImportView } from './JwImportView'
 import { initI18n } from '../../i18n'
 import { SCHOOLS } from './schools'
@@ -27,4 +28,12 @@ it('直接 URL 与旧客户端无法绕过',async()=>{
   expect(screen.getByText(JW_WEB_UNSUPPORTED)).toBeTruthy()
   const result=await fetchViaProxy('https://jw.example.edu.cn',{},network)
   expect(result.ok).toBe(false);expect(network).not.toHaveBeenCalled()
+})
+
+it('旧捕获组件直接挂载也没有登录、抓取或写库入口',()=>{
+  const fetcher=vi.fn(),onHtml=vi.fn(),open=vi.spyOn(window,'open')
+  render(<JwCapturePage school={SCHOOLS[0]} fetcher={fetcher} onHtml={onHtml} onFetchError={()=>{}} />)
+  expect(screen.getByRole('alert').textContent).toBe('网页暂不支持教务导入，请使用安卓版导入')
+  expect(screen.queryByRole('button')).toBeNull();expect(screen.queryByRole('link')).toBeNull()
+  expect(fetcher).not.toHaveBeenCalled();expect(onHtml).not.toHaveBeenCalled();expect(open).not.toHaveBeenCalled()
 })

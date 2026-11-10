@@ -53,3 +53,7 @@ Period-only input
 ```
 
 Selection precedes append preview. An empty selection cannot advance. Back from confirmation returns to preview. Persistence errors stay inside the active dialog and can be retried. Applying disables the primary action and uses a synchronous lock against double clicks. Period-only input writes no timetable and completes its undo batch before leaving the page.
+
+## Academic import exception
+
+The complete school directory, status badges, search, alphabet navigation, city recommendations and explicit geolocation remain available. Choosing any school, any status, a recommended school or a custom URL opens exactly: “网页暂不支持教务导入，请使用安卓版导入”. No academic login, capture, draft restoration or proxy request is reachable. The old capture component also renders only the notice if mounted directly. The legacy proxy client returns unsupported without calling fetch. Server restrictions require main's worker deployment as recorded above.
