@@ -9,6 +9,7 @@
  */
 
 import type { Course } from '../data/types'
+import { persistedCourseHue } from '../data/courseHueCache'
 
 /** 黄金角 — 相邻 id 色差最大化 (13 门课最少差 ~27°) */
 const GOLDEN_ANGLE = 137.508
@@ -204,7 +205,7 @@ export function pickCourseColor(
     if (parsed) return rgbToHex(parsed)
   }
   if (colorless) return neutralColor
-  const hue = stableHue(course.groupId)
+  const hue = persistedCourseHue(course.groupId) ?? stableHue(course.groupId)
   const s = isDark ? S_DARK : S_LIGHT
   const l = isDark ? L_DARK : L_LIGHT
   return rgbToHex(hslToRgb(hue, s, l))
@@ -242,7 +243,7 @@ export function pickCourseColorWithGroupRows(
         if (parsed) return rgbToHex(parsed)
       }
       if (colorless) return neutralColor
-      const hue = stableHue(row.groupId)
+      const hue = persistedCourseHue(row.groupId) ?? stableHue(row.groupId)
       const s = isDark ? S_DARK : S_LIGHT
       const l = isDark ? L_DARK : L_LIGHT
       return rgbToHex(hslToRgb(hue, s, l))
@@ -267,7 +268,7 @@ export function groupSourceColorHex(groupRows: Course[]): string {
  * 与 stableHue 同理全程 fround, 复刻 Kotlin Float 语义 (GoldenAngleColor.forRow:298-304)。
  */
 export function goldenAngleForRow(row: Course, groupRows: Course[], sourceHex: string): number {
-  const baseHue = f32(parseHexHue(sourceHex))
+  const baseHue = f32(persistedCourseHue(row.groupId) ?? parseHexHue(sourceHex))
   const sorted = [...groupRows].sort((a, b) => a.id - b.id)
   const idx = sorted.findIndex((r) => r.id === row.id)
   const safeIdx = idx < 0 ? 0 : idx
