@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { toolbarLayout } from './toolbarLayout'
 
-export function ScheduleToolbar({ children }: { children: ReactNode }) {
+export function ScheduleToolbar({ children, onGroupedChange }: { children: ReactNode; onGroupedChange?: (grouped: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const root = ref.current!
@@ -14,6 +14,7 @@ export function ScheduleToolbar({ children }: { children: ReactNode }) {
       const centerWidth=96+16+28+text
       const layout = toolbarLayout(root.clientWidth, natural(start), natural(end), centerWidth,64+2+16+text,tight(start),tight(end))
       root.dataset.grouped = String(layout.grouped)
+      onGroupedChange?.(layout.grouped)
       root.style.setProperty('--toolbar-inset', `${layout.inset}px`)
       root.style.setProperty('--toolbar-gap', `${layout.internal}px`)
       root.style.setProperty('--toolbar-side-scale', String(layout.sideScale * layout.fitScale))
@@ -26,6 +27,6 @@ export function ScheduleToolbar({ children }: { children: ReactNode }) {
     measure()
     document.fonts?.ready.then(measure)
     return () => { ro.disconnect(); mutations.disconnect() }
-  }, [])
+  }, [onGroupedChange])
   return <div ref={ref} className="schedule-toolbar">{children}</div>
 }

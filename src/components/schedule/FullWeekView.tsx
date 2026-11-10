@@ -193,7 +193,7 @@ function DaySummaryCell({
       <div style={{ height: 4 * scale }} />
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 * scale }}>
         {courses.slice(0, 5).map((c) => (
-          <span
+          <span data-glass-plain
             key={c.id}
             role="button"
             tabIndex={0}
