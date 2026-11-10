@@ -16,8 +16,10 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
     const enhanced = new Map<HTMLElement,{ signature:string; optics:LensOpticsController }>()
     const motions = new Map<HTMLElement,GlassPressMotion>()
     const pointers = new Map<number,{ element:HTMLElement; x:number; y:number; side:number }>()
+    let resize:ResizeObserver|undefined
     const clear = (el:HTMLElement) => {
-      enhanced.get(el)?.optics.destroy(); enhanced.delete(el); motions.delete(el)
+      enhanced.get(el)?.optics.destroy(); enhanced.delete(el)
+      if(motions.delete(el))resize?.unobserve(el)
       for(const [id,pointer] of pointers) if(pointer.element===el) pointers.delete(id)
       el.classList.remove('glass-control','glass-surface','glass-moving')
       for(const name of ['--glass-lift','--glass-x','--glass-y','--glass-scale-x','--glass-scale-y']) el.style.removeProperty(name)
@@ -65,13 +67,22 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
       el.style.setProperty('--glass-scale-x',String(swell*(1+Math.abs(m.x.value)/Math.max(1,width)*.5)))
       el.style.setProperty('--glass-scale-y',String(swell*(1+Math.abs(m.y.value)/Math.max(1,height)*.5)))
     }
+    // Held motions retain their visual state while asleep; size changes still need a paint.
+    resize=typeof ResizeObserver==='undefined'?undefined:new ResizeObserver(entries=>{
+      for(const {target} of entries) {
+        const el=target as HTMLElement, motion=motions.get(el)
+        if(motion && !motion.running)paint(el,motion)
+      }
+    })
     const render=(now:number)=>{
       const dt=last?(now-last)/1000:1/60;last=now
+      let running=false
       for(const [el,motion] of motions) {
-        motion.tick(dt);paint(el,motion)
-        if(!motion.running && !motion.held) {el.classList.remove('glass-moving');motions.delete(el)}
+        if(motion.running){motion.tick(dt);paint(el,motion)}
+        if(motion.running)running=true
+        else if(!motion.held) {el.classList.remove('glass-moving');motions.delete(el);resize?.unobserve(el)}
       }
-      frame=motions.size?requestAnimationFrame(render):0
+      frame=running?requestAnimationFrame(render):0
       if(!frame)last=0
     }
     const down=(e:PointerEvent)=>{
@@ -81,11 +92,16 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
       const rect=el.getBoundingClientRect(), motion=motions.get(el)??new GlassPressMotion()
       pointers.set(e.pointerId,{element:el,x:e.clientX,y:e.clientY,side:Math.min(rect.width,rect.height)})
       motion.press();motions.set(el,motion);el.classList.add('glass-moving');haptic()
-      if(reduced()){motion.finish();paint(el,motion)}else if(!frame)frame=requestAnimationFrame(render)
+      resize?.observe(el,{box:'border-box'})
+      if(reduced()){motion.finish();paint(el,motion)}else if(motion.running && !frame)frame=requestAnimationFrame(render)
     }
     const move=(e:PointerEvent)=>{
       const pointer=pointers.get(e.pointerId)
-      if(pointer && !reduced())motions.get(pointer.element)?.drag(e.clientX-pointer.x,e.clientY-pointer.y,pointer.side)
+      if(pointer && !reduced()) {
+        const motion=motions.get(pointer.element)
+        motion?.drag(e.clientX-pointer.x,e.clientY-pointer.y,pointer.side)
+        if(motion?.running && !frame)frame=requestAnimationFrame(render)
+      }
     }
     const up=(e:PointerEvent)=>{
       const pointer=pointers.get(e.pointerId)
@@ -93,13 +109,13 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
       pointers.delete(e.pointerId)
       const motion=motions.get(pointer.element)
       motion?.release()
-      if(reduced() && motion){motion.finish();paint(pointer.element,motion);pointer.element.classList.remove('glass-moving');motions.delete(pointer.element)}
-      else if(!frame)frame=requestAnimationFrame(render)
+      if(reduced() && motion){motion.finish();paint(pointer.element,motion);pointer.element.classList.remove('glass-moving');motions.delete(pointer.element);resize?.unobserve(pointer.element)}
+      else if(motion?.running && !frame)frame=requestAnimationFrame(render)
     }
     document.addEventListener('pointerdown',down,true);document.addEventListener('pointermove',move,true)
     document.addEventListener('pointerup',up,true);document.addEventListener('pointercancel',up,true)
     return()=>{
-      observer.disconnect();cancelAnimationFrame(frame)
+      observer.disconnect();resize?.disconnect();cancelAnimationFrame(frame)
       for(const el of [...enhanced.keys()])clear(el)
       document.removeEventListener('pointerdown',down,true);document.removeEventListener('pointermove',move,true)
       document.removeEventListener('pointerup',up,true);document.removeEventListener('pointercancel',up,true)
