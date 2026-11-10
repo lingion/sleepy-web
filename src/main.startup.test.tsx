@@ -3,8 +3,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const control = vi.hoisted(() => ({
-  public: false, gated: false,
-  language: Promise.resolve(), data: Promise.resolve(), route: Promise.resolve(), colors: Promise.resolve(), snapshot: Promise.resolve(),
+  public: false, gated: false, uiStyle: 'classic',
+  language: Promise.resolve(), data: Promise.resolve(), route: Promise.resolve(), colors: Promise.resolve(), snapshot: Promise.resolve(), optics: Promise.resolve(),
+  opticsLoad: vi.fn(), prefsPublish: vi.fn(),
   seed: vi.fn(), publicLoad: vi.fn(), routeLoad: vi.fn(), languageLoad: vi.fn(), snapshotLoad: vi.fn(), snapshotDiscard: vi.fn(), databaseOpen: vi.fn(),
   rootRender: vi.fn(), flushDepth: 0,
 }))
@@ -22,7 +23,8 @@ vi.mock('./App', () => ({
   preloadInitialRoute: () => { control.routeLoad(); return control.route },
 }))
 vi.mock('./i18n', () => ({ prepareI18n: (lang: string) => { control.languageLoad(lang); return control.language } }))
-vi.mock('./data/db', () => ({ db: { open: async () => { control.databaseOpen() } }, loadPrefs: async () => ({ lang: 'es' }) }))
+vi.mock('./data/db', () => ({ db: { open: async () => { control.databaseOpen() } }, loadPrefs: async () => ({ lang: 'es', uiStyle: control.uiStyle }) }))
+vi.mock('./components/glass/runtime', () => ({ prepareGlassRuntime: (style: string) => { control.opticsLoad(style); return control.optics } }))
 vi.mock('./data/sampleTable', () => ({ seedSampleTable: () => { control.seed(); return control.data } }))
 vi.mock('./publicSchedule', () => ({ loadPublicSchedule: () => { control.publicLoad(); return control.data } }))
 vi.mock('./startup/publicMode', () => ({ publicScheduleEnabled: () => control.public }))
@@ -35,7 +37,7 @@ vi.mock('./state/prefsStore', async () => {
   const { create } = await import('zustand')
   const usePrefsStore = create<{ loaded: boolean; load: () => Promise<void> }>(set => ({
     loaded: false,
-    load: async () => { set({ loaded: true }); await control.colors },
+    load: async () => { control.prefsPublish(); set({ loaded: true }); await control.colors },
   }))
   return { usePrefsStore }
 })
@@ -49,7 +51,7 @@ function deferred() {
 beforeEach(() => {
   vi.resetModules()
   vi.clearAllMocks()
-  Object.assign(control, { public: false, gated: false, language: Promise.resolve(), data: Promise.resolve(), route: Promise.resolve(), colors: Promise.resolve(), snapshot: Promise.resolve() })
+  Object.assign(control, { public: false, gated: false, uiStyle: 'classic', language: Promise.resolve(), data: Promise.resolve(), route: Promise.resolve(), colors: Promise.resolve(), snapshot: Promise.resolve(), optics: Promise.resolve() })
 })
 afterEach(cleanup)
 
@@ -108,11 +110,45 @@ it('does not prepare data or routes before the public access gate is granted', a
   expect(control.publicLoad).not.toHaveBeenCalled()
   expect(control.snapshotLoad).not.toHaveBeenCalled()
   expect(control.databaseOpen).not.toHaveBeenCalled()
+  expect(control.opticsLoad).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: '进入课表' }))
   expect(await screen.findByRole('button', { name: 'Interactive timetable' })).toBeTruthy()
   expect(control.publicLoad).toHaveBeenCalledOnce()
   expect(control.snapshotLoad).toHaveBeenCalledOnce()
   expect(control.databaseOpen).toHaveBeenCalledOnce()
+})
+
+it('prepares saved liquid optics alongside seed data and waits before prefs publication and the first commit', async () => {
+  const data = deferred(), optics = deferred()
+  Object.assign(control, { uiStyle: 'liquid_glass', data: data.promise, optics: optics.promise })
+  const { prepareStartup } = await import('./main')
+  await waitFor(() => expect(control.seed).toHaveBeenCalledOnce())
+  expect(control.opticsLoad).toHaveBeenCalledWith('liquid_glass')
+  expect(control.prefsPublish).not.toHaveBeenCalled()
+  data.resolve()
+  await act(async () => { await data.promise })
+  expect(control.prefsPublish).not.toHaveBeenCalled()
+  expect(control.rootRender).not.toHaveBeenCalled()
+  optics.resolve()
+  await act(async () => { await prepareStartup() })
+  expect(control.prefsPublish).toHaveBeenCalledOnce()
+  expect(control.rootRender).toHaveBeenCalledOnce()
+  expect(control.rootRender.mock.calls[0][1]).toBeGreaterThan(0)
+  render(control.rootRender.mock.calls[0][0])
+  expect(screen.getByRole('button', { name: 'Interactive timetable' })).toBeTruthy()
+})
+
+it('reports an optical preparation failure without publishing liquid prefs or a usable page', async () => {
+  const optics = deferred()
+  Object.assign(control, { uiStyle: 'liquid_glass', optics: optics.promise.then(() => { throw new Error('optical chunk unavailable') }) })
+  const { prepareStartup } = await import('./main')
+  optics.resolve()
+  await expect(prepareStartup()).rejects.toThrow('optical chunk unavailable')
+  await waitFor(() => expect(control.rootRender).toHaveBeenCalledOnce())
+  expect(control.prefsPublish).not.toHaveBeenCalled()
+  render(control.rootRender.mock.calls[0][0])
+  expect(screen.getByRole('alert').textContent).toContain('optical chunk unavailable')
+  expect(screen.queryByRole('button', { name: 'Interactive timetable' })).toBeNull()
 })
 
 it('uses an already prepared startup on its first render without a blank effect commit', async () => {

@@ -4,7 +4,7 @@
  * 网格顺序是不变量(2026-09-11 用户定稿): 自定义卡与预设卡同列紧密堆积, 加号只排整个网格末尾。
  */
 
-import type { ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePrefsStore } from '../../state/prefsStore'
 import { THEME_PRESETS, resolveThemeScheme, type ThemePreset } from '../../theme/themes'
@@ -38,6 +38,15 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenScheduleDispla
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const update = usePrefsStore((s) => s.update)
+  const styleRequest = useRef(0)
+  const [styleError, setStyleError] = useState<string | null>(null)
+  const selectStyle = (uiStyle: Prefs['uiStyle']) => {
+    const request = ++styleRequest.current
+    setStyleError(null)
+    void update({ uiStyle }).catch(error => {
+      if (request === styleRequest.current) setStyleError(error instanceof Error ? error.message : String(error))
+    })
+  }
   const isDark = document.documentElement.dataset.mode === 'dark'
   // 每次渲染重读 — 编辑器保存/删除后返回本页即见最新 (Android customListVersion 同效)
   const customThemes: CustomTheme[] = getAllThemes()
@@ -106,7 +115,11 @@ export function AppearancePage({ onBack, onOpenThemeEditor, onOpenScheduleDispla
       <SectionHeader title={t('settings_appearance_navigation', '导航')} />
       <FlatCard title={t('settings_nav_style')} options={[t('settings_nav_style_docked'), t('settings_nav_style_floating')]} selectedKey={prefs.navDock ? 1 : 0} onSelect={(i) => void update({ navDock: i === 1 })} />
       <SectionHeader title={t('appearance_section_dock_theme', '界面风格')} />
-      <SegmentedSwitcher options={[t('dock_theme_classic', '经典'), t('dock_theme_liquid_glass', '液态玻璃')]} selected={prefs.uiStyle === 'liquid_glass' ? 1 : 0} onSelect={(i) => void update({ uiStyle: i === 1 ? 'liquid_glass' : 'classic' })} />
+      <SegmentedSwitcher options={[t('dock_theme_classic', '经典'), t('dock_theme_liquid_glass', '液态玻璃')]} selected={prefs.uiStyle === 'liquid_glass' ? 1 : 0} onSelect={(i) => selectStyle(i === 1 ? 'liquid_glass' : 'classic')} />
+      {styleError && <div role="alert">
+        <p>{t('read_failed', { v1: styleError })}</p>
+        <button type="button" className="m3-button-tonal" onClick={() => selectStyle('liquid_glass')}>{t('update_retry')}</button>
+      </div>}
       <SectionHeader title={t('appearance_section_course_color', '课程配色')} />
       <CourseColorSettings />
       <AppearanceNavigationRow title={t('appearance_section_schedule_display')} onClick={() => onOpenScheduleDisplay?.()} />

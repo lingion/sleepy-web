@@ -5,6 +5,7 @@ import { publicAccessGranted, publicAccessRequired } from '../publicAccess'
 import { usePrefsStore } from '../state/prefsStore'
 import { publicScheduleEnabled } from './publicMode'
 import { prepareInitialScheduleData } from './scheduleData'
+import { prepareGlassRuntime } from '../components/glass/runtime'
 
 let pending: Promise<void> | undefined
 
@@ -13,10 +14,11 @@ export function prepareStartupData(): Promise<void> {
   return pending ??= (async () => {
     const preferences = loadStartupPrefs()
     const language = preferences.then(prefs => prepareI18n(prefs.lang))
+    const appearance = preferences.then(prefs => prepareGlassRuntime(prefs.uiStyle))
     const data = publicScheduleEnabled()
       ? import('../publicSchedule').then(module => module.loadPublicSchedule())
       : language.then(() => seedSampleTable())
-    await Promise.all([language, data])
+    await Promise.all([language, data, appearance])
     // Theme and course hues depend on the completed seed/public transaction.
     await Promise.all([usePrefsStore.getState().load(await preferences), prepareInitialScheduleData()])
   })()

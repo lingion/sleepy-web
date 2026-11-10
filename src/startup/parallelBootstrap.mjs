@@ -51,7 +51,7 @@ export function parallelBootstrap() {
         databaseModules: databaseModules.map(id => path.relative(config.root, id)),
         earlyModules: modules.map(id => path.relative(config.root, id)),
         glassModules: Object.values(bundle).filter(item => item.type === 'chunk').flatMap(chunk => Object.entries(chunk.modules)
-          .filter(([id]) => /\/components\/glass\/(?:opaqueBackdrop|optics|useGlassLens)\.ts$/.test(id))
+          .filter(([id]) => /\/components\/glass\/(?:opaqueBackdrop|optics|opticalSvg|opticalMaps|opticalMath|styles|runtime|useGlassLens)\.ts$/.test(id))
           .map(([id, module]) => ({ source: path.relative(config.root, id), file: chunk.fileName, renderedLength: module.renderedLength,
             transformedSha256: hash(this.getModuleInfo(id).code) }))),
       }, null, 2) + '\n' })

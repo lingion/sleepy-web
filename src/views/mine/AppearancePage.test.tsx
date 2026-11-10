@@ -6,7 +6,7 @@
 
 import 'fake-indexeddb/auto'
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
-import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { usePrefsStore } from '../../state/prefsStore'
 import { saveTheme, CUSTOM_KEY_PREFIX } from '../../data/customThemeStore'
 import { AppearancePage } from './AppearancePage'
@@ -24,6 +24,37 @@ beforeEach(async () => {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
+})
+
+describe('conditional liquid runtime feedback', () => {
+  it('keeps classic selected after a failure and offers a working retry', async () => {
+    const failure = Promise.reject(new Error('optical chunk unavailable'))
+    void failure.catch(() => {})
+    const update = vi.spyOn(usePrefsStore.getState(), 'update').mockReturnValueOnce(failure)
+    render(<AppearancePage onBack={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '液态玻璃' }))
+    expect((await screen.findByRole('alert')).textContent).toContain('optical chunk unavailable')
+    expect(screen.getByRole('button', { name: '经典', pressed: true })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '重试' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '液态玻璃', pressed: true })).toBeTruthy())
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(update).toHaveBeenCalledTimes(2)
+    await act(async () => { await usePrefsStore.getState().update({ uiStyle: 'classic' }) })
+  })
+
+  it('does not show a stale liquid failure after a newer classic selection', async () => {
+    let reject!: (error: Error) => void
+    const pending = new Promise<void>((_done, fail) => { reject = fail })
+    void pending.catch(() => {})
+    vi.spyOn(usePrefsStore.getState(), 'update').mockReturnValueOnce(pending)
+    render(<AppearancePage onBack={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '液态玻璃' }))
+    fireEvent.click(screen.getByRole('button', { name: '经典', pressed: true }))
+    await act(async () => { reject(new Error('stale optical failure')); await pending.catch(() => {}) })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('button', { name: '经典', pressed: true })).toBeTruthy()
+  })
 })
 
 const PRESET_NAMES = ['默认淡紫', '春绿', '海蓝', '蜜桃粉', '石板灰']
