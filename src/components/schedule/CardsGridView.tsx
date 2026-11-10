@@ -691,8 +691,10 @@ function DayHeadCell({
 
   return (
     <div
+      data-day-header={day}
       style={{
         flex: 1,
+        minWidth: 0,
         height: (dateStr ? 56 : 52) * scale,
         borderRadius: 10 * scale * Math.min(1, cornerRatio),
         background: bg,
@@ -707,16 +709,16 @@ function DayHeadCell({
     >
       <span
         className="m3-label-large"
-        style={{ fontWeight: 600, fontSize: 14 * scale, lineHeight: `${20 * scale}px`, color: fg }}
+        style={{ fontWeight: 600, fontSize: 14 * scale, lineHeight: `${20 * scale}px`, color: fg, whiteSpace: 'nowrap' }}
       >
         {dayLabel}
       </span>
       {dateStr ? (
-        <span className="m3-label-small" style={{ fontSize: 10 * scale, lineHeight: `${11 * scale}px`, color: subFg }}>
+        <span className="m3-label-small" style={{ fontSize: 10 * scale, lineHeight: `${11 * scale}px`, color: subFg, whiteSpace: 'nowrap' }}>
           {dateStr}
         </span>
       ) : (
-        <span className="m3-label-small" style={{ fontSize: 9 * scale, lineHeight: `${11 * scale}px`, color: subFg }}>
+        <span className="m3-label-small" style={{ fontSize: 9 * scale, lineHeight: `${11 * scale}px`, color: subFg, whiteSpace: 'nowrap' }}>
           {courseCount === 0 ? t('no_course') : t('course_count_format', { v1: courseCount })}
         </span>
       )}
