@@ -9,21 +9,23 @@
  * 重命名不入本页 — Android 真源重命名仅发生在 EditTableScreen(名称字段), 经编辑卡完成。
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
+import { lazyPage, PageSuspense } from '../startup/lazyPage'
+import { preparePageTranslations } from '../i18n'
 import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { installBackHandler, useBackStack, chainFromHash, type BackKey } from '../state/backStack'
 import { abandonPendingTable, beginNewTable, usePendingTable } from '../state/pendingTable'
-import { ImportView } from './ImportView'
-import { JwImportView } from './jw/JwImportView'
-import { EditTableView } from './EditTableView'
-import { AddCourseView } from './AddCourseView'
-import { ExportView } from './ExportView'
-import { PeriodTableEditView } from './mine/PeriodTableEditView'
-import { AllTablesPage } from './mine/AllTablesPage'
-import { computeCurrentWeek } from './ScheduleView'
+const ImportView = lazyPage(() => import('./ImportView').then(module => ({ default: module.ImportView })), preparePageTranslations)
+const JwImportView = lazyPage(() => import('./jw/JwImportView').then(module => ({ default: module.JwImportView })))
+const EditTableView = lazyPage(() => import('./EditTableView').then(module => ({ default: module.EditTableView })))
+const AddCourseView = lazyPage(() => import('./AddCourseView').then(module => ({ default: module.AddCourseView })))
+const ExportView = lazyPage(() => import('./ExportView').then(module => ({ default: module.ExportView })))
+const PeriodTableEditView = lazyPage(() => import('./mine/PeriodTableEditView').then(module => ({ default: module.PeriodTableEditView })))
+const AllTablesPage = lazyPage(() => import('./mine/AllTablesPage').then(module => ({ default: module.AllTablesPage })))
+import { currentWeek } from '../domain/semester'
 import { insertPeriodTable } from '../data/repository'
 import { DEFAULT_TIME_JSON } from '../domain/timeTable'
 import { suggestUniqueName } from './mine/periodTableNames'
@@ -38,7 +40,21 @@ import {
 
 type IconComponent = ComponentType<{ size?: number; color?: string }>
 
-export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
+/** Keep the summary's original bounds without importing the schedule UI. */
+export function computeCurrentWeek(startDate: string, maxWeek: number): number {
+  if (!/^(\d{4})-(\d{2})-(\d{2})$/.test(startDate)) return 1
+  return Math.min(currentWeek(startDate, new Date()), maxWeek)
+}
+
+export async function preloadManageRoute(hash: string): Promise<void> {
+  if (chainFromHash(hash).at(-1) === 'jwImport') await JwImportView.preload()
+}
+
+export function ManageView(props: { navExtraBottom?: number }) {
+  return <PageSuspense><ManageContent {...props} /></PageSuspense>
+}
+
+function ManageContent({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const { t } = useTranslation()
   const tables = useLiveQuery(() => db.timetables.orderBy('id').toArray(), [])
   const defaultTable = tables?.find((x) => x.isDefault === 1)
@@ -88,7 +104,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   // 栈里两个 addCourse → 返回一次弹不干净, 底栏卡在隐藏态)。只在事件处理器里入栈。
   const open = (key: BackKey, show: () => void) => {
     push(key)
-    show()
+    startTransition(show)
   }
   const leave = () => back()
 
@@ -126,7 +142,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
         onDone={() => { leave(); setImporting(false) }}
         // 教务直连 — Android「关 sheet + startActivity」: 导入层原地换成教务层,
         // 历史条目不新增 → 教务页返回直达管理页 (不会退回导入页)。
-        onJwImport={() => { replace('jwImport'); setImporting(false); setJwImporting(true) }}
+        onJwImport={() => { replace('jwImport'); startTransition(() => { setImporting(false); setJwImporting(true) }) }}
       />
     )
   }

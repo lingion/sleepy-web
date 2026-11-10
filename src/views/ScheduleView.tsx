@@ -8,7 +8,9 @@
  * 节假日/周末灰显 (HolidayManager.shouldGrey web 同构: 网络源 + localStorage 磁盘缓存)。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazyPage, PageSuspense } from '../startup/lazyPage'
+import { preparePageTranslations } from '../i18n'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -27,16 +29,20 @@ import { useScheduleSessionStore } from '../state/scheduleSessionStore'
 import { undoManager, useUndoStore } from '../data/undoStore'
 import { CardsGridView, dateOfWeek } from '../components/schedule/CardsGridView'
 import { FullWeekView } from '../components/schedule/FullWeekView'
-import { CourseDetailSheet } from '../components/CourseDetailSheet'
-import { AddCourseView } from './AddCourseView'
-import { ImportView } from './ImportView'
-import { ShareScheduleSheetView } from './ExportView'
-import { EditTableView } from './EditTableView'
-import { normalizeNode, hydratedWith } from '../data/types'
+const MemoCardsGridView = memo(CardsGridView)
+const MemoFullWeekView = memo(FullWeekView)
+const CourseDetailSheet = lazyPage(() => import('../components/CourseDetailSheet').then(module => ({ default: module.CourseDetailSheet })))
+const AddCourseView = lazyPage(() => import('./AddCourseView').then(module => ({ default: module.AddCourseView })))
+const ImportView = lazyPage(() => import('./ImportView').then(module => ({ default: module.ImportView })), preparePageTranslations)
+const ShareScheduleSheetView = lazyPage(() => import('./ExportView').then(module => ({ default: module.ShareScheduleSheetView })))
+const EditTableView = lazyPage(() => import('./EditTableView').then(module => ({ default: module.EditTableView })))
+import { normalizeNode } from '../data/types'
+import { createScheduleDataQuery, getInitialScheduleData } from '../startup/scheduleData'
 import type { Course, Table } from '../data/types'
 import { pagerTrackWeeks, PAGER_SETTLE_MS, useWeekPager } from '../components/schedule/useWeekSwipe'
 import { ScheduleInteractionLayer } from '../components/schedule/ScheduleInteractionLayer'
-import { useOccurrenceActions, type QuickAddSeed } from '../components/schedule/useOccurrenceActions'
+import { useDeferredOccurrenceActions } from '../startup/useDeferredOccurrenceActions'
+import type { QuickAddSeed } from '../components/schedule/interactionTypes'
 import { ScheduleToolbar } from '../components/schedule/ScheduleToolbar'
 import { SegmentedSwitcher } from '../components/SegmentedSwitcher'
 import { normalizeStartDateToMonday } from './importExportUtils'
@@ -109,7 +115,11 @@ function useHolidayYearData(years: number[]): Map<number, HolidayYearData> {
   }, [key, entries, overrides])
 }
 
-export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtraBottom?: number; readOnly?: boolean }) {
+export function ScheduleView(props: { navExtraBottom?: number; readOnly?: boolean }) {
+  return <PageSuspense><ScheduleContent {...props} /></PageSuspense>
+}
+
+function ScheduleContent({ navExtraBottom = 0, readOnly = false }: { navExtraBottom?: number; readOnly?: boolean }) {
   const { t } = useTranslation()
   const prefs = usePrefsStore((s) => s.prefs)
   const updatePrefs = usePrefsStore((s) => s.update)
@@ -121,7 +131,6 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   const week = useScheduleSessionStore((s) => s.week)
   const setWeek = useScheduleSessionStore((s) => s.setWeek)
   const resetForTableSwitch = useScheduleSessionStore((s) => s.resetForTableSwitch)
-  const [containerWidth, setContainerWidth] = useState(800)
   const [pageWidth, setPageWidth] = useState(0)
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
   const [adding, setAdding] = useState(false)
@@ -157,7 +166,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   // 🚫 渲染期 push: 每次重渲染都会再入一层, 返回一次弹不干净 (底栏卡在隐藏态)。
   const open = (key: BackKey, show: () => void) => {
     push(key)
-    show()
+    startTransition(show)
   }
   const leave = () => back()
 
@@ -172,15 +181,16 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   const undoDepth = useUndoStore((s) => s.undoStack.length)
   const redoDepth = useUndoStore((s) => s.redoStack.length)
 
-  const tableList = useLiveQuery(() => db.timetables.orderBy('id').toArray(), []) as Table[] | undefined
-  const defaultTable = useLiveQuery(async () => { const table = await db.timetables.where('isDefault').equals(1).first(); return table ? hydratedWith(table, table.periodTableId ? await db.periodTables.get(table.periodTableId) : null) : undefined })
-  const allCourses = useLiveQuery(
-    async () =>
-      defaultTable ? await db.courses.where('tableId').equals(defaultTable.id).toArray() : ([] as Course[]),
-    [defaultTable?.id]
-  )
+  const [scheduleSource] = useState(() => {
+    const initial = getInitialScheduleData()
+    return { initial, query: createScheduleDataQuery(initial) }
+  })
+  const schedule = useLiveQuery(scheduleSource.query, [], scheduleSource.initial)
+  const tableList = schedule?.tables
+  const defaultTable = schedule?.defaultTable
+  const allCourses = schedule?.courses
 
-  const occurrenceActions = useOccurrenceActions(defaultTable)
+  const occurrenceActions = useDeferredOccurrenceActions(defaultTable)
   const maxWeek = displayMaxWeek(defaultTable,getHolidayTransfers(defaultTable?.id ?? null))
   const currentWeek = week ?? computeCurrentWeek(defaultTable?.startDate ?? '', maxWeek)
   const actualWeek = useMemo(
@@ -269,20 +279,31 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   // 只把事件处理器铺到滚动容器上 (offset/settling 是渲染状态, 不能当 DOM 属性;
   // attachPager 走 ref 合并, 也不能当 DOM 属性)
   const { offset: pagerOffsetPx, settling: pagerSettling, attachPager, ...pagerHandlers } = pager
+  const scrollElement = useRef<HTMLDivElement | null>(null)
+  const attachScheduleScroll = useCallback((el: HTMLDivElement | null) => {
+    scrollElement.current = el
+    attachScroll(el)
+    attachPager(el)
+  }, [attachScroll, attachPager])
+  // StrictMode replays passive cleanup while retaining the DOM ref. Restore
+  // native wheel/touch bindings without measuring the scroll box again.
+  useEffect(() => {
+    if (scrollElement.current) attachPager(scrollElement.current)
+  }, [attachPager])
 
   // v7.10.5 会话级置顶 override — 网格 onPickTop 与详情弹窗 radio 共用真相源 (Android 同构)
   const [topOverrides, setTopOverrides] = useState<Record<string, number>>({})
   // v7.10.16r 轮换态 (issue#10) — 簇键 → 轮换步数, 会话级不落盘
   const [rotationSteps, setRotationSteps] = useState<Record<string, number>>({})
 
-  function setTopOverride(key: string, courseId: number | null) {
+  const setTopOverride = useCallback((key: string, courseId: number | null) => {
     setTopOverrides((prev) => {
       const next = { ...prev }
       if (courseId == null) delete next[key]
       else next[key] = courseId
       return next
     })
-  }
+  }, [])
 
   // 详情弹窗默认置顶变更 — 会话级换层 + 轮换态清除 + 持久化 (ScheduleScreen.kt:293-313 同构)
   function handleDefaultTopChanged(clusterKey: string, repId: number | null) {
@@ -299,14 +320,17 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
     void updatePrefs({ conflictDefaultTop: nextPrefs })
   }
 
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const ro = new ResizeObserver((entries) => {
-      for (const e of entries) setContainerWidth(e.contentRect.width)
+  const showCourse = useCallback((course: Course) => {
+    push('courseDetail')
+    startTransition(() => setDetailCourse(course))
+  }, [push])
+  const setRotationStep = useCallback((key: string, step: number) => {
+    setRotationSteps(prev => {
+      const next = { ...prev }
+      if (step <= 0) delete next[key]
+      else next[key] = step
+      return next
     })
-    ro.observe(el)
-    return () => ro.disconnect()
   }, [])
 
   const display = viewMode ?? prefs.startView
@@ -314,10 +338,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
   // 示例课表提示: seed 时记 sampleTableId; 用户关掉提示条 (sampleBannerDismissed) 后不再显示
   // 必须留在下方三个 early return 之前 — hook 数量在早退分支里变化会触发 React #300
   const [sampleBannerOff, setSampleBannerOff] = useState(false)
-  const sampleMeta = useLiveQuery(async () => ({
-    id: (await db.prefs.get('sampleTableId'))?.value,
-    dismissed: (await db.prefs.get('sampleBannerDismissed'))?.value,
-  }))
+  const sampleMeta = schedule?.sampleMeta
 
   if (adding || editingCourse) {
     return (
@@ -568,10 +589,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           touch-action:pan-y 把纵向滚动让给浏览器, 只抢横向。 */}
       <div
         data-schedule-scroll
-        ref={(el) => {
-          attachScroll(el)
-          attachPager(el)
-        }}
+        ref={attachScheduleScroll}
         style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', touchAction: 'pan-y', userSelect: 'none', overscrollBehaviorX: 'contain' }}
         {...pagerHandlers}
       >
@@ -599,7 +617,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
             onAddCourse={() => { if (defaultTable) open('addCourse', () => { setImportTargetId(defaultTable.id); setImporting(true) }) }}
             onImport={() => open('addCourse', () => { setImportTargetId(null); setImporting(true) })}
           />
-        ) : defaultTable ? (
+        ) : defaultTable && pageWidth > 0 ? (
           <div
             style={{
               display: 'flex',
@@ -623,17 +641,17 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
                 }}
               >
                 {display === 'full' ? (
-                  <FullWeekView
+                  <MemoFullWeekView
                     courses={coursesByWeek.get(w) ?? []}
                     timeJson={defaultTable.timeJson}
                     startDate={defaultTable.startDate}
                     currentWeek={w}
                     greyDays={greyDaysByWeek.get(w) ?? greyDays}
-                    onCourseClick={(c) => open('courseDetail', () => setDetailCourse(c))}
+                    onCourseClick={showCourse}
                   />
                 ) : (
                   <div style={{ padding: '0 8px 8px' }}>
-                    <CardsGridView
+                    <MemoCardsGridView
                       courses={coursesByWeek.get(w) ?? []}
                       timeJson={defaultTable.timeJson}
                       startDate={defaultTable.startDate}
@@ -641,20 +659,13 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
                       // -32: wrapper '0 8px' 左右 16 + CardsGridView 自身 padding 8px 四边 16 —
                       // colW 按 padding 内真实可用宽算 (Android BoxWithConstraints
                       // 在 padding(8dp) 内测量同构), 不扣则 minWidth > 容器 → 周日列截断
-                      containerWidth={(pageWidth || containerWidth) - 32}
+                      containerWidth={pageWidth - 32}
                       greyDays={greyDaysByWeek.get(w) ?? greyDays}
                       topOverrides={topOverrides}
                       onSetTopOverride={setTopOverride}
                       rotationSteps={rotationSteps}
-                      onRotationStep={(key, step) =>
-                        setRotationSteps((prev) => {
-                          const next = { ...prev }
-                          if (step <= 0) delete next[key]
-                          else next[key] = step
-                          return next
-                        })
-                      }
-                      onCourseClick={(c) => open('courseDetail', () => setDetailCourse(c))}
+                      onRotationStep={setRotationStep}
+                      onCourseClick={showCourse}
                     />
                   </div>
                 )}
@@ -710,8 +721,7 @@ export function ScheduleView({ navExtraBottom = 0, readOnly = false }: { navExtr
           onDismiss={() => { leave(); setDetailCourse(null) }}
           onEdit={readOnly ? undefined : (c) => {
             useBackStack.getState().replace('addCourse')
-            setDetailCourse(null)
-            setEditingCourse(c)
+            startTransition(() => { setDetailCourse(null); setEditingCourse(c) })
           }}
           onAdjustOccurrence={readOnly ? undefined : (course) => { setDetailCourse(null); void occurrenceActions.openEdit(course,currentWeek,true) }}
           onDeleteOccurrence={readOnly ? undefined : (course) => { void occurrenceActions.remove(course,currentWeek).then((saved) => { if(saved) { leave(); setDetailCourse(null) } }) }}

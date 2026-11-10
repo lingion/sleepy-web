@@ -1,6 +1,9 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import { GlassControlMotion, GlassPressMotion, haptic, rubberBand } from './physics'
-import { installLensOptics } from './optics'
+import { installLensOptics, liquidGlassStyle, opticalSamplingPadding } from './optics'
+import { proveOpaqueBackdrop } from './opaqueBackdrop'
+
+const backdropPadding = opticalSamplingPadding(liquidGlassStyle('lens'))
 
 type LensKind = 'segment' | 'dock' | 'switch' | 'slider'
 interface Selection {
@@ -53,37 +56,60 @@ export function useGlassLens(track: RefObject<HTMLElement | null>, selection?: S
   const origin = useRef({ x: 0, y: 0, side: 32, index: 0, dragging: false })
   const candidate = useRef(Math.round(selection?.index ?? 0))
   const optical = useRef<ReturnType<typeof installLensOptics>[]>([])
+  const layout = useRef({ width: 16, height: 24, outside: null as HTMLElement | null, lens: null as HTMLElement | null })
+  const painted = useRef(new Map<string, string>())
   const frame = useRef(0), previous = useRef(0), suppressClick = useRef(0)
   const kind = () => config.current?.kind ?? (track.current?.classList.contains('navigation-track') ? 'dock'
     : track.current?.classList.contains('segmented-track') || config.current?.count && config.current.kind !== 'switch' ? 'segment'
       : track.current?.classList.contains('switch-track') ? 'switch' : 'slider')
   const isGlass = () => config.current?.enabled !== false && document.documentElement.dataset.uiStyle === 'liquid_glass'
   const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const measure = () => {
+    const el = track.current
+    if (!el) return
+    const width = el.offsetWidth, height = el.offsetHeight
+    const bounds = width && height ? undefined : el.getBoundingClientRect()
+    layout.current.width = width || bounds?.width || 16
+    layout.current.height = height || bounds?.height || 24
+  }
   const paint = () => {
     const el = track.current
     if (!el) return
     const m = motion.current, k = kind(), c = config.current
-    const bounds=el.getBoundingClientRect()
-    const rootW = el.offsetWidth || bounds.width || 16, rootH = el.offsetHeight || bounds.height || 24
+    const { width: rootW, height: rootH, outside, lens } = layout.current
     const g = lensGeometry(k, rootW, rootH, c?.count ?? 1, m.position.value, m.lift, m.stretch)
-    el.style.setProperty('--lens-lift', String(m.lift))
-    el.style.setProperty('--lens-position', String(m.position.value))
-    el.style.setProperty('--lens-stretch', String(m.stretch))
-    el.style.setProperty('--lens-y', `${pull.current.y.value}px`)
-    el.style.setProperty('--lens-x', `${pull.current.x.value}px`)
-    el.style.setProperty('--lens-width', `${g.width}px`)
-    el.style.setProperty('--lens-height', `${g.height}px`)
-    el.style.setProperty('--lens-top', `${g.top + pull.current.y.value}px`)
-    el.style.setProperty('--lens-left', `${g.left}px`)
-    el.style.setProperty('--source-width', `${rootW}px`)
-    el.style.setProperty('--source-height', `${rootH}px`)
-    el.style.setProperty('--seat-pitch', `${g.pitch}px`)
-    el.style.setProperty('--seat-inset', `${g.inset}px`)
-    el.dataset.lensRaised = String(m.lift > .001)
-    const outside = el.querySelector<HTMLElement>('.glass-destinations')
+    const size = { width: Math.round(g.width), height: Math.round(g.height) }
+    // Read the prospective capture before changing any lens styles. A failed
+    // proof retains the full alpha graph, including during page transitions.
+    const backdrop = lens && lens !== el && optical.current.length ? proveOpaqueBackdrop(lens, () => {
+      const rect = el.getBoundingClientRect()
+      if (Math.abs(rect.width - rootW) > 1 || Math.abs(rect.height - rootH) > 1) return
+      return {left: rect.left + el.clientLeft + g.left, top: rect.top + el.clientTop + g.top + pull.current.y.value, ...size}
+    }, backdropPadding) : undefined
+    const set = (name: string, value: string) => {
+      if (painted.current.get(name) === value) return
+      el.style.setProperty(name, value); painted.current.set(name, value)
+    }
+    set('--lens-lift', String(m.lift))
+    set('--lens-position', String(m.position.value))
+    set('--lens-stretch', String(m.stretch))
+    set('--lens-y', `${pull.current.y.value}px`)
+    set('--lens-x', `${pull.current.x.value}px`)
+    set('--lens-width', `${g.width}px`)
+    set('--lens-height', `${g.height}px`)
+    set('--lens-top', `${g.top + pull.current.y.value}px`)
+    set('--lens-left', `${g.left}px`)
+    set('--source-width', `${rootW}px`)
+    set('--source-height', `${rootH}px`)
+    set('--seat-pitch', `${g.pitch}px`)
+    set('--seat-inset', `${g.inset}px`)
+    const raised = String(m.lift > .001)
+    if (el.dataset.lensRaised !== raised) el.dataset.lensRaised = raised
     if (outside) outside.style.clipPath = m.lift > .001 || k === 'dock'
       ? `path(evenodd, "${holePath(rootW, rootH, g.left, g.top + pull.current.y.value, g.width, g.height)}")` : ''
-    for (const optics of optical.current) optics.update(m.lift)
+    // The CSS lens dimensions above are border-box pixels (offsetWidth rounds
+    // to integers). Pass the same numbers without flushing the just-written layout.
+    for (const optics of optical.current) optics.update(m.lift, size, backdrop)
   }
   const render = (now: number) => {
     const dt = previous.current ? (now - previous.current) / 1000 : 1 / 60
@@ -147,18 +173,39 @@ export function useGlassLens(track: RefObject<HTMLElement | null>, selection?: S
   useEffect(() => {
     const el = track.current
     if (!el) return
-    paint()
+    layout.current.outside = el.querySelector<HTMLElement>('.glass-destinations')
     const lens = el.matches('.int-range-thumb') ? el : el.querySelector<HTMLElement>('.navigation-lens,.segment-lens,.switch-thumb,.single-glass-thumb')
-    if (lens) optical.current.push(installLensOptics(lens, { role: 'lens' }))
+    layout.current.lens = lens
     const glyph = el.querySelector<HTMLElement>('.glass-content-warp')
-    if (glyph) optical.current.push(installLensOptics(glyph, { role: 'lensContent' }))
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(paint)
-    observer?.observe(el)
-    return () => {
-      observer?.disconnect(); cancelAnimationFrame(frame.current); frame.current = 0; previous.current = 0
+    const dispose = () => {
+      cancelAnimationFrame(frame.current); frame.current = 0; previous.current = 0
       optical.current.forEach(optics => optics.destroy()); optical.current = []
     }
-  }, [])
+    let active: boolean | undefined
+    const syncMode = () => {
+      const enabled = isGlass()
+      if (enabled === active) return
+      active = enabled
+      if (!enabled) {
+        dispose()
+        motion.current.update(config.current?.index ?? motion.current.position.target, false, false)
+        motion.current.finish(); pull.current.release(); pull.current.finish()
+      }
+      measure(); paint()
+      if (enabled) {
+        if (lens) optical.current.push(installLensOptics(lens, { role: 'lens', target: 'backdrop' }))
+        if (glyph) optical.current.push(installLensOptics(glyph, { role: 'lensContent' }))
+      }
+    }
+    syncMode()
+    const modeObserver = new MutationObserver(syncMode)
+    modeObserver.observe(document.documentElement, {attributes: true, attributeFilter: ['data-ui-style']})
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(() => { measure(); paint() })
+    observer?.observe(el)
+    return () => {
+      observer?.disconnect(); modeObserver.disconnect(); dispose()
+    }
+  }, [selection?.enabled])
   useEffect(() => {
     if (!selection || motion.current.pressed && kind() !== 'slider') return
     motion.current.update(selection.index, motion.current.pressed, motion.current.pressed)

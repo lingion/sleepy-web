@@ -1,0 +1,804 @@
+{
+  "base": "2e716653182995511ee16ecde40869d42a22bd21",
+  "node": "v22.22.3",
+  "samples": 5,
+  "scratch": "/tmp/sleepy-glass-cpu-NP0O9X",
+  "sourceHashes": {
+    "opticalMaps.ts": "768f77254d396ac8491acaee9c9663261bc59a4b7fe0b03ee2e91c4127026a98",
+    "opticalMath.ts": "36668810face1e97dbb95f57cb69d7dedd51ed927763d519f80a66991a2259bc",
+    "opticalSvg.ts": "762b7f91b1e11bcb8de5a6545e1ba36cfc910a3d82e5be1e72238be1323c5b50",
+    "styles.ts": "da7ab128091630cd1c5ef5a4c77371739e54e242c9d438dff2d70291a546997d",
+    "optics.ts": "0a0b1953762db4c7be54f264212af98e37a4e2a61e3425f034af6dac0ab28aef",
+    "physics.ts": "7e71ed422ffba8cab22ac7a33bfb0d3f6bc34233cd19cf545b2faabe2ca07898",
+    "useGlassLens.ts": "46303db1f5c58c152fd5f2abcd4f611c6500af7690a416811f49c349a2bee641",
+    "GlassControls.tsx": "6bed5c9afdc9b7f043b80c352fd2a33d617062f4fec3a91e0efb6acf3cff8267"
+  },
+  "units": "milliseconds",
+  "measurements": {
+    "coldMaps24": {
+      "before": 540.0918240000001,
+      "after": 140.51457100000061,
+      "speedup": 3.843671301533545,
+      "beforeSamples": [
+        420.4326509999996,
+        412.61349999999993,
+        563.4033829999994,
+        635.2752810000002,
+        540.0918240000001
+      ],
+      "afterSamples": [
+        171.87159900000006,
+        126.80245400000013,
+        116.91805899999963,
+        154.24357500000042,
+        140.51457100000061
+      ],
+      "pngEncodes": [
+        0,
+        0
+      ]
+    },
+    "warmLiftOnly120": {
+      "before": 189.72904599999947,
+      "after": 47.902726999999686,
+      "speedup": 3.960714929653185,
+      "beforeSamples": [
+        166.05662699999993,
+        291.80303000000004,
+        286.8100829999994,
+        174.63797200000045,
+        189.72904599999947
+      ],
+      "afterSamples": [
+        47.75861400000031,
+        51.8047289999995,
+        47.902726999999686,
+        55.612568999999894,
+        22.042026999999507
+      ],
+      "pngEncodes": [
+        0,
+        0
+      ]
+    },
+    "coldSizingAndLift60": {
+      "before": 1283.0556159999996,
+      "after": 968.9819529999986,
+      "speedup": 1.3241274639095384,
+      "beforeSamples": [
+        1461.790661000001,
+        1283.0556159999996,
+        1585.8101190000016,
+        1153.3702950000006,
+        1131.2526499999985
+      ],
+      "afterSamples": [
+        1027.2621099999997,
+        1150.4886119999992,
+        907.8582549999992,
+        935.6088660000023,
+        968.9819529999986
+      ],
+      "pngEncodes": [
+        432,
+        420
+      ]
+    },
+    "warmSizingAndLift60": {
+      "before": 1342.246056,
+      "after": 39.509951,
+      "speedup": 33.972354357007426,
+      "beforeSamples": [
+        1411.0023130000009,
+        1342.246056,
+        1337.1248349999987,
+        1282.8628229999995,
+        1342.8644420000019
+      ],
+      "afterSamples": [
+        41.7308660000017,
+        39.509951,
+        19.32865899999888,
+        16.57182499999908,
+        44.90072700000019
+      ],
+      "pngEncodes": [
+        408,
+        0
+      ]
+    },
+    "coldClassicMount8": {
+      "before": 427.53182299999753,
+      "after": 30.125103999998828,
+      "speedup": 14.191878740070546,
+      "beforeSamples": [
+        504.85044500000004,
+        517.7382230000003,
+        332.37786400000186,
+        291.9066160000002,
+        427.53182299999753
+      ],
+      "afterSamples": [
+        35.911189000002196,
+        30.125103999998828,
+        27.02738600000157,
+        25.464458000002196,
+        37.33539600000222
+      ],
+      "pngEncodes": [
+        48,
+        0
+      ],
+      "observations": [
+        [
+          {
+            "boundsReads": 16,
+            "offsetReads": 96,
+            "writes": 208,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 16,
+            "offsetReads": 96,
+            "writes": 208,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 16,
+            "offsetReads": 96,
+            "writes": 208,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 16,
+            "offsetReads": 96,
+            "writes": 208,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 16,
+            "offsetReads": 96,
+            "writes": 208,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          }
+        ],
+        [
+          {
+            "boundsReads": 0,
+            "offsetReads": 16,
+            "writes": 104,
+            "filtersAtMount": 0,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 0,
+            "offsetReads": 16,
+            "writes": 104,
+            "filtersAtMount": 0,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 0,
+            "offsetReads": 16,
+            "writes": 104,
+            "filtersAtMount": 0,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 0,
+            "offsetReads": 16,
+            "writes": 104,
+            "filtersAtMount": 0,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 0,
+            "offsetReads": 16,
+            "writes": 104,
+            "filtersAtMount": 0,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          }
+        ]
+      ]
+    },
+    "coldGlassMount8": {
+      "before": 371.1775790000029,
+      "after": 275.1084989999945,
+      "speedup": 1.3492043333783386,
+      "beforeSamples": [
+        323.36418499999854,
+        285.7269459999952,
+        371.1775790000029,
+        516.4699909999981,
+        426.57761200000095
+      ],
+      "afterSamples": [
+        238.0979240000015,
+        217.7741939999978,
+        511.73339800000394,
+        405.0971139999965,
+        275.1084989999945
+      ],
+      "pngEncodes": [
+        48,
+        40
+      ],
+      "observations": [
+        [
+          {
+            "boundsReads": 8,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 8,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 8,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 8,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 8,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          }
+        ],
+        [
+          {
+            "boundsReads": 0,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 0,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 0,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 0,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          },
+          {
+            "boundsReads": 0,
+            "offsetReads": 48,
+            "writes": 104,
+            "filtersAtMount": 16,
+            "callbacks": 0,
+            "callbackP95Ms": 0,
+            "callbackTotalMs": 0
+          }
+        ]
+      ]
+    },
+    "coldHookDrag120": {
+      "before": 3000.333267000002,
+      "after": 1535.964936000004,
+      "speedup": 1.9533865628557514,
+      "beforeSamples": [
+        3082.2861489999996,
+        3000.333267000002,
+        2236.9323399999994,
+        3208.510857000001,
+        2532.2901100000017
+      ],
+      "afterSamples": [
+        1550.4741829999984,
+        1535.964936000004,
+        1608.3325909999985,
+        1332.7767860000022,
+        1131.245544999998
+      ],
+      "pngEncodes": [
+        840,
+        600
+      ],
+      "observations": [
+        [
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 89.03576199999952,
+            "callbackTotalMs": 2925.1364969999922
+          },
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 90.94133399999555,
+            "callbackTotalMs": 2793.934971999952
+          },
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 68.53357899999537,
+            "callbackTotalMs": 2032.3542149999776
+          },
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 91.38206699999864,
+            "callbackTotalMs": 2974.512431999967
+          },
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 73.54080600000452,
+            "callbackTotalMs": 2329.3088510000307
+          }
+        ],
+        [
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 52.668815999997605,
+            "callbackTotalMs": 1382.6513460000278
+          },
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 53.979333999996015,
+            "callbackTotalMs": 1371.8191610000213
+          },
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 54.95706000000064,
+            "callbackTotalMs": 1496.694727999915
+          },
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 51.47426099999575,
+            "callbackTotalMs": 1225.7468479999952
+          },
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 37.334351999998034,
+            "callbackTotalMs": 1014.486993999999
+          }
+        ]
+      ]
+    },
+    "warmHookDrag120": {
+      "before": 2251.899768999996,
+      "after": 136.6867579999962,
+      "speedup": 16.4748934128649,
+      "beforeSamples": [
+        1930.5681869999971,
+        2725.161031999989,
+        2251.899768999996,
+        2468.0120319999987,
+        2244.1347479999968
+      ],
+      "afterSamples": [
+        149.2859429999953,
+        136.6867579999962,
+        75.29409300000407,
+        96.73877999999968,
+        148.54388499999186
+      ],
+      "pngEncodes": [
+        672,
+        0
+      ],
+      "observations": [
+        [
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 66.08279200000106,
+            "callbackTotalMs": 1912.1155910000962
+          },
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 96.02618899999652,
+            "callbackTotalMs": 2689.974103000044
+          },
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 84.52938000000722,
+            "callbackTotalMs": 2222.522985999851
+          },
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 89.17496099999698,
+            "callbackTotalMs": 2441.40680300002
+          },
+          {
+            "boundsReads": 115,
+            "offsetReads": 675,
+            "writes": 1443,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 88.29268600000069,
+            "callbackTotalMs": 2229.5319569999847
+          }
+        ],
+        [
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 2.8312149999983376,
+            "callbackTotalMs": 120.70930299985048
+          },
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 2.30802899999253,
+            "callbackTotalMs": 107.7309060000116
+          },
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 0.9192190000030678,
+            "callbackTotalMs": 62.17178099998273
+          },
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 1.1103280000097584,
+            "callbackTotalMs": 77.07307599998603
+          },
+          {
+            "boundsReads": 4,
+            "offsetReads": 15,
+            "writes": 634,
+            "filtersAtMount": 2,
+            "callbacks": 110,
+            "callbackP95Ms": 2.7622320000082254,
+            "callbackTotalMs": 116.9114019999979
+          }
+        ]
+      ]
+    }
+  },
+  "equivalence": [
+    {
+      "boundsReads": 115,
+      "offsetReads": 675,
+      "writes": 1443,
+      "filtersAtMount": 2,
+      "graphDigest": "be4a438cb3633b38d27ad6b3cf42e813d5b1cb3a6d760fff26fac20d2c88cbbc",
+      "callbacks": 110,
+      "callbackP95Ms": 92.15952699999616,
+      "callbackTotalMs": 2439.72504400005
+    },
+    {
+      "boundsReads": 4,
+      "offsetReads": 15,
+      "writes": 634,
+      "filtersAtMount": 2,
+      "graphDigest": "be4a438cb3633b38d27ad6b3cf42e813d5b1cb3a6d760fff26fac20d2c88cbbc",
+      "callbacks": 110,
+      "callbackP95Ms": 1.8246499999950174,
+      "callbackTotalMs": 84.14617400003772
+    }
+  ],
+  "classic": [
+    {
+      "boundsReads": 2,
+      "offsetReads": 12,
+      "writes": 26,
+      "filtersAtMount": 2,
+      "states": [],
+      "graphDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "callbacks": 0,
+      "callbackP95Ms": 0,
+      "callbackTotalMs": 0
+    },
+    {
+      "boundsReads": 0,
+      "offsetReads": 2,
+      "writes": 13,
+      "filtersAtMount": 0,
+      "states": [],
+      "graphDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "callbacks": 0,
+      "callbackP95Ms": 0,
+      "callbackTotalMs": 0
+    }
+  ],
+  "measurementScope": "Node/jsdom CPU snapshot before the willReadFrequently canvas hint. Browser integration1 did not improve; these numbers do not represent browser frames.",
+  "browserIntegration1": {
+    "source": "/tmp/sleepy-web-perf-20261110/optimized-interactions1.json",
+    "holdMs": 1531,
+    "frames": 8,
+    "frameP95Ms": 1317.2,
+    "callbackP95Ms": 1189.1,
+    "callbackTotalMs": 2400.2
+  },
+  "browserProfileFirst": {
+    "source": "/tmp/sleepy-web-perf-20261110/glass-profile-first.json",
+    "phases": {
+      "maps": {
+        "calls": 20,
+        "total": 38.50000011920929,
+        "max": 6.100000023841858
+      },
+      "png.encode": {
+        "calls": 16,
+        "total": 2173.399999976158,
+        "max": 1470.5
+      },
+      "svg.update": {
+        "calls": 20,
+        "total": 2236,
+        "max": 1474
+      },
+      "optics.render": {
+        "calls": 29,
+        "total": 2239.5999997854233,
+        "max": 1474.0999999046326
+      },
+      "lens.paint": {
+        "calls": 9,
+        "total": 2231.399999976158,
+        "max": 1510.6999999284744
+      },
+      "readMaterial": {
+        "calls": 9,
+        "total": 0.49999988079071045,
+        "max": 0.10000002384185791
+      }
+    }
+  },
+  "currentRuntime": {
+    "version": "glass-graph-v4",
+    "sourceHashes": {
+      "opticalMaps.ts": "768f77254d396ac8491acaee9c9663261bc59a4b7fe0b03ee2e91c4127026a98",
+      "opticalMath.ts": "36668810face1e97dbb95f57cb69d7dedd51ed927763d519f80a66991a2259bc",
+      "opticalSvg.ts": "f07431e2a8e1dd8173efaf61dd4720d10df67a167cdb3321d734308c3871dfba",
+      "styles.ts": "da7ab128091630cd1c5ef5a4c77371739e54e242c9d438dff2d70291a546997d",
+      "optics.ts": "79b7643ed0ae085f4ffe4dff9231c13af2ba1e9a5cf6b456afedba48093c795a",
+      "physics.ts": "7e71ed422ffba8cab22ac7a33bfb0d3f6bc34233cd19cf545b2faabe2ca07898",
+      "useGlassLens.ts": "46303db1f5c58c152fd5f2abcd4f611c6500af7690a416811f49c349a2bee641",
+      "GlassControls.tsx": "6bed5c9afdc9b7f043b80c352fd2a33d617062f4fec3a91e0efb6acf3cff8267"
+    },
+    "graph": {
+      "lens": {
+        "nodes": 72,
+        "recursiveReferences": 251
+      },
+      "lensContent": {
+        "nodes": 60,
+        "recursiveReferences": 400
+      }
+    },
+    "validation": "75 optical tests pass; scoped TypeScript passes; the previous 127-test full scope run predates v4. Browser frames for v4 pending."
+  },
+  "samplingEquivalence": {
+    "base": "2e716653182995511ee16ecde40869d42a22bd21",
+    "note": "Fixed exact shapes isolate quantization and clipping from the pre-existing two-dp map cache buckets.",
+    "measurements": [
+      {
+        "role": "lens",
+        "padding": "default",
+        "samples": 730422,
+        "clippedBaseComponents": 0,
+        "maxAnalyticLinearErrorDp": 8.881784197001252e-16,
+        "maxDecodedVsScaledAnalyticDp": 0.029719411996707468,
+        "maxDecodedVsPerFrameScaledMapsDp": 4.440892098500626e-16,
+        "maxBeforeAfterByteDelta": 0,
+        "outOfRange": 0
+      },
+      {
+        "role": "lens",
+        "padding": "zero",
+        "samples": 730422,
+        "clippedBaseComponents": 1316,
+        "maxAnalyticLinearErrorDp": 8.881784197001252e-16,
+        "maxDecodedVsScaledAnalyticDp": 0.26982718525493077,
+        "maxDecodedVsPerFrameScaledMapsDp": 0.2675196850393702,
+        "maxBeforeAfterByteDelta": 0,
+        "outOfRange": 0
+      },
+      {
+        "role": "lensContent",
+        "padding": "default",
+        "samples": 730422,
+        "clippedBaseComponents": 0,
+        "maxAnalyticLinearErrorDp": 2.6645352591003757e-15,
+        "maxDecodedVsScaledAnalyticDp": 0.06217339299355107,
+        "maxDecodedVsPerFrameScaledMapsDp": 0.08799212598425193,
+        "maxBeforeAfterByteDelta": 0,
+        "outOfRange": 0
+      },
+      {
+        "role": "lensContent",
+        "padding": "zero",
+        "samples": 730422,
+        "clippedBaseComponents": 0,
+        "maxAnalyticLinearErrorDp": 2.6645352591003757e-15,
+        "maxDecodedVsScaledAnalyticDp": 0.06217339299355107,
+        "maxDecodedVsPerFrameScaledMapsDp": 0.08799212598425193,
+        "maxBeforeAfterByteDelta": 0,
+        "outOfRange": 0
+      }
+    ]
+  },
+  "browserCpuCanvas": {
+    "source": "/tmp/sleepy-web-perf-20261110/glass-profile-cpu.json",
+    "phases": {
+      "maps": {
+        "calls": 6,
+        "total": 13.300000190734863,
+        "max": 3.3000000715255737
+      },
+      "canvas.put": {
+        "calls": 56,
+        "total": 1.4999998807907104,
+        "max": 0.30000007152557373
+      },
+      "canvas.read": {
+        "calls": 56,
+        "total": 13.299999952316284,
+        "max": 0.5
+      },
+      "png.encode": {
+        "calls": 6,
+        "total": 19,
+        "max": 5.5
+      },
+      "svg.update": {
+        "calls": 6,
+        "total": 42.50000011920929,
+        "max": 10.800000071525574
+      },
+      "optics.render": {
+        "calls": 19,
+        "total": 46.40000021457672,
+        "max": 11
+      },
+      "lens.paint": {
+        "calls": 4,
+        "total": 35.5,
+        "max": 17.799999952316284
+      },
+      "readMaterial": {
+        "calls": 9,
+        "total": 0.7999998331069946,
+        "max": 0.2999999523162842
+      }
+    }
+  },
+  "browserRimAtop": {
+    "source": "/tmp/sleepy-web-perf-20261110/glass-rimAtop-interactions.json",
+    "frames": 13,
+    "frameP95Ms": 583.9,
+    "callbackMaxMs": 22.3,
+    "callbackTotalMs": 161.3,
+    "note": "Reported by main thread; 1500 ms selected liquid glass segment hold; v3, before the v4 alpha-max rewrite."
+  }
+}

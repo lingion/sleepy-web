@@ -2,6 +2,7 @@ import { cachedOpticalMaps, opticalSamplingPadding, renderOpticalMaps } from './
 import { createOpticalSvg } from './opticalSvg'
 import { liquidGlassStyle, scaleGlassStyle, type GlassStyle, type GlassStyleRole, type GlassTheme, type RGBA } from './styles'
 import type { CornerRadii, OpticalShape } from './opticalMath'
+import { matchesOpaqueBackdrop, type OpaqueBackdropProof } from './opaqueBackdrop'
 
 export { renderOpticalMaps, opticalSamplingPadding } from './opticalMaps'
 export { sampleGlassOptics, roundedBoxGeometry, combineGlassChannels, shadeGlassSample, OPTICAL_CONSTANTS } from './opticalMath'
@@ -33,7 +34,8 @@ export interface LensOpticsOptions {
   target?: 'backdrop' | 'content'
 }
 export interface LensOpticsController {
-  update(lift: number): void
+  /** Supplying size transfers geometry measurement to the caller for this pane. */
+  update(lift: number, size?: { width: number; height: number }, backdrop?: OpaqueBackdropProof): void
   configure(options: Partial<LensOpticsOptions>): void
   destroy(): void
   readonly ready: boolean
@@ -48,6 +50,7 @@ interface OpticalDefinition {
   svg: SVGSVGElement
   filter: SVGFilterElement
   graph: ReturnType<typeof createOpticalSvg>
+  topology: string
   url: string
   references: number
   sharedKey?: string
@@ -56,22 +59,31 @@ interface OpticalDefinition {
 // this cache; their lift and size updates belong to their own graph.
 const staticDefinitions = new Map<string, OpticalDefinition>()
 
-function updateDefinition(definition: OpticalDefinition, shape: OpticalShape, base: GlassStyle, style: GlassStyle, role: GlassStyleRole, amount: number) {
+const topology = (base: GlassStyle, opaqueBackdrop = false) => [base.dispersion, base.rimBlur, base.haze, base.blur, base.endShade, base.rim, base.hairline || base.hairlineSide, base.rimAdded, Number(base.refraction > 0), base.saturation - 1, base.brightness - 1, base.tint[3], Number(opaqueBackdrop)].map(value => value !== 0 && value != null ? 1 : 0).join('')
+
+function updateDefinition(definition: OpticalDefinition, shape: OpticalShape, base: GlassStyle, style: GlassStyle, role: GlassStyleRole, amount: number, opaqueBackdrop = false) {
+  const nextTopology = topology(base, opaqueBackdrop)
+  if (definition.topology !== nextTopology) {
+    definition.filter.replaceChildren()
+    definition.graph = createOpticalSvg(definition.filter, base, definition.sharedKey === undefined, opaqueBackdrop)
+    definition.topology = nextTopology
+  }
   definition.graph.update(cachedOpticalMaps(shape, base), style, shape.width, shape.height, base, amount)
   const pad = shape.samplingPadding!, filter = definition.filter
   filter.setAttribute('x', String(-pad)); filter.setAttribute('y', String(-pad))
   filter.setAttribute('width', String(shape.width + 2 * pad)); filter.setAttribute('height', String(shape.height + 2 * pad))
   filter.dataset.opticsRole = role
+  filter.dataset.opticsOpaqueBackdrop = String(opaqueBackdrop)
 }
 
-function createDefinition(shape: OpticalShape, base: GlassStyle, style: GlassStyle, role: GlassStyleRole, amount: number, sharedKey?: string): OpticalDefinition {
+function createDefinition(shape: OpticalShape, base: GlassStyle, style: GlassStyle, role: GlassStyleRole, amount: number, sharedKey?: string, opaqueBackdrop = false): OpticalDefinition {
   const id = `sleepy-optics-${++serial}`, svg = document.createElementNS(NS, 'svg'), filter = document.createElementNS(NS, 'filter')
   svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false')
   svg.style.cssText = 'position:absolute;width:0;height:0;pointer-events:none;overflow:hidden'
   filter.id = id; filter.setAttribute('color-interpolation-filters', 'sRGB')
   filter.setAttribute('filterUnits', 'userSpaceOnUse'); filter.setAttribute('primitiveUnits', 'userSpaceOnUse')
-  const definition = {svg, filter, graph: createOpticalSvg(filter, sharedKey === undefined ? undefined : base), url: `url("#${id}")`, references: 0, sharedKey}
-  updateDefinition(definition, shape, base, style, role, amount)
+  const definition = {svg, filter, graph: createOpticalSvg(filter, base, sharedKey === undefined, opaqueBackdrop), topology: topology(base, opaqueBackdrop), url: `url("#${id}")`, references: 0, sharedKey}
+  updateDefinition(definition, shape, base, style, role, amount, opaqueBackdrop)
   svg.appendChild(filter); document.body.appendChild(svg)
   return definition
 }
@@ -140,17 +152,14 @@ export function installLensOptics(element: HTMLElement, initial: LensOpticsOptio
     }
     owned.delete(name)
   }
-  let key = '', queued = false
+  let key = '', queued = false, dirty = true
+  let controlledSize: LensOpticsOptions['size']
   const root = document.documentElement
-  const render = () => {
-    if (destroyed) return
+  const readMaterial = () => {
     const computed = getComputedStyle(element)
-    const width = options.size?.width ?? element.offsetWidth, height = options.size?.height ?? element.offsetHeight
-    if (!(width > 0 && height > 0) || element.hidden || computed.display === 'none' || computed.visibility === 'hidden' || computed.visibility === 'collapse' || computed.contentVisibility === 'hidden') {
-      properties.forEach(restore)
-      releaseDefinition(definition); definition = undefined; key = ''; ready = false
-      return
-    }
+    const visible = !element.hidden && computed.display !== 'none' && computed.visibility !== 'hidden' && computed.visibility !== 'collapse' && computed.contentVisibility !== 'hidden'
+    const radii = [computed.borderTopLeftRadius, computed.borderTopRightRadius, computed.borderBottomRightRadius, computed.borderBottomLeftRadius]
+    if (!visible) return { visible: false as const }
     const rootStyle = getComputedStyle(root)
     const resolve = (name: string) => computed.getPropertyValue(name).trim() || rootStyle.getPropertyValue(name).trim()
     const read = (name: string) => parseColor(resolve(name), resolve)
@@ -166,12 +175,28 @@ export function installLensOptics(element: HTMLElement, initial: LensOpticsOptio
       color: explicitTint ?? read('--md-primary'), ...options.theme, dark,
     }
     const base = options.style ?? liquidGlassStyle(role, theme)
+    return { visible: true as const, radii, role, dark, explicitTint, base }
+  }
+  let material: ReturnType<typeof readMaterial> | undefined
+  const render = (size?: LensOpticsOptions['size'], backdrop?: OpaqueBackdropProof) => {
+    if (destroyed) return
+    // A controlled lens already knows its CSS dimensions. Only theme, class,
+    // role and explicit configuration changes need computed-style resolution.
+    const width = size?.width ?? options.size?.width ?? element.offsetWidth, height = size?.height ?? options.size?.height ?? element.offsetHeight
+    if (width > 0 && height > 0 && (dirty || !material || !size)) { material = readMaterial(); dirty = false }
+    if (!(width > 0 && height > 0) || !material?.visible) {
+      properties.forEach(restore)
+      releaseDefinition(definition); definition = undefined; key = ''; ready = false
+      return
+    }
+    const { radii, role, dark, explicitTint, base } = material
     const scaled = role === 'lens' || role === 'lensContent'
+    const opaqueBackdrop = role === 'lens' && options.target === 'backdrop' && matchesOpaqueBackdrop(backdrop, element, width, height, options.samplingPadding ?? opticalSamplingPadding(base))
     const amount = scaled ? Math.max(0, Math.min(1, Number.isFinite(lift) ? lift : 0)) : 1
     const style = scaled ? scaleGlassStyle(base, amount) : base
     const shape: OpticalShape = {
       width, height,
-      borderRadius: options.borderRadius ?? [computed.borderTopLeftRadius, computed.borderTopRightRadius, computed.borderBottomRightRadius, computed.borderBottomLeftRadius].map(value => {
+      borderRadius: options.borderRadius ?? radii.map(value => {
         const radius = parseFloat(value) || 0
         return value.includes('%') ? radius * Math.min(width, height) / 100 : radius
       }) as unknown as CornerRadii,
@@ -182,7 +207,7 @@ export function installLensOptics(element: HTMLElement, initial: LensOpticsOptio
     // Use exact pane dimensions, not the map cache's two-dp buckets. All
     // uniforms, declared tint and dark branch must agree before sharing.
     const graphKey = JSON.stringify([shape, base, style, role, dark, explicitTint])
-    const nextKey = JSON.stringify([graphKey, options.target])
+    const nextKey = JSON.stringify([graphKey, options.target, opaqueBackdrop])
     if (nextKey === key) return
     let next: OpticalDefinition
     if (!scaled) {
@@ -194,8 +219,8 @@ export function installLensOptics(element: HTMLElement, initial: LensOpticsOptio
       }
     } else if (definition && definition.sharedKey === undefined) {
       next = definition
-      updateDefinition(next, shape, base, style, role, amount)
-    } else next = createDefinition(shape, base, style, role, amount)
+      updateDefinition(next, shape, base, style, role, amount, opaqueBackdrop)
+    } else next = createDefinition(shape, base, style, role, amount, undefined, opaqueBackdrop)
     if (next !== definition) next.references++
     const url = next.url
     const pad = shape.samplingPadding!
@@ -208,11 +233,12 @@ export function installLensOptics(element: HTMLElement, initial: LensOpticsOptio
     definition = next; key = nextKey; ready = true
   }
   const schedule = () => {
+    dirty = true
     if (queued || destroyed) return
     queued = true
-    queueMicrotask(() => { queued = false; if (!destroyed) render() })
+    queueMicrotask(() => { queued = false; if (!destroyed) render(controlledSize) })
   }
-  const resize = new ResizeObserver(schedule)
+  const resize = new ResizeObserver(() => { if (!controlledSize) schedule() })
   resize.observe(element)
   const mutations = new MutationObserver(schedule)
   mutations.observe(root, { attributes: true, attributeFilter: ['data-mode', 'data-theme', 'style'] })
@@ -225,11 +251,11 @@ export function installLensOptics(element: HTMLElement, initial: LensOpticsOptio
   }
   try { render() } catch (error) { destroy(); throw error }
   return {
-    update(value: number) { lift = value; render() },
+    update(value: number, size, backdrop) { lift = value; controlledSize = size; render(size, backdrop) },
     configure(next) {
       options = { ...options, ...next, theme: next.theme ? { ...options.theme, ...next.theme } : options.theme }
       if (next.lift !== undefined) lift = next.lift
-      render()
+      dirty = true; controlledSize = undefined; render()
     },
     destroy,
     get ready() { return ready },

@@ -40,7 +40,9 @@ it('schedule add opens the Android entry in order, selects existing courses and 
   const add = await screen.findByTitle('添加课程')
   await waitFor(() => expect((add as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(add)
-  await screen.findByRole('heading',{name:'添加课程'})
+  // The first dynamic import also transforms the school directory in Vitest.
+  // This integration assertion waits for that work; startup latency is measured separately.
+  await screen.findByRole('heading',{name:'添加课程'}, {timeout:5000})
   const methods = ['从已有课表选择','教务直连','粘贴课表文本','手动添加课程','从文件导入']
   const buttons = screen.getAllByRole('button')
   const positions = methods.map(name => buttons.indexOf(screen.getByRole('button',{name})))
@@ -67,7 +69,7 @@ it.each(['schedule','manage'] as const)('%s manual form returns to its entry bef
     fireEvent.click(add)
   }
   else fireEvent.click(await screen.findByRole('button',{name:/^添加课程/}))
-  await screen.findByRole('heading',{name:'添加课程'})
+  await screen.findByRole('heading',{name:'添加课程'}, {timeout:5000})
   const manual = screen.getByRole('button',{name:'手动添加课程'})
   await waitFor(() => expect((manual as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(manual)

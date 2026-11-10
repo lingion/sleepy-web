@@ -1,100 +1,14 @@
-/**
- * i18n — 与 Android res/values-* 6 语言同构
- * en (基准) / zh-CN / zh-TW / ja / es / en-GB
- * 缺 key 回落链: 当前语言 → en → key 本身 (Android fallback 同)
- */
-
+/** Current-language startup; synchronous resources remain an offline API. */
 import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import en from './en.json'
-import zhCN from './zh-CN.json'
-import zhTW from './zh-TW.json'
-import ja from './ja.json'
-import es from './es.json'
-import enGB from './en-GB.json'
-// 按功能拆分的扩展键文件 — 各分区独立维护, 深合并进 resources, 避免多 agent 抢改同一份 JSON。
-import { themeExtra } from './extra/theme'
-import { holidayExtra } from './extra/holiday'
-import { timeslotExtra } from './extra/timeslot'
-import { jwImportExtra } from './extra/jwimport'
-import { importSheetExtra } from './extra/importsheet'
-import { reminderExtra } from './extra/reminder'
-import { migrationExtra } from './extra/migration'
-import { calendarExportExtra } from './extra/calexport'
-import { widgetExtra } from './extra/widget'
-import { portableImportExtra } from './extra/portableImport'
+import zhCN from './zh-CN.startup.json'
+import { translationExtras as zhCNExtra } from './extra/locales/zh-CN'
+import { buildTranslation } from './translation'
+import { resources } from './resources'
+export { resources } from './resources'
 
 export const SUPPORTED_LANGS = ['en', 'zh-CN', 'zh-TW', 'ja', 'es', 'en-GB'] as const
 export type Lang = (typeof SUPPORTED_LANGS)[number]
-
-/**
- * Android strings.xml 占位 (%1$s / %1$d) → i18next ({{name}})。
- * 按位置命名: %1 → v1, %2 → v2; 调用方传 { v1: ... }。
- * 数组值 (@*_format 等复数形态) 原样保留首元素外的形态, 仅转换字符串元素。
- */
-function convertAndroidPlaceholders(obj: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(obj)) {
-    if (typeof v === 'string') {
-      out[k] = v
-        .replace(/%(\d+)\$s/g, (_, n: string) => `{{v${n}}}`)
-        .replace(/%(\d+)\$d/g, (_, n: string) => `{{v${n}}}`)
-        .replace(/%(\d+)\$f/g, (_, n: string) => `{{v${n}}}`)
-    } else if (Array.isArray(v)) {
-      out[k] = v.map((item) =>
-        typeof item === 'string'
-          ? item
-              .replace(/%(\d+)\$s/g, (_, n: string) => `{{v${n}}}`)
-              .replace(/%(\d+)\$d/g, (_, n: string) => `{{v${n}}}`)
-          : item
-      )
-    } else {
-      out[k] = v
-    }
-  }
-  return out
-}
-
-/** 各语言主 JSON (Android res/values-* 同构基准) */
-const BASE_JSON: Record<Lang, Record<string, unknown>> = {
-  en: en as Record<string, unknown>,
-  'zh-CN': zhCN as Record<string, unknown>,
-  'zh-TW': zhTW as Record<string, unknown>,
-  ja: ja as Record<string, unknown>,
-  es: es as Record<string, unknown>,
-  'en-GB': enGB as Record<string, unknown>,
-}
-
-/** 按功能拆分的扩展键文件 — 依序深合并到主 JSON 之上 (后写覆盖同 key)。 */
-const EXTRA_KEY_FILES: Array<Record<Lang, Record<string, string>>> = [
-  themeExtra,
-  holidayExtra,
-  timeslotExtra,
-  jwImportExtra,
-  importSheetExtra,
-  reminderExtra,
-  migrationExtra,
-  calendarExportExtra,
-  widgetExtra,
-  portableImportExtra,
-]
-
-/** 主 JSON 占位转换 + 逐层合并扩展键 → 该语言最终 translation 表。 */
-function buildTranslation(lang: Lang): Record<string, unknown> {
-  return EXTRA_KEY_FILES.reduce<Record<string, unknown>>(
-    (acc, file) => ({ ...acc, ...file[lang] }),
-    convertAndroidPlaceholders(BASE_JSON[lang])
-  )
-}
-
-export const resources = {
-  en: { translation: buildTranslation('en') },
-  'zh-CN': { translation: buildTranslation('zh-CN') },
-  'zh-TW': { translation: buildTranslation('zh-TW') },
-  ja: { translation: buildTranslation('ja') },
-  es: { translation: buildTranslation('es') },
-  'en-GB': { translation: buildTranslation('en-GB') },
-}
 
 /** 系统语言 → 支持语言映射 (Android LocaleList 映射同) */
 export function resolveSystemLang(): Lang {
@@ -109,27 +23,109 @@ export function resolveSystemLang(): Lang {
   return 'zh-CN'
 }
 
-let initialized = false
+const loaders = {
+  en: () => Promise.all([import('./en.json'), import('./extra/locales/en')]),
+  'zh-TW': () => Promise.all([import('./zh-TW.json'), import('./extra/locales/zh-TW')]),
+  ja: () => Promise.all([import('./ja.json'), import('./extra/locales/ja')]),
+  es: () => Promise.all([import('./es.json'), import('./extra/locales/es')]),
+  'en-GB': () => Promise.all([import('./en-GB.json'), import('./extra/locales/en-GB')]),
+}
+const translations = new Map<Lang, Record<string, unknown>>()
+const pending = new Map<Lang, Promise<Record<string, unknown>>>()
+let languageRequest = 0
+let pageTranslationsRequested = false
+let chinesePages: Promise<Record<string, unknown>> | undefined
+let chinesePagesLoaded = false
 
-export function initI18n(lang: Lang | 'system'): void {
-  const resolved = lang === 'system' ? resolveSystemLang() : lang
-  if (!initialized) {
+async function completeTranslation(lang: Lang): Promise<Record<string, unknown>> {
+  const current = await translation(lang)
+  if (lang !== 'zh-CN') return current
+  chinesePages ??= import('./zh-CN.pages.json').then(({ default: pages }) => buildTranslation(pages, zhCNExtra)).catch(error => { chinesePages = undefined; throw error })
+  const complete = { ...current, ...await chinesePages }
+  translations.set(lang, complete)
+  chinesePagesLoaded = true
+  return complete
+}
+
+/** Page code and long help/license text finish together, including cold deep links. */
+export async function preparePageTranslations(): Promise<void> {
+  pageTranslationsRequested = true
+  const lang = i18next.resolvedLanguage as Lang | undefined
+  if (!i18next.isInitialized || !lang || !SUPPORTED_LANGS.includes(lang)) return
+  const current = await completeTranslation(lang)
+  if (i18next.resolvedLanguage === lang) i18next.addResourceBundle(lang, 'translation', current)
+}
+
+function translation(lang: Lang): Promise<Record<string, unknown>> {
+  const ready = translations.get(lang)
+  if (ready) return Promise.resolve(ready)
+  // The default locale is discovered from the HTML alongside the entry.
+  if (lang === 'zh-CN') {
+    const value = buildTranslation(zhCN, zhCNExtra)
+    translations.set(lang, value)
+    return Promise.resolve(value)
+  }
+  let request = pending.get(lang)
+  if (!request) {
+    request = loaders[lang]().then(([{ default: base }, { translationExtras }]) => {
+      const value = buildTranslation(base, translationExtras)
+      translations.set(lang, value)
+      return value
+    }).catch(error => { pending.delete(lang); throw error })
+    pending.set(lang, request)
+  }
+  return request
+}
+
+function applyLanguage(resolved: Lang, english: Record<string, unknown>, current: Record<string, unknown>): void {
+  if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
-      resources,
+      resources: { en: { translation: english }, [resolved]: { translation: current } },
       lng: resolved,
       fallbackLng: 'en',
+      initImmediate: false,
       interpolation: { escapeValue: false },
       react: { useSuspense: false },
     })
-    initialized = true
   } else {
+    i18next.addResourceBundle('en', 'translation', english)
+    i18next.addResourceBundle(resolved, 'translation', current)
     void i18next.changeLanguage(resolved)
   }
 }
 
-export function changeLang(lang: Lang | 'system'): void {
-  initI18n(lang)
+/** Await before mounting the first route; no other language is requested. */
+export async function prepareI18n(lang: Lang | 'system'): Promise<void> {
+  const resolved = lang === 'system' ? resolveSystemLang() : lang
+  const request = ++languageRequest
+  let current = await translation(resolved)
+  if (pageTranslationsRequested) current = await completeTranslation(resolved)
+  // Every supported locale has all English keys (guarded by startup.test.ts).
+  // Keep the full English fallback once requested, without downloading an
+  // otherwise unused language before the first timetable can render.
+  const english = translations.get('en') ?? {}
+  if (request === languageRequest) applyLanguage(resolved, english, current)
 }
 
-/** 非组件环境 (提醒引擎等) 的翻译入口 — 与 useTranslation().t 同一实例 */
+/** Synchronous compatibility for offline resource consumers. Unused by startup. */
+export function initI18n(lang: Lang | 'system'): void {
+  ++languageRequest
+  const resolved = lang === 'system' ? resolveSystemLang() : lang
+  const english = resources.en.translation, current = resources[resolved].translation
+  translations.set('en', english)
+  translations.set(resolved, current)
+  applyLanguage(resolved, english, current)
+}
+
+export function changeLang(lang: Lang | 'system'): void {
+  const resolved = lang === 'system' ? resolveSystemLang() : lang
+  const current = translations.get(resolved), english = translations.get('en') ?? {}
+  if (current && (!pageTranslationsRequested || resolved !== 'zh-CN' || chinesePagesLoaded)) {
+    ++languageRequest
+    if (i18next.resolvedLanguage !== resolved) applyLanguage(resolved, english, current)
+  } else {
+    void prepareI18n(resolved).catch(error => console.error('Unable to load language', error))
+  }
+}
+
 export { i18next }

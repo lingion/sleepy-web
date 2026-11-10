@@ -5,12 +5,19 @@
  */
 
 import type { Lang } from '../index'
+import { importSheetExtra as locale0 } from './locales/en'
+import { importSheetExtra as locale1 } from './locales/zh-CN'
+import { importSheetExtra as locale2 } from './locales/zh-TW'
+import { importSheetExtra as locale3 } from './locales/ja'
+import { importSheetExtra as locale4 } from './locales/es'
+import { importSheetExtra as locale5 } from './locales/en-GB'
 
+// Each language is stored independently so startup can load only its resources.
 export const importSheetExtra: Record<Lang, Record<string, string>> = {
-  'zh-CN': { import_sheet_title: '导入课表' },
-  'zh-TW': { import_sheet_title: '匯入課表' },
-  en: { import_sheet_title: 'Import Timetable' },
-  'en-GB': { import_sheet_title: 'Import Timetable' },
-  ja: { import_sheet_title: 'Import Timetable' },
-  es: { import_sheet_title: 'Import Timetable' },
+  'en': locale0,
+  'zh-CN': locale1,
+  'zh-TW': locale2,
+  'ja': locale3,
+  'es': locale4,
+  'en-GB': locale5,
 }

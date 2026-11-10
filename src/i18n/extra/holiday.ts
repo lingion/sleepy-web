@@ -5,12 +5,19 @@
  */
 
 import type { Lang } from '../index'
+import { holidayExtra as locale0 } from './locales/en'
+import { holidayExtra as locale1 } from './locales/zh-CN'
+import { holidayExtra as locale2 } from './locales/zh-TW'
+import { holidayExtra as locale3 } from './locales/ja'
+import { holidayExtra as locale4 } from './locales/es'
+import { holidayExtra as locale5 } from './locales/en-GB'
 
+// Each language is stored independently so startup can load only its resources.
 export const holidayExtra: Record<Lang, Record<string, string>> = {
-  'zh-CN': { holiday_rule_editor_title: '节假日规则' },
-  'zh-TW': { holiday_rule_editor_title: '假日規則' },
-  en: { holiday_rule_editor_title: 'Holiday Rules' },
-  'en-GB': { holiday_rule_editor_title: 'Holiday Rules' },
-  ja: { holiday_rule_editor_title: 'Holiday Rules' },
-  es: { holiday_rule_editor_title: 'Holiday Rules' },
+  'en': locale0,
+  'zh-CN': locale1,
+  'zh-TW': locale2,
+  'ja': locale3,
+  'es': locale4,
+  'en-GB': locale5,
 }

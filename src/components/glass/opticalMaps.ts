@@ -1,4 +1,4 @@
-import { clamp01, sampleGlassOptics, type OpticalShape } from './opticalMath'
+import { clamp01, createOpticalSampler, type OpticalShape } from './opticalMath'
 import type { GlassStyle } from './styles'
 
 export interface OpticalMaps {
@@ -32,20 +32,25 @@ export function renderOpticalMaps(shape: OpticalShape, style: GlassStyle, maxPix
   const encode = (offset: number) => Math.round(128 + 127 * Math.max(-1, Math.min(1, offset / reach)))
   const samplePixel = Math.min(shape.pixelSize ?? 1, shape.width, shape.height)
   const padding = shape.samplingPadding ?? opticalSamplingPadding(style)
+  const sample = createOpticalSampler(shape, style)
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    const point = [(x + .5) * pixelX, (y + .5) * pixelY] as const
-    const optics = sampleGlassOptics(shape, point, style), i = (y * width + x) * 4
+    const pointX = (x + .5) * pixelX, pointY = (y + .5) * pixelY
+    const optics = sample(pointX, pointY), i = (y * width + x) * 4
     const coverage = clamp01(.5 - optics.edgeDistance / Math.max(pixelX, pixelY))
     for (let channel = 0; channel < 3; channel++) {
       const direction = 1 - channel
-      const sx = point[0] + optics.shift[0] + direction * optics.part[0]
-      const sy = point[1] + optics.shift[1] + direction * optics.part[1]
-      const dx = Math.max(-padding + samplePixel / 2, Math.min(shape.width + padding - samplePixel / 2, sx)) - point[0]
-      const dy = Math.max(-padding + samplePixel / 2, Math.min(shape.height + padding - samplePixel / 2, sy)) - point[1]
-      displacement[channel].set([coverage > 0 ? encode(dx) : 128, coverage > 0 ? encode(dy) : 128, 128, 255], i)
+      const sx = pointX + optics.shiftX + direction * optics.partX
+      const sy = pointY + optics.shiftY + direction * optics.partY
+      const dx = Math.max(-padding + samplePixel / 2, Math.min(shape.width + padding - samplePixel / 2, sx)) - pointX
+      const dy = Math.max(-padding + samplePixel / 2, Math.min(shape.height + padding - samplePixel / 2, sy)) - pointY
+      const buffer = displacement[channel]
+      buffer[i] = coverage > 0 ? encode(dx) : 128; buffer[i + 1] = coverage > 0 ? encode(dy) : 128
+      buffer[i + 2] = 128; buffer[i + 3] = 255
     }
-    lighting.set([Math.round(255 * optics.endScale), Math.round(255 * optics.shine), Math.round(255 * optics.darken), 255], i)
-    masks.set([Math.round(255 * coverage), Math.round(255 * optics.line), Math.round(255 * optics.rise ** 2), 255], i)
+    lighting[i] = Math.round(255 * optics.endScale); lighting[i + 1] = Math.round(255 * optics.shine)
+    lighting[i + 2] = Math.round(255 * optics.darken); lighting[i + 3] = 255
+    masks[i] = Math.round(255 * coverage); masks[i + 1] = Math.round(255 * optics.line)
+    masks[i + 2] = Math.round(255 * optics.rise ** 2); masks[i + 3] = 255
   }
   return { width, height, displacementScale: 2 * reach, displacement, lighting, masks }
 }
@@ -73,7 +78,9 @@ export function cachedOpticalMaps(shape: OpticalShape, style: GlassStyle): Optic
   const maps = renderOpticalMaps(quantized, style)
   const bytes = maps.width * maps.height * 20
   cache.set(key, maps); cacheBytes += bytes
-  while ((cache.size > 32 || cacheBytes > 16 * 1024 * 1024) && cache.size > 1) {
+  // A complete two-lens press/drag/release exceeds 32 small geometry buckets.
+  // Retain a full cycle without raising the existing 16-MiB map byte limit.
+  while ((cache.size > 128 || cacheBytes > 16 * 1024 * 1024) && cache.size > 1) {
     const oldest = cache.keys().next().value!
     const removed = cache.get(oldest)!
     cacheBytes -= removed.width * removed.height * 20

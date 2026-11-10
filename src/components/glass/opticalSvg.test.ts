@@ -14,9 +14,10 @@ const fromStraight = (rgba: number[]) => { const a = bounded(rgba[3]); return rg
  * arithmetic compositing uses premultiplied RGB with the SVG zero defaults.
  * Blurs are identity only because these fixtures have a uniform input field.
  */
-function evaluate(filter: SVGFilterElement, images: ReadonlyMap<string, RGBA>, source: RGBA) {
+function evaluate(filter: SVGFilterElement, images: ReadonlyMap<string, RGBA>, source: RGBA, samples?: readonly RGBA[]) {
   const values = new Map<string, RGBA>([['SourceGraphic', source], ['SourceAlpha', [0, 0, 0, source[3]]]])
   const offsets: RGBA[] = []
+  const shifts: (readonly [number, number])[] = []
   let last = source
   for (const node of Array.from(filter.children)) {
     const attr = (name: string) => node.getAttribute(name) ?? ''
@@ -26,7 +27,12 @@ function evaluate(filter: SVGFilterElement, images: ReadonlyMap<string, RGBA>, s
     switch (node.tagName) {
       case 'feImage': result = images.get(attr('result'))!; break
       case 'feGaussianBlur': result = a; break
-      case 'feDisplacementMap': offsets.push(b); result = a; break
+      case 'feDisplacementMap': {
+        offsets.push(b)
+        const map = straight(b)
+        shifts.push([(map[0] - .5) * num('scale'), (map[1] - .5) * num('scale')])
+        result = samples?.[offsets.length - 1] ?? a; break
+      }
       case 'feFlood': {
         const rgb = attr('flood-color').match(/[\d.]+/g)?.map(Number) ?? [0, 0, 0]
         result = fromStraight([...rgb.map(v => v / 255), num('flood-opacity', 1)]); break
@@ -53,20 +59,34 @@ function evaluate(filter: SVGFilterElement, images: ReadonlyMap<string, RGBA>, s
       case 'feComposite': {
         switch (attr('operator')) {
           case 'arithmetic': result = premult(a.map((value, i) => num('k1') * value * b[i] + num('k2') * value + num('k3') * b[i] + num('k4'))); break
+          case 'lighter': result = premult(a.map((value, i) => value + b[i])); break
           case 'in': result = a.map(v => v * b[3]) as unknown as RGBA; break
           case 'out': result = a.map(v => v * (1 - b[3])) as unknown as RGBA; break
           case 'over': result = a.map((v, i) => v + b[i] * (1 - a[3])) as unknown as RGBA; break
+          case 'atop': result = a.map((v, i) => v * b[3] + b[i] * (1 - a[3])) as unknown as RGBA; break
           default: throw new Error(`Unimplemented composite: ${attr('operator')}`)
         }
         break
       }
-      case 'feBlend': result = premult(a.map((v, i) => i === 3 ? v + b[i] - v * b[i] : Math.max(v, b[i]))); break
+      case 'feBlend': {
+        const ac = straight(a), bc = straight(b)
+        const blend = (x: number, y: number) => {
+          switch (attr('mode')) {
+            case 'lighten': return Math.max(x, y)
+            case 'darken': return Math.min(x, y)
+            case 'screen': return x + y - x * y
+            case 'multiply': return x * y
+            default: throw new Error(`Unimplemented blend: ${attr('mode')}`)
+          }
+        }
+        result = premult(a.slice(0, 3).map((value, i) => value * (1 - b[3]) + b[i] * (1 - a[3]) + a[3] * b[3] * blend(ac[i], bc[i])).concat(a[3] + b[3] - a[3] * b[3])); break
+      }
       default: throw new Error(`Unimplemented SVG primitive: ${node.tagName}`)
     }
     if (attr('result')) values.set(attr('result'), result)
     last = result
   }
-  return { color: last, values, offsets }
+  return { color: last, values, offsets, shifts }
 }
 
 function canvasBoundary() {
@@ -102,6 +122,131 @@ function canvasBoundary() {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); document.body.replaceChildren(); document.documentElement.removeAttribute('style') })
 
 describe('independent SVG pixel arithmetic', () => {
+  it.each([false, true])('keeps negative-refraction axes immutable and scales six physical RGB offsets, opaque=%s', opaque => {
+    const canvas = canvasBoundary(), base = liquidGlassStyle('lens')
+    const maps = renderOpticalMaps({width: 255, height: 1, borderRadius: .5}, base)
+    // The map encoder's 128 +/- 127 range excludes byte zero. Exercise every
+    // possible displacement byte, including both clamped reach endpoints.
+    for (const buffer of maps.displacement) {
+      for (let i = 0; i < buffer.length; i += 4) {
+        expect(buffer[i]).toBeGreaterThanOrEqual(1); expect(buffer[i + 1]).toBeGreaterThanOrEqual(1)
+        buffer[i] = i / 4 + 1; buffer[i + 1] = 255 - i / 4
+      }
+    }
+    const full = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    const compact = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    const reference = createOpticalSvg(full), optimized = createOpticalSvg(compact, base, true, opaque)
+    optimized.update(maps, base, 255, 1, base, 1)
+    const axes = Array.from(compact.querySelectorAll('[result^="axis-"]'))
+    const matrices = axes.map(node => node.getAttribute('values'))
+    expect(axes).toHaveLength(6)
+    for (const lift of [0, .001, .1, .5, .921, 1]) {
+      const style = scaleGlassStyle(base, lift)
+      reference.update(maps, style, 255, 1, base, lift); optimized.update(maps, style, 255, 1, base, lift)
+      expect(axes.map(node => node.getAttribute('values'))).toEqual(matrices)
+      const samplers = Array.from(compact.querySelectorAll('feDisplacementMap'))
+      expect(samplers).toHaveLength(6)
+      for (const sampler of samplers) expect(Number(sampler.getAttribute('scale'))).toBe(maps.displacementScale * lift)
+      for (let x = 0; x < maps.width; x++) {
+        const actual = evaluate(compact, canvas.imagesAt(compact, x * 4), [.2, .4, .6, 1])
+        const expected = evaluate(full, canvas.imagesAt(full, x * 4), [.2, .4, .6, 1])
+        actual.shifts.forEach((shift, i) => shift.forEach((value, axis) => expect(value).toBeCloseTo(expected.shifts[i][axis], 12)))
+      }
+    }
+  })
+  it.each([false, true])('uses native transparent compositing without changing edge alpha, dark=%s', dark => {
+    const canvas = canvasBoundary(), base = liquidGlassStyle('lens', {dark})
+    const maps = renderOpticalMaps({width: 80, height: 40, borderRadius: 20}, base)
+    const full = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    const compact = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    const reference = createOpticalSvg(full), optimized = createOpticalSvg(compact, base, true)
+    const fields: RGBA[][] = [
+      [[0, 0, 0, 0], [.6, .2, .3, .8], [.02, .04, .05, .1], [.5, .1, .4, .7], [.1, .3, .2, .4], [0, 0, 0, 0]],
+      [[.2, .1, .3, .3], [0, 0, 0, 0], [.2, .9, .3, 1], [.4, .1, .5, .5], [0, 0, 0, 0], [.1, .2, .3, .4]],
+      Array.from({length: 6}, () => [0, 0, 0, 0] as RGBA),
+    ]
+    for (const lift of [0, .1, .5, .921, 1]) {
+      const style = scaleGlassStyle(base, lift)
+      reference.update(maps, style, 80, 40, base, lift); optimized.update(maps, style, 80, 40, base, lift)
+      for (const samples of fields) for (const source of [[.06, .09, .12, .3], [0, 0, 0, 0], [.2, .6, .4, 1]] as const) {
+        for (const [x, y] of [[40, 20], [40, 0], [0, 20], [5, 5], [1, 1], [79, 39]]) {
+          const index = (y * maps.width + x) * 4
+          const expected = evaluate(full, canvas.imagesAt(full, index), source, samples)
+          const actual = evaluate(compact, canvas.imagesAt(compact, index), source, samples)
+          expected.color.forEach((value, channel) => expect(actual.color[channel]).toBeCloseTo(value, 12))
+          actual.shifts.forEach((shift, i) => shift.forEach((value, axis) => expect(value).toBeCloseTo(expected.shifts[i][axis], 12)))
+        }
+      }
+    }
+    expect(compact.querySelectorAll('feDisplacementMap')).toHaveLength(6)
+    // Keep only the two alpha-correction arithmetic operations. This guards
+    // the runtime graph budget; it does not inspect implementation text.
+    expect(compact.querySelectorAll('feComposite[operator="arithmetic"]')).toHaveLength(2)
+  })
+  it.each([false, true])('folds opaque backdrop RGB without changing six distinct samples, dark=%s', dark => {
+    const canvas = canvasBoundary(), base = liquidGlassStyle('lens', {dark})
+    const maps = renderOpticalMaps({width: 100, height: 50, borderRadius: 25}, base)
+    const full = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    const compact = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    const reference = createOpticalSvg(full, base, true)
+    const optimized = createOpticalSvg(compact, base, true, true)
+    const samples: RGBA[] = [[.03, .18, .08, 1], [.6, .2, .3, 1], [.02, .04, .05, 1], [.5, .1, .4, 1], [.1, .3, .2, 1], [.98, .7, .05, 1]]
+    for (const lift of [0, .1, .5, .921, 1]) {
+      const style = scaleGlassStyle(base, lift)
+      reference.update(maps, style, 100, 50, base, lift); optimized.update(maps, style, 100, 50, base, lift)
+      for (const y of [0, 1, 2, 5, 10, 24, 25, 39, 45, 48, 49]) for (const x of [0, 1, 2, 5, 10, 24, 50, 75, 90, 95, 98, 99]) {
+        const index = (y * maps.width + x) * 4
+        const expected = evaluate(full, canvas.imagesAt(full, index), [.15, .45, .65, 1], samples)
+        const actual = evaluate(compact, canvas.imagesAt(compact, index), [.15, .45, .65, 1], samples)
+        expected.color.forEach((value, channel) => expect(actual.color[channel]).toBeCloseTo(value, 12))
+        expect(actual.offsets).toEqual(expected.offsets)
+      }
+    }
+    expect(compact.querySelectorAll('feDisplacementMap')).toHaveLength(6)
+    expect(compact.children.length).toBeLessThan(full.children.length - 10)
+    expect(compact.querySelectorAll('feComposite[operator="arithmetic"]').length).toBeLessThan(3)
+  })
+  it('preserves colored and differently transparent RGB samples with the lens rim atop simplification', () => {
+    const canvas = canvasBoundary(), base = liquidGlassStyle('lens')
+    const maps = renderOpticalMaps({width: 80, height: 40, borderRadius: 20}, base)
+    const full = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    const compact = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    const reference = createOpticalSvg(full), optimized = createOpticalSvg(compact, base, true)
+    const samples: RGBA[] = [[.03, .18, .08, .2], [.6, .2, .3, .8], [.02, .04, .05, .1], [.5, .1, .4, .7], [.1, .3, .2, .4], [0, 0, 0, 0]]
+    for (const lift of [0, .1, .5, .921, 1]) {
+      const style = scaleGlassStyle(base, lift)
+      reference.update(maps, style, 80, 40, base, lift); optimized.update(maps, style, 80, 40, base, lift)
+      for (const [x, y] of [[40, 20], [40, 0], [0, 20], [5, 5]]) {
+        const i = (y * maps.width + x) * 4
+        const expected = evaluate(full, canvas.imagesAt(full, i), [.06, .09, .12, .3], samples)
+        const actual = evaluate(compact, canvas.imagesAt(compact, i), [.06, .09, .12, .3], samples)
+        expected.color.forEach((value, c) => expect(actual.color[c]).toBeCloseTo(value, 10))
+      }
+    }
+    // Resource budget guards the duplicate shader subtrees, not source text.
+    const dependencies = new Map(Array.from(compact.children).map(node => [node.getAttribute('result'), [node.getAttribute('in'), node.getAttribute('in2')].filter(Boolean)]))
+    const cost = (result: string): number => 1 + (dependencies.get(result) ?? []).reduce((sum, input) => sum + cost(input!), 0)
+    expect(cost('glass')).toBeLessThan(1300)
+  })
+  it.each((['lens', 'lensContent'] as const).flatMap(role => [false, true].flatMap(dark => [0, .2, .5, .921, 1].map(lift => ({role, dark, lift})))))(
+    'specializes moving $role dark=$dark lift=$lift without changing pixels or RGB offsets', ({role, dark, lift}) => {
+      const canvas = canvasBoundary(), base = liquidGlassStyle(role, {dark}), style = scaleGlassStyle(base, lift)
+      const maps = renderOpticalMaps({width: 100, height: 50, borderRadius: 25}, base)
+      const full = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+      const compact = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+      createOpticalSvg(full).update(maps, style, 100, 50, base, lift)
+      createOpticalSvg(compact, base, true).update(maps, style, 100, 50, base, lift)
+      expect(compact.children.length).toBeLessThan(full.children.length)
+      expect(compact.querySelectorAll('feDisplacementMap')).toHaveLength(6)
+      for (const [x, y] of [[50, 25], [50, 1], [1, 25], [8, 8], [0, 0]]) for (const source of [[1, 1, 1, 1], [.3, .5, .7, 1], [.1, .2, .3, .4], [0, 0, 0, 0]] as const) {
+        const index = (y * maps.width + x) * 4
+        const reference = evaluate(full, canvas.imagesAt(full, index), source)
+        const actual = evaluate(compact, canvas.imagesAt(compact, index), source)
+        reference.color.forEach((value, channel) => expect(actual.color[channel]).toBeCloseTo(value, 10))
+        actual.shifts.forEach((shift, i) => shift.forEach((value, axis) => expect(value).toBeCloseTo(reference.shifts[i][axis], 12)))
+      }
+    },
+  )
   it.each((['regular', 'tinted', 'menu', 'alert', 'pill'] as const).flatMap(role => [false, true].map(dark => ({role, dark}))))('specializes $role dark=$dark without changing source arithmetic', ({role, dark}) => {
     const canvas = canvasBoundary(), theme = {dark, surfaceContainerHighest: [.25, .3, .35, 1] as const, surfaceBright: [1, .98, .97, 1] as const, color: [.2, .4, .8, 1] as const}
     const style = liquidGlassStyle(role, theme), shape = {width: 48, height: 48, borderRadius: 24}

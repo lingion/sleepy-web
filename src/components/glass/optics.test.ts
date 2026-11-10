@@ -40,7 +40,7 @@ describe('static material definition ownership', () => {
   })
   const pane = (options: LensOpticsOptions = {}, tint?: string) => {
     const element = document.createElement('button'), size = {width: 48, height: 48}
-    Object.defineProperties(element, {offsetWidth: {get: () => size.width}, offsetHeight: {get: () => size.height}})
+    Object.defineProperties(element, {offsetWidth: {configurable: true, get: () => size.width}, offsetHeight: {configurable: true, get: () => size.height}})
     for (const corner of ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius'] as const) element.style[corner] = '24px'
     if (tint) element.dataset.glassTint = tint
     document.body.appendChild(element)
@@ -141,6 +141,37 @@ describe('static material definition ownership', () => {
     first.controller.destroy()
     expect(document.querySelectorAll('filter')).toHaveLength(1)
   })
+  it('uses caller-measured sizes without layout reads, keeps exact SVG extents and invalidates theme state', async () => {
+    const lens = pane({role: 'lens'}), size = {width: 103, height: 51}
+    const computed = vi.spyOn(window, 'getComputedStyle')
+    const width = vi.spyOn(lens.element, 'offsetWidth', 'get')
+    const height = vi.spyOn(lens.element, 'offsetHeight', 'get')
+    for (let frame = 0; frame < 10; frame++) lens.controller.update(frame / 10, size)
+    expect(width).not.toHaveBeenCalled(); expect(height).not.toHaveBeenCalled(); expect(computed).not.toHaveBeenCalled()
+    const filter = document.querySelector('filter')!
+    expect(filter.querySelector('feImage')!.getAttribute('width')).toBe('103')
+    expect(filter.querySelector('feImage')!.getAttribute('height')).toBe('51')
+    expect(filter.querySelector('[result="brightened"]')).toBeNull()
+    document.documentElement.dataset.mode = 'dark'
+    await Promise.resolve(); await Promise.resolve()
+    expect(filter.querySelector('[result="brightened"] feFuncR')!.getAttribute('slope')).toBe(String(1 + .33 * .9))
+    expect(computed).toHaveBeenCalled()
+  })
+  it('recompiles private zero branches when explicit material configuration enables them', () => {
+    const first = pane({role: 'lensContent'}), second = pane({role: 'lensContent'})
+    const filters = document.querySelectorAll('filter'), firstUrl = first.url(), original = filters[1].innerHTML
+    expect(filters[0].querySelector('[result="shine"]')).toBeNull()
+    const base = liquidGlassStyle('lensContent')
+    first.controller.configure({style: {...base, blur: 1, haze: .5, hazeBlur: 4, rim: .2, hairline: .3, endShade: .1}})
+    first.controller.update(1)
+    for (const result of ['shine', 'frost', 'haze', 'end-scale', 'darken']) expect(filters[0].querySelector(`[result="${result}"]`)).not.toBeNull()
+    expect(filters[0].querySelector('[result="frost"]')!.getAttribute('stdDeviation')).toBe('1')
+    expect(first.url()).toBe(firstUrl); expect(filters[1].innerHTML).toBe(original)
+    first.controller.configure({style: base})
+    expect(filters[0].querySelector('[result="shine"]')).toBeNull()
+    expect(filters[0].querySelectorAll('feDisplacementMap')).toHaveLength(6)
+    expect(second.controller.ready).toBe(true)
+  })
   it('does not allocate definitions for zero-sized or hidden panes and acquires one when shown', async () => {
     const zero = pane({size: {width: 0, height: 48}})
     const hiddenElement = document.createElement('div'); hiddenElement.hidden = true
@@ -157,6 +188,18 @@ describe('static material definition ownership', () => {
     zero.controller.configure({size: {width: 0, height: 48}})
     expect(zero.controller.ready).toBe(false)
     expect(zero.url()).toBe(''); expect(hidden.ready).toBe(true)
+  })
+  it('recompiles independent graphs when rim addition or refraction sign changes the algebra', () => {
+    const lens = pane({role: 'lens'}), style = liquidGlassStyle('lens')
+    const filter = document.querySelector('filter')!
+    expect(filter.querySelector('[result="rim-gain"]')).toBeNull()
+    expect(filter.querySelector('[result="axis-0-0"]')).not.toBeNull()
+    lens.controller.configure({style: {...style, rimAdded: .3, refraction: 4.3}})
+    expect(filter.querySelector('[result="rim-gain"]')).not.toBeNull()
+    expect(filter.querySelector('[result="axis-0-0"]')).toBeNull()
+    lens.controller.configure({style})
+    expect(filter.querySelector('[result="rim-gain"]')).toBeNull()
+    expect(filter.querySelector('[result="axis-0-0"]')).not.toBeNull()
   })
 })
 

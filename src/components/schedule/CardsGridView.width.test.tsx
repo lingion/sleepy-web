@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
+import { Profiler } from 'react'
 import { CardsGridView } from './CardsGridView'
 import { estimatePeriodHeaderTextWidth } from './periodHeader'
 import { DEFAULT_PREFS, type Course, type Prefs } from '../../data/types'
@@ -100,4 +101,14 @@ it('uses the measured content box after resize, including scaled padding', () =>
     const used = Number(grid.dataset.gridTime) + Number(grid.dataset.gridCol) * 7 + Number(grid.dataset.gridGap) * 8
     expect(used).toBeCloseTo(expected, 6)
   }
+})
+
+it('commits once when the parent already supplied the measured content width', () => {
+  usePrefsStore.setState({ prefs: { ...DEFAULT_PREFS, gridScale: 1 }, loaded: true })
+  const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(386)
+  const committed = vi.fn()
+  try {
+    render(<Profiler id="grid" onRender={committed}><CardsGridView courses={courses} timeJson={DEFAULT_TIME_JSON} startDate="2026-11-09" currentWeek={1} containerWidth={370} /></Profiler>)
+    expect(committed).toHaveBeenCalledOnce()
+  } finally { width.mockRestore() }
 })

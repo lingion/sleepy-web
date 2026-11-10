@@ -1,0 +1,383 @@
+{
+  "base": "2e716653182995511ee16ecde40869d42a22bd21",
+  "fixtures": [
+    {
+      "role": "regular",
+      "dark": false,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "d0fcb72b5d33d45e3807d0af3385f06164188076fc2e2a7227d61bef41e21915"
+    },
+    {
+      "role": "regular",
+      "dark": false,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "9d875212c860a68f9971843ce5a592c3cb3e57a55708019e27a36d93c90e7a6e"
+    },
+    {
+      "role": "tinted",
+      "dark": false,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "fee3215f60842fef77084718e5a4405b39f65a0c821b191f207fbb51bc31cb32"
+    },
+    {
+      "role": "tinted",
+      "dark": false,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "14b6679d9270fb4aab5e8e2cacf605671cefd5c001cf0a703116b976ca548eae"
+    },
+    {
+      "role": "pill",
+      "dark": false,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "a24cfb4213ba8253456cbdb54c29044aef49d78c4848fdc9edb687cb1db610d2"
+    },
+    {
+      "role": "pill",
+      "dark": false,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "9dfac62357e7ac48db532cb4b4c5acc7a2adc3fc1b8cfaaaca65f1acf30f381c"
+    },
+    {
+      "role": "menu",
+      "dark": false,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "a8eaa13d214d7a086ca59344426b673c924aa3caa85fd1ea9dc60aa4361c4080"
+    },
+    {
+      "role": "menu",
+      "dark": false,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "ab5c5080775140c3f7c8e1dd63faa6942835a57828d8d4bd77bf620d1d61f67e"
+    },
+    {
+      "role": "alert",
+      "dark": false,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "a8eaa13d214d7a086ca59344426b673c924aa3caa85fd1ea9dc60aa4361c4080"
+    },
+    {
+      "role": "alert",
+      "dark": false,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "ab5c5080775140c3f7c8e1dd63faa6942835a57828d8d4bd77bf620d1d61f67e"
+    },
+    {
+      "role": "lens",
+      "dark": false,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "d06b0199774a7b43a072b484adea5c81b22245ed4115a6966b45ec0a93c4d899"
+    },
+    {
+      "role": "lens",
+      "dark": false,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "cbfe80da92a40b636549426076487509e0c2fb6fcb43c7cfbd18b0da07dd5d9c"
+    },
+    {
+      "role": "lensContent",
+      "dark": false,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "c4e4cdb108219280a8d7c7457da9c503886a2c091aafa862e1d14ec1a8ecdffb"
+    },
+    {
+      "role": "lensContent",
+      "dark": false,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "6ff7626f8020f10ca577612eacb58b86bca8cecb8ff68fd7a7bc5204c12758f7"
+    },
+    {
+      "role": "regular",
+      "dark": true,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "6361e7fae413fc7d3f578ccd47fa59775ffef8a7c3b36651c9ade8414005e4d1"
+    },
+    {
+      "role": "regular",
+      "dark": true,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "0eb0039917e9c771f3715f01995393b93393cbdeadd447ec3ecd0f92c25de8d4"
+    },
+    {
+      "role": "tinted",
+      "dark": true,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "aaead40ea39abdacde2dfb83a34c8701d97abd88254001c8b083e52923cfbf29"
+    },
+    {
+      "role": "tinted",
+      "dark": true,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "c91539ad438b67a16c7c429f1930d03513d748e090f9b30e077779e18109b472"
+    },
+    {
+      "role": "pill",
+      "dark": true,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "672c6c02f97373cad0e6930e9b0dd2f890c781c9c107019bda29169e9eba2047"
+    },
+    {
+      "role": "pill",
+      "dark": true,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "b3cbb832e952edd4aa1c26339927296c24e1a493d04ad373392dfec13351a591"
+    },
+    {
+      "role": "menu",
+      "dark": true,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "a8eaa13d214d7a086ca59344426b673c924aa3caa85fd1ea9dc60aa4361c4080"
+    },
+    {
+      "role": "menu",
+      "dark": true,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "ab5c5080775140c3f7c8e1dd63faa6942835a57828d8d4bd77bf620d1d61f67e"
+    },
+    {
+      "role": "alert",
+      "dark": true,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "a8eaa13d214d7a086ca59344426b673c924aa3caa85fd1ea9dc60aa4361c4080"
+    },
+    {
+      "role": "alert",
+      "dark": true,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "ab5c5080775140c3f7c8e1dd63faa6942835a57828d8d4bd77bf620d1d61f67e"
+    },
+    {
+      "role": "lens",
+      "dark": true,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "b66f32eac5d563ac61f515cb2d01e49c848af80099b3be701e7bd3b9abbe32dc"
+    },
+    {
+      "role": "lens",
+      "dark": true,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "dcb922f055e8d6bce84df968a7d1a4e674f0e3a09fa997b6061250af1fb21f6c"
+    },
+    {
+      "role": "lensContent",
+      "dark": true,
+      "shape": {
+        "width": 37,
+        "height": 24,
+        "borderRadius": 999
+      },
+      "sha256": "c4e4cdb108219280a8d7c7457da9c503886a2c091aafa862e1d14ec1a8ecdffb"
+    },
+    {
+      "role": "lensContent",
+      "dark": true,
+      "shape": {
+        "width": 150.4,
+        "height": 65.2,
+        "borderRadius": [
+          1,
+          22.5,
+          16,
+          7
+        ],
+        "pixelSize": 0.5,
+        "samplingPadding": 9
+      },
+      "sha256": "6ff7626f8020f10ca577612eacb58b86bca8cecb8ff68fd7a7bc5204c12758f7"
+    }
+  ]
+}
