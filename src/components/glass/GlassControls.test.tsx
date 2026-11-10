@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { GlassControls } from './GlassControls'
 import { GlassNavigation } from './GlassNavigation'
+import { prepareGlassRuntime } from './runtime'
+
+beforeAll(() => prepareGlassRuntime('liquid_glass'))
 
 const globalStyles = readFileSync(resolve(__dirname, '../../theme/global.css'), 'utf8')
 const glassStyles = readFileSync(resolve(__dirname, '../../theme/glass.css'), 'utf8')

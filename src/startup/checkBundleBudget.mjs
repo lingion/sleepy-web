@@ -7,8 +7,8 @@ import ts from 'typescript'
 
 export const budget = { initialGzip: 300_000, lateCriticalChunks: 0 }
 const critical = /^(?:ScheduleView|zh-CN|sampleTable)-.*\.js$/
-const forbiddenChunk = /^(?:AddCourseView|ImportView|ExportView|EditTableView|JwImportView|OccurrenceActionsHost|CourseDetailSheet|scheduleParser|scheduleExporter|icsRangeExporter|sleepyNativeExporter|schools)-/
-const forbiddenSource = /(?:\/views\/(?:AddCourseView|ImportView|ExportView|EditTableView|jw\/JwImportView)\.tsx$|\/domain\/import\/|\/domain\/jw\/|\/components\/(?:CourseDetailSheet|schedule\/useOccurrenceActions)\.tsx$|\/schools[^/]*\.(?:json|ts)$)/
+const forbiddenChunk = /^(?:AddCourseView|ImportView|ExportView|EditTableView|JwImportView|OccurrenceActionsHost|CourseDetailSheet|scheduleParser|scheduleExporter|icsRangeExporter|sleepyNativeExporter|schools|optics|opticalSvg|opticalMaps|opticalMath|opaqueBackdrop)-/
+const forbiddenSource = /(?:\/views\/(?:AddCourseView|ImportView|ExportView|EditTableView|jw\/JwImportView)\.tsx$|\/domain\/import\/|\/domain\/jw\/|\/components\/(?:CourseDetailSheet|schedule\/useOccurrenceActions)\.tsx$|\/components\/glass\/(?:optics|opticalSvg|opticalMaps|opticalMath|opaqueBackdrop|styles)\.ts$|\/schools[^/]*\.(?:json|ts)$)/
 
 function imports(file, code) {
   const source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true)
@@ -87,6 +87,9 @@ export function inspectStartupSources(projectRoot) {
   }
   add(path.join(src, 'main.tsx'))
   add(path.join(src, 'views/ScheduleView.tsx'))
+  // This entry is emitted directly into HTML and is independent of main.tsx.
+  const dataEntry = path.join(src, 'startup/data.ts')
+  if (fs.existsSync(dataEntry)) add(dataEntry)
   return [...seen].filter(file => forbiddenSource.test(file)).map(file => path.relative(projectRoot, file))
 }
 
@@ -94,8 +97,8 @@ export function failures(report, blockedSources = []) {
   return [
     ...(report.scheduleZhCNGzip > budget.initialGzip ? [`Initial schedule and CSS gzip ${report.scheduleZhCNGzip} exceeds ${budget.initialGzip} bytes`] : []),
     ...(report.lateCriticalChunks.length ? [`Critical chunks still load after entry execution: ${report.lateCriticalChunks.join(', ')}`] : []),
-    ...report.forbiddenChunks.map(file => `Editor/parser in the built initial graph: ${file}`),
-    ...blockedSources.map(file => `Editor/parser in the source static graph: ${file}`),
+    ...report.forbiddenChunks.map(file => `Deferred implementation in the built initial graph: ${file}`),
+    ...blockedSources.map(file => `Deferred implementation in the source static graph: ${file}`),
   ]
 }
 

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { useGlassLens } from './useGlassLens'
+import { prepareGlassRuntime } from './runtime'
 
 afterEach(() => {
   cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals()
@@ -27,7 +28,10 @@ describe('lens optics mode lifecycle', () => {
     document.body.appendChild(track); document.documentElement.dataset.uiStyle = 'classic'
     const { result, rerender, unmount } = renderHook(({ enabled }) => useGlassLens({current: track}, {kind: 'segment', index: 1, count: 3, enabled}), {initialProps: {enabled: true}})
     expect(encode).not.toHaveBeenCalled(); expect(document.querySelectorAll('filter')).toHaveLength(0)
-    const mode = async (value: string) => { await act(async () => { document.documentElement.dataset.uiStyle = value; await Promise.resolve() }) }
+    const mode = async (value: 'classic' | 'liquid_glass') => {
+      await prepareGlassRuntime(value)
+      await act(async () => { document.documentElement.dataset.uiStyle = value; await Promise.resolve() })
+    }
     await mode('liquid_glass')
     expect(document.querySelectorAll('filter')).toHaveLength(2); expect(encode).toHaveBeenCalled()
     act(() => result.current.press(100, 20)); expect(requestAnimationFrame).toHaveBeenCalled()
