@@ -156,7 +156,10 @@ export function installLensOptics(element: HTMLElement, initial: LensOpticsOptio
     const read = (name: string) => parseColor(resolve(name), resolve)
     let role = options.role ?? resolveGlassRole(element)
     const explicitTint = element.dataset.glassTint ? parseColor(element.dataset.glassTint, resolve) : undefined
-    if (role === 'regular' && explicitTint) role = 'tinted'
+    const selected = element.dataset.glassSelected === 'true'
+    const enabled = !element.matches(':disabled,[aria-disabled="true"]')
+    // GlassControlModifier: selected items retain tint; disabled ordinary actions use regular.
+    if (role === 'tinted' || role === 'regular' && (explicitTint || selected)) role = enabled || selected ? 'tinted' : 'regular'
     const dark = options.dark ?? root.dataset.mode === 'dark'
     const theme = {
       surfaceContainerHighest: read('--md-surface-container-highest'), surfaceBright: read('--md-surface-bright'),
@@ -213,7 +216,7 @@ export function installLensOptics(element: HTMLElement, initial: LensOpticsOptio
   resize.observe(element)
   const mutations = new MutationObserver(schedule)
   mutations.observe(root, { attributes: true, attributeFilter: ['data-mode', 'data-theme', 'style'] })
-  mutations.observe(element, { attributes: true, attributeFilter: ['data-glass-role', 'data-glass-style', 'data-glass-tint', 'class', 'hidden'] })
+    mutations.observe(element, { attributes: true, attributeFilter: ['data-glass-role', 'data-glass-style', 'data-glass-tint', 'data-glass-selected', 'disabled', 'aria-disabled', 'class', 'hidden'] })
   const destroy = () => {
     if (destroyed) return
     destroyed = true; ready = false; resize.disconnect(); mutations.disconnect()

@@ -88,6 +88,30 @@ describe('static material definition ownership', () => {
     first.controller.configure({target: 'backdrop'})
     expect(first.element.style.getPropertyValue('--glass-content-optics-filter')).toBe('')
   })
+  it('uses regular glass for a disabled unselected tinted action and restores its tint when enabled', async () => {
+    const action = pane({role: 'tinted'}, '#6750a4')
+    const enabledTint = action.element.style.getPropertyValue('--glass-style-tint')
+    action.element.disabled = true
+    await Promise.resolve(); await Promise.resolve()
+    expect(action.element.style.getPropertyValue('--glass-style-tint')).toBe('rgba(253, 253, 253, 0.5411764705882353)')
+    action.element.disabled = false
+    await Promise.resolve(); await Promise.resolve()
+    expect(action.element.style.getPropertyValue('--glass-style-tint')).toBe(enabledTint)
+  })
+  it('retains selected tint when disabled and observes accessible disabled-state changes', async () => {
+    const action = pane({}, '#6750a4')
+    const selectedTint = action.element.style.getPropertyValue('--glass-style-tint')
+    action.element.dataset.glassSelected = 'true'
+    action.element.setAttribute('aria-disabled', 'true')
+    await Promise.resolve(); await Promise.resolve()
+    expect(action.element.style.getPropertyValue('--glass-style-tint')).toBe(selectedTint)
+    action.element.dataset.glassSelected = 'false'
+    await Promise.resolve(); await Promise.resolve()
+    expect(action.element.style.getPropertyValue('--glass-style-tint')).toBe('rgba(253, 253, 253, 0.5411764705882353)')
+    action.element.removeAttribute('aria-disabled')
+    await Promise.resolve(); await Promise.resolve()
+    expect(action.element.style.getPropertyValue('--glass-style-tint')).toBe(selectedTint)
+  })
   it('moves root-theme consumers together while retaining an explicitly light consumer', async () => {
     const first = pane(), second = pane(), pinned = pane({dark: false}), lightUrl = pinned.url()
     document.documentElement.dataset.mode = 'dark'
