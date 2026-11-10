@@ -240,7 +240,7 @@ function ManualTimeSlotEditor({
                 next[i] = { ...r, start: e.target.value }
                 onRowsChange(next)
               }}
-              style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
+              style={{ ...fieldStyle, flex: 1, minWidth: 0, textAlign: 'center' }}
             />
             <input
               type="time"
@@ -251,7 +251,7 @@ function ManualTimeSlotEditor({
                 next[i] = { ...r, end: e.target.value }
                 onRowsChange(next)
               }}
-              style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
+              style={{ ...fieldStyle, flex: 1, minWidth: 0, textAlign: 'center' }}
             />
             {rows.length > 1 ? (
               <button

@@ -29,7 +29,7 @@ import {
 } from '../../domain/smartPeriod'
 import { previewPeriodTableChange } from '../../domain/periodTablePreview'
 import { validatePeriodRows, periodValidationMessage } from '../../domain/periodValidation'
-import { isTableNameTaken } from './periodTableNames'
+import { suggestUniqueName } from './periodTableNames'
 import { TimeSlotSection } from './TimeSlotSection'
 import { SettingsScaffold } from './shared'
 import {
@@ -152,7 +152,7 @@ export function PeriodTableEditView({
   const handleCopy = async () => {
     const courseNames = allTables.map((tb) => tb.name)
     const periodNames = (await db.periodTables.toArray()).map((p) => p.name)
-    setCopyName(isTableNameTaken('', courseNames, periodNames) ? '' : pt.name + '2')
+    setCopyName(suggestUniqueName(pt.name,courseNames,periodNames))
     setShowCopyDialog(true)
   }
 
@@ -168,11 +168,10 @@ export function PeriodTableEditView({
   }
 
   return (
-    <SettingsScaffold title={t('period_tables_title')} onBack={handleBack} gap={14}>
-      <TopBar
+    <SettingsScaffold title={t('period_tables_title')} onBack={handleBack} gap={14} actions={<TopBar
         onShare={() => setShowShareSheet(true)}
         onCopy={handleCopy}
-      />
+      />}>
       {/* 名称 */}
       <div style={{ padding: 16, borderRadius: 28, background: 'var(--md-surface-container)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <FilledTextField
@@ -277,6 +276,7 @@ export function PeriodTableEditView({
           onConfirm={async () => {
             setShowCopyDialog(false)
             await copyPeriodTableAs(pt.id, copyName)
+            onSaved()
           }}
           onDismiss={() => setShowCopyDialog(false)}
         />
@@ -293,12 +293,12 @@ export function PeriodTableEditView({
 function TopBar({ onShare, onCopy }: { onShare: () => void; onCopy: () => void }) {
   const { t } = useTranslation()
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
       <button
         aria-label={t('period_table_share_sheet_title')}
         onClick={onShare}
         style={{
-          width: 40, height: 40, borderRadius: 20, border: 'none', background: 'transparent',
+          width: 48, height: 48, borderRadius: 24, border: 'none', background: 'transparent',
           color: 'var(--md-on-background)', cursor: 'pointer', display: 'inline-flex',
           alignItems: 'center', justifyContent: 'center',
         }}
@@ -307,7 +307,7 @@ function TopBar({ onShare, onCopy }: { onShare: () => void; onCopy: () => void }
         aria-label={t('period_table_copy')}
         onClick={onCopy}
         style={{
-          width: 40, height: 40, borderRadius: 20, border: 'none', background: 'transparent',
+          width: 48, height: 48, borderRadius: 24, border: 'none', background: 'transparent',
           color: 'var(--md-on-background)', cursor: 'pointer', display: 'inline-flex',
           alignItems: 'center', justifyContent: 'center',
         }}

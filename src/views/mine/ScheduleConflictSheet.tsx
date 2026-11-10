@@ -43,10 +43,11 @@ export function ScheduleConflictBottomSheet({
       }}
     >
       <div
+        role="dialog" aria-modal="true" aria-label={t('schedule_conflict_dialog_title')}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 520, background: 'var(--md-surface-container-low)',
-          borderRadius: '28px 28px 0 0', padding: '20px 20px calc(32px + env(safe-area-inset-bottom))',
+          borderRadius: '28px 28px 0 0', padding: '20px 16px calc(32px + env(safe-area-inset-bottom))',maxHeight:'90dvh',overflowY:'auto',
         }}
       >
         <div className="m3-title-medium" style={{ fontWeight: 600, color: 'var(--md-on-surface)' }}>
