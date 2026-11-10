@@ -1,0 +1,39 @@
+/* MineScreen.kt: a 16dp page/list gap, flat surfaceContainer cards, 68dp settings rows. */
+.mine-home {
+  height: 100%; min-height: 0; overflow: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 16px;
+  background: var(--md-background); color: var(--md-on-background);
+}
+.mine-home > * { flex-shrink: 0; }
+.mine-home-header h1 { margin: 0; font-weight: 700; }
+.mine-home-header p { margin: 4px 0 0; color: var(--md-on-surface-variant); }
+.mine-home-stats {
+  display: flex; align-items: center; justify-content: space-evenly;
+  padding: 18px 8px; border-radius: 16px; background: var(--md-surface-container);
+}
+.mine-home-stat {
+  display: flex; flex-direction: column; align-items: center; min-width: 0;
+  padding: 4px 12px; border: 0; border-radius: 12px; background: transparent;
+  color: inherit; font: inherit; cursor: pointer; touch-action: manipulation;
+}
+.mine-home-stat-value { font-weight: 700; color: var(--md-primary); font-variant-numeric: tabular-nums; }
+.mine-home-stat-label { color: var(--md-on-surface-variant); }
+.mine-home-stat-divider { height: 36px; width: 1px; flex-shrink: 0; background: color-mix(in srgb, var(--md-outline) 30%, transparent); }
+.mine-home-section { margin: 0; font-weight: 600; }
+.mine-home-group { border-radius: 16px; overflow: hidden; background: var(--md-surface-container); }
+.mine-home-item {
+  display: flex; align-items: center; width: 100%; min-height: 68px;
+  padding: 14px 16px; border: 0; background: var(--md-surface-container);
+  color: var(--md-on-surface); font: inherit; text-align: start; cursor: pointer; touch-action: manipulation;
+}
+.mine-home-item[data-highlighted] { background: color-mix(in srgb, var(--md-primary) 10%, var(--md-surface-container)); }
+.mine-home-item-icon {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px;
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.mine-home-item-label { margin-inline-start: 16px; min-width: 0; overflow-wrap: anywhere; }
+.mine-home-divider { height: 1px; margin-inline-start: 72px; background: color-mix(in srgb, var(--md-outline) 30%, transparent); }
+.mine-home :is(.mine-home-item, .mine-home-stat):hover { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--md-on-surface) 8%, transparent); }
+.mine-home :is(.mine-home-item, .mine-home-stat):active { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--md-on-surface) 12%, transparent); }
+.mine-home button:focus-visible { outline: 2px solid var(--md-primary); outline-offset: -2px; }
