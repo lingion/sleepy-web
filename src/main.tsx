@@ -1,13 +1,14 @@
+import { prepareStartupData } from './startup/data'
 import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
-import { App } from './App'
-import { initI18n } from './i18n'
-import { seedSampleTable } from './data/sampleTable'
+import { flushSync } from 'react-dom'
+import { App, preloadInitialRoute } from './App'
+import { createStartup } from './startup/prepare'
 import { usePrefsStore } from './state/prefsStore'
-import { loadPublicSchedule, publicScheduleEnabled } from './publicSchedule'
 import { publicAccessGranted, publicAccessRequired, grantPublicAccess } from './publicAccess'
 import './theme/global.css'
 import { appAssetUrl } from './appAssetUrl'
+import { discardInitialScheduleData } from './startup/scheduleData'
 
 function PublicAccessGate({ onGranted }: { onGranted: () => void }) {
   const [key, setKey] = useState('')
@@ -25,26 +26,34 @@ function PublicAccessGate({ onGranted }: { onGranted: () => void }) {
   )
 }
 
-function Bootstrap() {
-  const load = usePrefsStore((s) => s.load)
+// Route code and persisted data prepare concurrently. StrictMode joins this
+// promise instead of reseeding the database or downloading the public file twice.
+export const prepareStartup = createStartup({
+  prepareData: prepareStartupData,
+  prepareRoute: () => preloadInitialRoute(),
+})
+if (!publicAccessRequired() || publicAccessGranted()) void prepareStartup().catch(() => {})
+
+export function Bootstrap({ initialError = null }: { initialError?: string | null } = {}) {
   const loaded = usePrefsStore((s) => s.loaded)
   const [authorized, setAuthorized] = useState(!publicAccessRequired() || publicAccessGranted())
-  const [publicLoaded, setPublicLoaded] = useState(!publicScheduleEnabled())
-  const [publicError, setPublicError] = useState<string | null>(null)
+  const [publicLoaded, setPublicLoaded] = useState(prepareStartup.isReady)
+  const [publicError, setPublicError] = useState<string | null>(initialError)
 
   useEffect(() => {
-    if (!authorized) return
-    initI18n('system')
-    const prepare = publicScheduleEnabled() ? loadPublicSchedule() : seedSampleTable()
-    // 公开课表或示例课表落库后再载入偏好，首屏只读取完整状态。
-    void prepare
-      .catch((error) => {
-        setPublicError(error instanceof Error ? error.message : String(error))
-        throw error
-      })
-      .then(() => load())
-      .then(() => setPublicLoaded(true), () => setPublicLoaded(true))
-  }, [authorized, load])
+    if (publicLoaded) discardInitialScheduleData()
+  }, [publicLoaded])
+
+  useEffect(() => {
+    if (!authorized || publicLoaded || publicError) return
+    let active = true
+    void prepareStartup().then(() => {
+      if (active) setPublicLoaded(true)
+    }, error => {
+      if (active) setPublicError(error instanceof Error ? error.message : String(error))
+    })
+    return () => { active = false }
+  }, [authorized, publicLoaded, publicError])
 
   if (!authorized) return <PublicAccessGate onGranted={() => setAuthorized(true)} />
   if (publicError) {
@@ -72,8 +81,23 @@ if ('serviceWorker' in navigator && (window.isSecureContext || import.meta.env.D
   })
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <Bootstrap />
-  </React.StrictMode>
-)
+const root = ReactDOM.createRoot(document.getElementById('root')!)
+const initialPage = (initialError: string | null = null) => <React.StrictMode><Bootstrap initialError={initialError} /></React.StrictMode>
+const commitInitialPage = (error: string | null = null) => {
+  // This continuation performs real rendering only. No top-level await or load
+  // listener waits for startup, and the complete boot snapshot is still alive.
+  flushSync(() => root.render(initialPage(error)))
+}
+
+if (publicAccessRequired() && !publicAccessGranted()) {
+  // The gate remains usable before any authorized disk or public-file work.
+  root.render(initialPage())
+} else if (prepareStartup.isReady()) {
+  commitInitialPage()
+} else {
+  // Avoid committing a null Bootstrap and then enqueueing the real first page
+  // as a separate concurrent update after database/language preparation.
+  void prepareStartup().then(() => commitInitialPage(), error => {
+    commitInitialPage(error instanceof Error ? error.message : String(error))
+  })
+}

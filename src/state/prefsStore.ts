@@ -15,7 +15,7 @@ import { observeCourseHues, refreshCourseHues } from '../data/courseHueStore'
 interface PrefsState {
   prefs: Prefs
   loaded: boolean
-  load: () => Promise<void>
+  load: (initialPrefs?: Prefs) => Promise<void>
   update: (patch: Partial<Prefs>) => Promise<void>
 }
 
@@ -23,8 +23,8 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
   prefs: { ...DEFAULT_PREFS },
   loaded: false,
 
-  load: async () => {
-    const prefs = await loadPrefs()
+  load: async (initialPrefs) => {
+    const prefs = initialPrefs ?? await loadPrefs()
     set({ prefs, loaded: true })
     syncSideEffects(prefs)
     await refreshCourseHues(prefs, resolveIsDark(prefs)).catch(() => 0)

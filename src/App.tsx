@@ -8,7 +8,8 @@
  * 左课表固定/右 Today·Manage·Mine 的 Master-Detail 双栏。
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { startTransition, Suspense, useEffect, useRef, useState } from 'react'
+import { lazyPage, PageSuspense } from './startup/lazyPage'
 import { GlassControls } from './components/glass/GlassControls'
 import { GlassNavigation } from './components/glass/GlassNavigation'
 import { useTranslation } from 'react-i18next'
@@ -18,15 +19,32 @@ import { useTabletLayout } from './state/tabletLayout'
 import { TabletNavRail } from './components/TabletNavRail'
 import { abandonPendingTable } from './state/pendingTable'
 import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './components/icons'
+// The default route is part of the HTML's static modulepreload graph. Its
+// editors stay lazy, so it no longer starts a second request waterfall at boot.
 import { ScheduleView } from './views/ScheduleView'
-import { TodayView } from './views/TodayView'
-import { ManageView } from './views/ManageView'
-import { MineView } from './views/MineView'
-import { publicScheduleEnabled } from './publicSchedule'
+const TodayView = lazyPage(() => import('./views/TodayView').then(module => ({ default: module.TodayView })))
+const ManageView = lazyPage(() => import('./views/ManageView').then(module => ({ default: module.ManageView })))
+const MineView = lazyPage(() => import('./views/MineView').then(module => ({ default: module.MineView })))
+import { publicScheduleEnabled } from './startup/publicMode'
 import { startReminderEngine, stopReminderEngine } from './domain/reminders/scheduler'
 import { useReminderStore } from './state/reminderStore'
-import { DailyAgendaPage } from './views/DailyAgendaPage'
+const DailyAgendaPage = lazyPage(() => import('./views/DailyAgendaPage').then(module => ({ default: module.DailyAgendaPage })))
 import { agendaDateFromHash } from './domain/reminders/agenda'
+
+/** Fetch only visible panes and the current deep-link destination during boot. */
+export async function preloadInitialRoute(hash = window.location.hash): Promise<void> {
+  if (publicScheduleEnabled()) return
+  if (agendaDateFromHash(hash)) { await DailyAgendaPage.preload(); return }
+  const tab = tabFromHash(hash)
+  const split = window.innerWidth >= 600 && window.innerWidth >= window.innerHeight && chainFromHash(hash).length === 0
+  const routes = { schedule: null, today: TodayView, manage: ManageView, mine: MineView }
+  await Promise.all([
+    routes[tab]?.preload(),
+    split && tab === 'schedule' ? TodayView.preload() : undefined,
+    tab === 'mine' ? import('./views/MineView').then(module => module.preloadMineRoute(hash)) : undefined,
+    tab === 'manage' ? import('./views/ManageView').then(module => module.preloadManageRoute(hash)) : undefined,
+  ])
+}
 
 type Tab = TabKey
 
@@ -55,6 +73,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>(() => publicSchedule ? 'schedule' : tabFromHash(window.location.hash))
   const [agendaDate, setAgendaDate] = useState(() => agendaDateFromHash(window.location.hash))
   const [dockExtra, setDockExtra] = useState(76)
+  const [routeError, setRouteError] = useState<string | null>(null)
   const pushTab = useBackStack((s) => s.pushTab)
   const replaceTab = useBackStack((s) => s.replaceTab)
   // 平板横屏 Master-Detail (SleepyNavHost.kt:484-494): 宽≥600 且 宽≥高 → 左课表固定 + 右 Today/Manage/Mine。
@@ -62,7 +81,13 @@ export function App() {
   // 课表页弹层族 (详情/切表/跳周/分享) 是 fixed 浮层, 不拆栏 (Android 本就是 sheet/dialog 局部层)。
   const tablet = useTabletLayout()
   const stack = useBackStack((s) => s.stack)
-  const fullOverlay = stack.some((k) => !PANE_DIALOG_KEYS.has(k))
+  const [initialHash] = useState(() => window.location.hash)
+  const [navigationRestored, setNavigationRestored] = useState(() => chainFromHash(initialHash).length === 0)
+  const navigationStarted = useRef(false)
+  // Lazy children must see the destination from the very first render, before
+  // the history-restoration effect runs (including notification deep links).
+  const activeStack = navigationRestored ? stack : chainFromHash(initialHash)
+  const fullOverlay = activeStack.some((k) => !PANE_DIALOG_KEYS.has(k))
   const tabletSplit = tablet && !publicSchedule && !fullOverlay
 
   // tab hash 首次进入不新增历史;之后点击 tab 写入独立地址。
@@ -73,40 +98,48 @@ export function App() {
       setTab('schedule')
       return
     }
-    const chain = chainFromHash(window.location.hash)
-    if (chain.length > 0) restoreChain(chain, window.location.hash)
-    else if (window.location.hash) replaceTab(tab)
-    else pushTab(tab)
+    if (!navigationStarted.current) {
+      navigationStarted.current = true
+      const chain = chainFromHash(initialHash)
+      if (chain.length > 0) restoreChain(chain, initialHash)
+      else if (initialHash) replaceTab(tab)
+      else pushTab(tab)
+    }
+    setNavigationRestored(true)
     return installBackHandler((popped, hash) => {
       // 浏览器返回退出 EditTable → 未保存的新表就地丢弃
       // (MainActivity:271-277 BackHandler 在 popOverlay 之前先 discardNewTable)。
       if (popped === 'editTable') void abandonPendingTable()
       // 二级层由其所在视图处理;退回 tab 层时 hash 直接决定当前 tab。
       const next = tabFromHash(hash)
-      setTab(next)
+      startTransition(() => setTab(next))
       setAgendaDate(agendaDateFromHash(hash))
     })
   }, [])
 
   useEffect(() => {
+    let active = true
     const openAgenda = (event: Event) => {
       const hash = (event as CustomEvent<unknown>).detail
       if (typeof hash !== 'string') return
       const date = agendaDateFromHash(hash)
       if (!date) return
-      useBackStack.getState().pushTab('today')
-      useBackStack.getState().push('dailyAgenda', hash)
-      setTab('today')
-      setAgendaDate(date)
+      void DailyAgendaPage.preload().then(() => {
+        if (!active) return
+        setRouteError(null)
+        useBackStack.getState().pushTab('today')
+        useBackStack.getState().push('dailyAgenda', hash)
+        startTransition(() => { setTab('today'); setAgendaDate(date) })
+      }, error => { if (active) setRouteError(String(error)) })
     }
     window.addEventListener('sleepy:open-agenda', openAgenda)
-    return () => window.removeEventListener('sleepy:open-agenda', openAgenda)
+    return () => { active = false; window.removeEventListener('sleepy:open-agenda', openAgenda) }
   }, [])
 
   const selectTab = (next: Tab) => {
     if (publicSchedule || next === tab) return
     pushTab(next)
-    setTab(next)
+    startTransition(() => setTab(next))
   }
 
   // 提醒引擎 (页内定时器, CourseNotificationScheduler 对位): 常驻挂载, 提醒配置一变即重排。
@@ -149,7 +182,7 @@ export function App() {
         ['mine', t('tab_mine', '我的')],
       ]
 
-  if (agendaDate && stack.includes('dailyAgenda')) return <><GlassControls style={uiStyle} /><DailyAgendaPage date={agendaDate} onBack={() => { useBackStack.getState().pop(); setAgendaDate(null) }} /></>
+  if (agendaDate && activeStack.includes('dailyAgenda')) return <><GlassControls style={uiStyle} /><Suspense fallback={null}><DailyAgendaPage date={agendaDate} onBack={() => { useBackStack.getState().pop(); setAgendaDate(null) }} /></Suspense></>
 
   // ── 平板横屏 Master-Detail (SleepyNavHost.kt:494-657) ─────────────────
   // 左 50% = 课表永久固定; 右 50% = Today/Manage/Mine 跟 rail 切;
@@ -178,7 +211,7 @@ export function App() {
               overflow: 'auto',
             }}
           >
-            <ScheduleView navExtraBottom={0} readOnly={publicSchedule} />
+            <Suspense fallback={null}><ScheduleView navExtraBottom={0} readOnly={publicSchedule} /></Suspense>
           </div>
           {/* 暗色沟槽 12dp (Android gap Box, 背景=background) */}
           <div style={{ width: 12, flexShrink: 0, background: 'var(--md-background)' }} />
@@ -191,9 +224,11 @@ export function App() {
               overflow: 'auto',
             }}
           >
+            <Suspense fallback={null}>
             {rightTab === 'today' && <TodayView navExtraBottom={0} />}
             {rightTab === 'manage' && <ManageView navExtraBottom={0} />}
             {rightTab === 'mine' && <MineView navExtraBottom={0} />}
+            </Suspense>
           </div>
         </div>
       </div>
@@ -214,6 +249,8 @@ export function App() {
           2026-10-28 复报定案)。App 内不再渲染 h1,否则文档双 H1;各 tab 内容标题
           维持 m3-title-large div(Android TopAppBar 1:1 对齐不许动)。 */}
       <GlassControls style={uiStyle} />
+      {routeError && <p role="alert">{t('read_failed', { v1: routeError })}</p>}
+      <PageSuspense>
       <main key={tab} className="app-page-transition" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {tab === 'schedule' && <ScheduleView navExtraBottom={!fullOverlay && navDock ? dockExtra : 0} readOnly={publicSchedule} />}
         {tab === 'today' && <TodayView navExtraBottom={!fullOverlay && navDock ? dockExtra : 0} />}
@@ -225,6 +262,7 @@ export function App() {
         </div>
       )}
       </main>
+      </PageSuspense>
       {/* 局部弹层保留主页面和底栏；完整子页才离开底栏目的地。 */}
       {!publicSchedule && !fullOverlay && <GlassNavigation
         ref={dockNavRef} items={items.map(([key, label]) => ({ key, label, icon: TAB_ICONS[key] }))}

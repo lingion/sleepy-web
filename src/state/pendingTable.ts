@@ -9,7 +9,6 @@
  */
 
 import { create } from 'zustand'
-import { createEmptyTable, discardNewTable, getDefaultTable } from '../data/repository'
 
 interface PendingTableState {
   pendingId: number | null
@@ -27,6 +26,7 @@ export const usePendingTable = create<PendingTableState>((set) => ({
 
 /** 任一「新建课表」入口的统一动线: 建空表(不切选中) + 记住原默认表, 返回新表 id。 */
 export async function beginNewTable(): Promise<number> {
+  const { createEmptyTable, getDefaultTable } = await import('../data/repository')
   const previousId = (await getDefaultTable())?.id ?? null
   const newId = await createEmptyTable(false)
   usePendingTable.getState().begin(newId, previousId)
@@ -39,5 +39,5 @@ export function abandonPendingTable(): Promise<void> {
   const { pendingId, previousId, clear } = usePendingTable.getState()
   clear()
   if (pendingId == null) return Promise.resolve()
-  return discardNewTable(pendingId, previousId)
+  return import('../data/repository').then(({ discardNewTable }) => discardNewTable(pendingId, previousId))
 }

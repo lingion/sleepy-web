@@ -8,25 +8,28 @@
  * editTable 由 AllTablesPage 内部自管, 不在此列。教务导入入口在管理页 (Android ImportSheet 同构)。
  */
 
-import { useEffect, useState } from 'react'
+import { startTransition, useEffect, useState } from 'react'
+import { lazyPage, PageSuspense } from '../startup/lazyPage'
+import { preparePageTranslations } from '../i18n'
 import { chainFromHash, installBackHandler, useBackStack, type BackKey } from '../state/backStack'
-import { ExportView } from './ExportView'
+const ExportView = lazyPage(() => import('./ExportView').then(module => ({ default: module.ExportView })))
 import { MineHome } from './mine/MineHome'
-import { GeneralSettingsPage } from './mine/GeneralSettingsPage'
-import { AppearancePage } from './mine/AppearancePage'
-import { HolidayPage } from './mine/HolidayPage'
-import { ReminderPage } from './mine/ReminderPage'
-import { TableReminderPage } from './mine/TableReminderPage'
-import { AboutPage } from './mine/AboutPage'
-import { LicensePage } from './mine/LicensePage'
-import { AllTablesPage } from './mine/AllTablesPage'
-import { PeriodTablesPage } from './mine/PeriodTablesPage'
-import { CustomThemeEditorView } from './mine/CustomThemeEditorView'
-import { CourseListPage } from './mine/CourseListPage'
-import { PeriodHeaderSettingsPage } from './mine/PeriodHeaderSettingsPage'
-import { WidgetGalleryPage, WidgetManagementPage } from './mine/WidgetGalleryPage'
-import { WidgetSettingsPage } from './mine/WidgetSettingsPage'
-import { ScheduleDisplayPage } from './mine/ScheduleDisplayPage'
+const GeneralSettingsPage = lazyPage(() => import('./mine/GeneralSettingsPage').then(module => ({ default: module.GeneralSettingsPage })))
+const AppearancePage = lazyPage(() => import('./mine/AppearancePage').then(module => ({ default: module.AppearancePage })))
+const HolidayPage = lazyPage(() => import('./mine/HolidayPage').then(module => ({ default: module.HolidayPage })))
+const ReminderPage = lazyPage(() => import('./mine/ReminderPage').then(module => ({ default: module.ReminderPage })))
+const TableReminderPage = lazyPage(() => import('./mine/TableReminderPage').then(module => ({ default: module.TableReminderPage })))
+const AboutPage = lazyPage(() => import('./mine/AboutPage').then(module => ({ default: module.AboutPage })))
+const LicensePage = lazyPage(() => import('./mine/LicensePage').then(module => ({ default: module.LicensePage })), preparePageTranslations)
+const AllTablesPage = lazyPage(() => import('./mine/AllTablesPage').then(module => ({ default: module.AllTablesPage })))
+const PeriodTablesPage = lazyPage(() => import('./mine/PeriodTablesPage').then(module => ({ default: module.PeriodTablesPage })))
+const CustomThemeEditorView = lazyPage(() => import('./mine/CustomThemeEditorView').then(module => ({ default: module.CustomThemeEditorView })))
+const CourseListPage = lazyPage(() => import('./mine/CourseListPage').then(module => ({ default: module.CourseListPage })))
+const PeriodHeaderSettingsPage = lazyPage(() => import('./mine/PeriodHeaderSettingsPage').then(module => ({ default: module.PeriodHeaderSettingsPage })))
+const WidgetGalleryPage = lazyPage(() => import('./mine/WidgetGalleryPage').then(module => ({ default: module.WidgetGalleryPage })))
+const WidgetManagementPage = lazyPage(() => import('./mine/WidgetGalleryPage').then(module => ({ default: module.WidgetManagementPage })))
+const WidgetSettingsPage = lazyPage(() => import('./mine/WidgetSettingsPage').then(module => ({ default: module.WidgetSettingsPage })))
+const ScheduleDisplayPage = lazyPage(() => import('./mine/ScheduleDisplayPage').then(module => ({ default: module.ScheduleDisplayPage })))
 
 type Page =
   | 'main' | 'general' | 'appearance' | 'holiday' | 'export' | 'alltables' | 'about' | 'reminder' | 'license'
@@ -59,7 +62,26 @@ export function minePageFromHash(hash: string): Page {
   }
 }
 
-export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
+/** Bootstrap waits for the actual deep-link page, not every settings page. */
+export async function preloadMineRoute(hash: string): Promise<void> {
+  const pages = {
+    main: null, general: GeneralSettingsPage, appearance: AppearancePage,
+    holiday: HolidayPage, export: ExportView, alltables: AllTablesPage,
+    about: AboutPage, reminder: ReminderPage, license: LicensePage,
+    widgetGallery: WidgetGalleryPage, widgetManagement: WidgetManagementPage,
+    backup: GeneralSettingsPage, widgets: WidgetSettingsPage,
+    customTheme: CustomThemeEditorView, periodTables: PeriodTablesPage,
+    courseList: CourseListPage, periodHeader: PeriodHeaderSettingsPage,
+    scheduleDisplay: ScheduleDisplayPage, tableReminder: TableReminderPage,
+  }
+  await pages[minePageFromHash(hash)]?.preload()
+}
+
+export function MineView(props: { navExtraBottom?: number }) {
+  return <PageSuspense><MineContent {...props} /></PageSuspense>
+}
+
+function MineContent({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const [page, setPage] = useState<Page>(() => minePageFromHash(window.location.hash))
   // 编辑器微调目标: null = 新建 (Android editingTheme 同构)
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
@@ -67,9 +89,12 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
   const push = useBackStack((s) => s.push)
 
   // 浏览器返回时同步本地 page state;否则只弹历史而页面仍停在二级页。
-  useEffect(() => installBackHandler((key) => {
+  useEffect(() => installBackHandler((key) => startTransition(() => {
     // 只收回属于本页的层 — 别的 tab 的弹层 (课程详情/周次跳转…) 弹出时不得误跳
-    if (key === 'holiday') setPage(useBackStack.getState().peek() === 'reminder' ? 'reminder' : 'main')
+    if (key === 'holiday') {
+      const parent = useBackStack.getState().peek()
+      setPage(parent === 'reminder' ? 'reminder' : parent === 'general' ? 'general' : 'main')
+    }
     else if (key === 'widgetGallery') setPage('widgetManagement')
     else if (key === 'widgetManagement') setPage('widgets')
     else if (key === 'tableReminder') setPage('reminder')
@@ -79,17 +104,17 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
     else if (key === 'periodHeader') setPage('scheduleDisplay')
     else if (key === 'scheduleDisplay') setPage(useBackStack.getState().peek() === 'widgets' ? 'widgets' : 'appearance')
     else if (MINE_KEYS.has(key ?? '')) setPage('main')
-  }), [])
+  })), [])
 
   // 二级页导航接线返回栈 (MainActivity pushOverlay/popOverlay 同构):
   // 进页 push(浏览器返回可出栈), 返回按钮 pop(每层只弹自己 — v7.10.8 修复语义)。
   const go = (p: Page, key: BackKey) => {
     push(key)
-    setPage(p)
+    startTransition(() => setPage(p))
   }
   const backTo = (p: Page) => {
     back()
-    setPage(p)
+    startTransition(() => setPage(p))
   }
 
   switch (page) {
@@ -101,7 +126,10 @@ export function MineView({ navExtraBottom = 0 }: { navExtraBottom?: number }) {
         />
       )
     case 'holiday':
-      return <HolidayPage onBack={() => backTo(useBackStack.getState().stack[useBackStack.getState().stack.length - 2] === 'reminder' ? 'reminder' : 'main')} />
+      return <HolidayPage onBack={() => {
+        const parent = useBackStack.getState().stack.at(-2)
+        backTo(parent === 'reminder' ? 'reminder' : parent === 'general' ? 'general' : 'main')
+      }} />
     case 'appearance':
       return (
         <AppearancePage

@@ -72,13 +72,13 @@ export function CardsGridView(props: CardsGridViewProps) {
     const measure = () => {
       const style = getComputedStyle(root)
       const width = root.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
-      if (width > 0) setMeasuredWidth(width)
+      if (width > 0) setMeasuredWidth(previous => previous === null && width === containerWidth ? null : width)
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(root)
     return () => observer.disconnect()
-  }, [prefs.gridScale])
+  }, [prefs.gridScale, containerWidth])
   const geo = useMemo(
     () => buildGridGeometry(
       courses,
