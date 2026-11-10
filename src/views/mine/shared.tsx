@@ -123,13 +123,14 @@ export function DisplayModeOption({ label, subtitle, selected, onClick }: { labe
  * ArrowBack 24 onBackground, 标题 titleLarge 起 56) + 内容 PaddingValues(16) / spacedBy(16)。
  * bg: 内容区底色 (TopAppBar 下方, Android Column.background 同位); 内容区撑满剩余高度
  */
-export function SettingsScaffold({ title, onBack, children, bg, gap = 16,actions }: { title: string; onBack: () => void; children: ReactNode; bg?: string; gap?: number;actions?:ReactNode }) {
+export function SettingsScaffold({ title, onBack, children, bg, gap = 16,actions,glassNavigation = true }: { title: string; onBack: () => void; children: ReactNode; bg?: string; gap?: number;actions?:ReactNode;glassNavigation?:boolean }) {
   const { t } = useTranslation()
   return (
     <div style={{ height: '100%', overflow: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', height: 64, flexShrink: 0, padding: '0 4px', color: 'var(--md-on-background)' }}>
         <button
           type="button"
+          data-glass-role={glassNavigation ? 'regular' : undefined} data-glass-icon={glassNavigation ? 'true' : undefined}
           onClick={onBack}
           aria-label={t('back')}
           style={{
@@ -223,7 +224,7 @@ export function SliderRow({
   const [draft, setDraft] = useState(value)
   const baseline=useRef(value)
   const slider=useRef<HTMLDivElement>(null)
-  const lens=useGlassLens(slider)
+  const lens=useGlassLens(slider,{kind:'slider',index:(draft-min)/Math.max(step,max-min)})
   useLayoutEffect(() => setDraft(value), [value])
   const commit = (next: number) => {
     setDraft(next)
@@ -302,7 +303,7 @@ export function Switch({
   checked, onChange, uncheckedTrack = 'var(--md-surface-container-highest)', compact = false, label,
 }: { checked: boolean; onChange: (v: boolean) => void; uncheckedTrack?: string; compact?: boolean; label?: string }) {
   const track=useRef<HTMLButtonElement>(null)
-  const lens=useGlassLens(track)
+  const lens=useGlassLens(track,{kind:'switch',index:checked?1:0,count:2,onSelect:index=>onChange(index===1)})
   const [held, setHeld] = useState(false)
   const drag = useRef<{ x: number; changed: boolean } | null>(null)
   return (
@@ -310,10 +311,10 @@ export function Switch({
       ref={track} className="switch-track" data-glass-motion="off"
       data-held={held}
       onPointerDown={(e) => { if (e.button !== 0) return; drag.current = { x: e.clientX, changed: false }; setHeld(true);lens.press(e.clientX,e.clientY); e.currentTarget.setPointerCapture?.(e.pointerId) }}
-      onPointerMove={(e) => { if(held)lens.move(e.clientX,e.clientY); if (!drag.current || Math.abs(e.clientX - drag.current.x) < 8) return; drag.current.changed = true;const next=e.clientX > drag.current.x;if(next!==checked){haptic();onChange(next)} }}
-      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => { drag.current = null; setHeld(false);lens.release() }}
+      onPointerMove={(e) => { if(held)lens.move(e.clientX,e.clientY); if (!drag.current || Math.abs(e.clientX - drag.current.x) < 8) return; drag.current.changed = true;if(document.documentElement.dataset.uiStyle!=='liquid_glass'){const next=e.clientX > drag.current.x;if(next!==checked){haptic();onChange(next)}} }}
+      onPointerUp={() => {setHeld(false);lens.release()}} onPointerCancel={() => { drag.current = null; setHeld(false);lens.release(true) }}
       type="button"
-      onClick={() => { if (!drag.current?.changed) {haptic();onChange(!checked)}; drag.current = null }}
+      onClick={() => { if(document.documentElement.dataset.uiStyle==='liquid_glass')lens.click(checked?0:1);else if (!drag.current?.changed) {haptic();onChange(!checked)}; drag.current = null }}
       role="switch"
       aria-label={label}
       aria-checked={checked}
@@ -326,6 +327,7 @@ export function Switch({
         transition: 'background 300ms cubic-bezier(0.05, 0.7, 0.1, 1), box-shadow 300ms cubic-bezier(0.05, 0.7, 0.1, 1)',
       }}
     >
+      <span aria-hidden="true" className="switch-backing" style={{'--switch-off':uncheckedTrack} as CSSProperties}/>
       <div
         className="switch-thumb"
         style={{

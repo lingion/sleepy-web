@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { SettingsCard, SliderRow, Switch } from './shared'
+import { SettingsCard, SettingsScaffold, SliderRow, Switch } from './shared'
 
 afterEach(cleanup)
+
+it('keeps the backup navigation ordinary while native GlassTopAppBar navigation opts in', () => {
+  const {rerender}=render(<SettingsScaffold title="备份" onBack={()=>{}} glassNavigation={false}>备份内容</SettingsScaffold>)
+  expect(screen.getByRole('button').hasAttribute('data-glass-role')).toBe(false)
+  rerender(<SettingsScaffold title="通用" onBack={()=>{}}>设置内容</SettingsScaffold>)
+  expect(screen.getByRole('button').dataset.glassRole).toBe('regular')
+})
 
 describe('SettingsCard interaction parity', () => {
   it('toggles once from its title or unhandled static content', () => {

@@ -10,7 +10,7 @@ export function IntRangeSlider({ label, min = 1, max, start, end, initialStart, 
   const ref = useRef<HTMLDivElement>(null)
   const active = useRef<'start' | 'end' | null>(null)
   const startThumb=useRef<HTMLSpanElement>(null),endThumb=useRef<HTMLSpanElement>(null)
-  const startLens=useGlassLens(startThumb),endLens=useGlassLens(endThumb)
+  const startLens=useGlassLens(startThumb,{kind:'slider',index:(start-min)/Math.max(1,max-min)}),endLens=useGlassLens(endThumb,{kind:'slider',index:(end-min)/Math.max(1,max-min)})
   const release=()=>{startLens.release();endLens.release();active.current=null;setHeld(null)}
   const [held, setHeld] = useState<'start' | 'end' | null>(null)
   const values = useRef({ start, end })
