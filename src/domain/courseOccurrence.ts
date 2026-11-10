@@ -28,17 +28,27 @@ export function resolveOccurrence(course: Course, displayDate: string, transfers
 export function coursesForDate(date: string, startDate: string, maxWeek: number, courses: Course[], transfers: HolidayTransferEntry[]): Course[] {
   const source = courseDateForDate(date, transfers)
   const week = source && startDate ? weekOfDate(startDate, source) : 1
-  return courses.filter((course) => {
+  const regular=courses.filter((course) => {
     const fixed = (course as Course & { fixedDate?: string | null }).fixedDate
-    if (fixed) return fixed === date
+    if (fixed) return false
     return source !== null && week !== null && week >= 1 && week <= maxWeek && course.day === weekday(source) && inWeek(course, week)
   })
+  return [...regular,...courses.filter((course)=>(course as Course & {fixedDate?:string|null}).fixedDate===date)]
+}
+export function displayMaxWeek(table:Table|undefined,transfers:HolidayTransferEntry[]):number {
+  if(!table) return 20
+  return Math.max(table.maxWeek,...transfers.filter((entry)=>{const source=weekOfDate(table.startDate,entry.sourceDate);return source>=1&&source<=table.maxWeek}).map((entry)=>weekOfDate(table.startDate,entry.targetDate)))
 }
 export function projectWeekCourses(table: Table, week: number, courses: Course[], transfers: HolidayTransferEntry[]): Course[] {
   if (!table.startDate) return courses.filter((course) => inWeek(course, week))
   return Array.from({ length: 7 }, (_, i) => i + 1).flatMap((day) =>
     coursesForDate(dateOfWeekIso(table.startDate, week, day), table.startDate, table.maxWeek, courses, transfers).map((course) => ({ ...course, day })),
   )
+}
+export function occurrenceAtDate(course: Course, date: string, table: Table, fixed = false): Course {
+  const week = weekOfDate(table.startDate, date)
+  if (!Number.isInteger(week) || week < 1 || week > table.maxWeek) throw new Error('日期需要在本学期内')
+  return { ...course, id: 0, tableId: table.id, day: weekday(date), startWeek: week, endWeek: week, type: 0, fixedDate: fixed ? date : null } as Course
 }
 /** Android CourseOccurrences.without: split only actual weeks and retain parity. */
 export function withoutOccurrence(course: Course, sourceDate: string, startDate: string): Course[] {
@@ -77,7 +87,7 @@ export function mergeMatchingRows(rows: Course[]): Course[] {
         const union = [...new Set([...aw, ...bw])].sort((x, y) => x - y)
         const retained = [a, b].sort((x, y) => (x.id > 0 ? x.id : Infinity) - (y.id > 0 ? y.id : Infinity))[0]
         for (const type of [...new Set([retained.type, 0, 1, 2])]) {
-          const merged = { ...retained, startWeek: union[0], endWeek: union[union.length - 1], type } as Course
+          const merged = { ...retained, startWeek: Math.min(a.startWeek,b.startWeek), endWeek: Math.max(a.endWeek,b.endWeek), type } as Course
           if (JSON.stringify(actualWeeks(merged)) !== JSON.stringify(union)) continue
           result[i] = merged; result.splice(j, 1); changed = true; break search
         }
