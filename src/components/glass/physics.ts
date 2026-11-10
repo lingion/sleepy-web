@@ -33,9 +33,9 @@ export class GlassPressMotion {
   }
   release() { this.held = false; this.dropping = true; this.x.target = 0; this.y.target = 0 }
   tick(dt: number) {
-    this.lift.tick(dt, 320, 25)
-    this.x.tick(dt)
-    this.y.tick(dt)
+    this.lift.tick(dt, 311, 20.915)
+    this.x.tick(dt, 2741.56, 104.72)
+    this.y.tick(dt, 2741.56, 104.72)
     if (this.dropping && this.lift.value >= .975) {
       this.dropping = false
       this.lift.target = 0

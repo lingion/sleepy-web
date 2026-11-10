@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { GlassPressMotion, haptic } from './physics'
+import { installLensOptics } from './optics'
 
 /** One delegated driver also covers controls inside dialogs, portals and settings pages. */
 export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) {
@@ -7,6 +8,7 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
     document.documentElement.dataset.uiStyle = style
     if (style !== 'liquid_glass') return
     const enhanced = new Map<HTMLElement,string>()
+    const optics = new Map<HTMLElement, ReturnType<typeof installLensOptics>>()
     const enhance = (el:HTMLElement) => {
       if(!el.matches('button,[data-glass-control]')) return
       if(el.hasAttribute('data-glass-plain') || el.closest('[data-glass-motion="off"]')) return
@@ -19,14 +21,15 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
       else delete el.dataset.glassIcon
       const background=computed.backgroundColor
       const transparent=background==='transparent' || /rgba\([^)]*,\s*0\)/.test(background)
-      el.style.setProperty('--glass-control-tint',transparent ? 'var(--glass-tint)' : `color-mix(in srgb, ${background} 92%, transparent)`)
+      el.style.setProperty('--glass-control-tint',transparent ? 'var(--glass-tint)' : `color-mix(in srgb, ${background} 36%, transparent)`)
       if(computed.position==='static') el.dataset.glassStatic='true'
       el.classList.add('glass-control')
+      if(!optics.has(el)) optics.set(el, installLensOptics(el))
       enhanced.set(el,signature)
     }
     const scan=(node:Node)=>{if(!(node instanceof Element))return;if(node.matches('button,[data-glass-control]'))enhance(node as HTMLElement);node.querySelectorAll<HTMLElement>('button,[data-glass-control]').forEach(enhance)}
     scan(document.body)
-    const observer=new MutationObserver(records=>{for(const record of records) {if(record.target===document.documentElement){for(const el of [...enhanced.keys()]){enhanced.delete(el);if(el.isConnected)enhance(el)}}else if(record.type==='attributes')enhance(record.target as HTMLElement);else {record.addedNodes.forEach(scan);if(record.removedNodes.length)for(const el of enhanced.keys())if(!el.isConnected)enhanced.delete(el)}}})
+    const observer=new MutationObserver(records=>{for(const record of records) {if(record.target===document.documentElement){for(const el of [...enhanced.keys()]){enhanced.delete(el);if(el.isConnected)enhance(el)}}else if(record.type==='attributes')enhance(record.target as HTMLElement);else {record.addedNodes.forEach(scan);if(record.removedNodes.length)for(const el of enhanced.keys())if(!el.isConnected){enhanced.delete(el);optics.get(el)?.destroy();optics.delete(el)}}}})
     observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class']})
     observer.observe(document.documentElement,{attributes:true,attributeFilter:['style']})
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -41,6 +44,7 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
         motion.tick(dt)
         const lift = Math.max(0, Math.min(1.08, motion.lift.value))
         el.style.setProperty('--glass-lift', String(lift))
+        optics.get(el)?.update(lift)
         el.style.setProperty('--glass-x', `${motion.x.value}px`)
         el.style.setProperty('--glass-y', `${motion.y.value}px`)
         el.style.setProperty('--glass-stretch', String(Math.min(.12, Math.abs(motion.x.velocity + motion.y.velocity) / 1200)))
@@ -83,6 +87,7 @@ export function GlassControls({ style }: { style: 'classic' | 'liquid_glass' }) 
     document.addEventListener('pointercancel', up, true)
     return () => {
       observer.disconnect()
+      optics.forEach(item=>item.destroy())
       for(const el of enhanced.keys()){el.classList.remove('glass-control','glass-moving');el.style.removeProperty('--glass-control-tint');delete el.dataset.glassStatic;delete el.dataset.glassIcon}
       cancelAnimationFrame(frame)
       for (const el of motions.keys()) {
