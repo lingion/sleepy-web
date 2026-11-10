@@ -49,7 +49,8 @@ export default {
     const init: RequestInit = {
       method: request.method,
       headers,
-      redirect: 'error',
+      // workerd accepts follow/manual. Reject redirects explicitly before reading or forwarding them.
+      redirect: 'manual',
       credentials: 'omit',
     }
     if (request.method === 'POST') {
@@ -62,6 +63,10 @@ export default {
     init.signal = controller.signal
     try {
       const upstream = await fetch(targetUrl.toString(), init)
+      if (upstream.status >= 300 && upstream.status < 400) {
+        await upstream.body?.cancel()
+        return json({ error: '上游不允许重定向' }, 502)
+      }
       const contentLength = Number(upstream.headers.get('Content-Length') ?? '0')
       if (contentLength > MAX_RESPONSE_BYTES) {
         await upstream.body?.cancel()
