@@ -737,6 +737,7 @@ function NavCircleBtn({
       disabled={disabled}
       title={title}
       aria-label={title}
+      className="schedule-icon-button"
       style={{
         width: 48,
         height: 48,

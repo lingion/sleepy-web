@@ -320,6 +320,11 @@ button:focus-visible, [role="button"]:focus-visible, [role="slider"]:focus-visib
 :root[data-ui-style="liquid_glass"] .int-range-thumb { width: 14px; background: color-mix(in srgb,var(--md-primary) 78%,transparent); backdrop-filter: blur(8px); box-shadow: inset 0 1px 1px #fff,0 0 0 4px color-mix(in srgb,var(--md-surface) 60%,transparent),0 3px 8px #13255120; border: 1px solid #fff8; }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .001ms !important; transition-duration: .001ms !important; scroll-behavior: auto !important; } }
 /* Group only after spacing and action scaling are exhausted. Keep the full week label. */
+.schedule-icon-button {position:relative;isolation:isolate;}
+.schedule-icon-button > svg {position:relative;z-index:1;width:20px;height:20px;}
+:root:not([data-ui-style="liquid_glass"]) .schedule-icon-button {background:transparent !important;}
+:root:not([data-ui-style="liquid_glass"]) .schedule-icon-button::before {content:'';position:absolute;inset:8px;border-radius:50%;background:var(--md-surface-container-high);pointer-events:none;}
+.schedule-toolbar[data-grouped="true"] .week-controls > .schedule-icon-button::before {display:none;}
 .schedule-toolbar[data-grouped="true"] .week-controls > button {width:32px !important;height:32px !important;border-radius:16px !important;}
 .schedule-toolbar[data-grouped="true"] .week-label {min-height:32px;padding:4px 8px !important;border-radius:0;}
 .schedule-toolbar[data-grouped="true"] .week-controls > div {border-inline:1px solid var(--md-outline-variant);}
