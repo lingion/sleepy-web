@@ -96,6 +96,30 @@ it('browser back from the manual form removes one layer and keeps the target app
   expect(useBackStack.getState().stack).toEqual([])
 })
 
+it('resolves the actual target when manage add is pressed before its live list finishes loading', async () => {
+  await seed()
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const orderBy = db.timetables.orderBy.bind(db.timetables)
+  const held = vi.spyOn(db.timetables, 'orderBy').mockImplementation(index => {
+    const rows = orderBy(index)
+    const read = rows.toArray.bind(rows)
+    rows.toArray = (async () => { await gate; return read() }) as typeof rows.toArray
+    return rows
+  })
+  try {
+    render(<ManageView />)
+    await waitFor(() => expect(held).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /^添加课程/ }))
+    await screen.findByRole('heading', { name: '添加课程' })
+    release()
+    await waitFor(() => expect((screen.getByRole('button', {name:'手动添加课程'}) as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(screen.getByRole('button', {name:'手动添加课程'}))
+    await screen.findByLabelText('课程名 *')
+    expect(await db.timetables.count()).toBe(2)
+  } finally { release(); held.mockRestore() }
+})
+
 it('an absent target disables append methods and cannot turn the operation into a new-table import', async () => {
   render(<ManageView />)
   fireEvent.click(screen.getByRole('button',{name:/^添加课程/}))

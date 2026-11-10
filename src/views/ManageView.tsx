@@ -9,7 +9,7 @@
  * 重命名不入本页 — Android 真源重命名仅发生在 EditTableScreen(名称字段), 经编辑卡完成。
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -48,6 +48,9 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   )
   const [importing, setImporting] = useState(false)
   const [importTargetId,setImportTargetId] = useState<number | null>(null)
+  const pendingAppend = useRef<{ cancelled: boolean } | null>(null)
+  const [entryError, setEntryError] = useState<string | null>(null)
+  useEffect(() => () => { if (pendingAppend.current) pendingAppend.current.cancelled = true }, [])
   // 教务导入层 — 深链直达时初始即开 (restoreChain 已建栈);旧 #/我的/教务导入 别名同判
   const [jwImporting, setJwImporting] = useState(() => {
     const chain = chainFromHash(window.location.hash)
@@ -88,6 +91,24 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
     show()
   }
   const leave = () => back()
+
+  const openAppendEntry = async () => {
+    if (pendingAppend.current) return
+    const request = { cancelled: false }
+    pendingAppend.current = request
+    setEntryError(null)
+    try {
+      // A first-frame click must not freeze a not-yet-loaded live query as target 0.
+      const current = await db.timetables.toArray()
+      if (request.cancelled) return
+      const target = current.find(table => table.isDefault === 1)?.id ?? 0
+      open('addCourse', () => { setImportTargetId(target); setImporting(true) })
+    } catch (error) {
+      if (!request.cancelled) setEntryError(t('read_failed', { v1: String(error) }))
+    } finally {
+      if (pendingAppend.current === request) pendingAppend.current = null
+    }
+  }
 
   if (jwImporting) {
     return <JwImportView onBack={() => { leave(); setJwImporting(false) }} />
@@ -161,6 +182,8 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
       >
         {t('tab_manage')}
       </h1>
+
+      {entryError && <p role="alert" style={{ color: 'var(--md-error)' }}>{entryError}</p>}
 
       {list.length === 0 && (
         <p className="m3-body-medium" style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>
@@ -246,7 +269,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
           icon={IconAdd}
           title={t('manage_manual_add')}
           subtitle={t('manage_manual_add_sub')}
-          onClick={() => open('addCourse', () => {setImportTargetId(defaultTable?.id ?? 0);setImporting(true)})}
+          onClick={() => { void openAppendEntry() }}
         />
         <ManageCard
           icon={IconEdit}
