@@ -121,3 +121,78 @@ The complete school directory, status badges, search, alphabet navigation, city 
 全局语言资源由主线管理。当前调用点下列键在本地语言注册中缺失，组件暂用明确的中文缺省文案：`add_course_from_existing`、`add_course_no_source`、`import_backup_original`、`import_append_conflicts_option`、`import_new_period_table`、`import_select_courses`、`deselect_all`、`select_all`、`import_selection_empty`、`confirm`、`import_add_courses`、`manage_export_sub`、`copy_failed`、`format_wakeup_online_hint`、`copy_done`。学校目录定位状态和安卓专属提示也沿用中文。本批没有直接编辑全局 i18n。
 
 HTML、CSV、普通文本、JSON 和原生格式继续使用现有解析器，全部默认单测均已运行。学校真实账号导入按用户例外明确关闭，不作为待接入功能。当前验证不能宣称所有浏览器、所有外部文件变体或完整 Android 运行时均已认证等价。
+
+## 2026年11月10日主线加课入口和六语接续
+
+本节更新上节关于日程入口与语言键的交接状态。修改直接落在 `/Users/lingion_k/sleepy-worktrees/web-embed-demo-20261110`，以用户指定的 `e96da53` 为接续起点，保留其他工作者的改动。
+
+Android 不可变参考 `77b878fd5c8903a3f201ea938b3b152de4c4fbc0` 的 `SleepyNavHost.kt` 第 239 至 255 行确实注册 `AddCourseEntry`，打开 `AddTableScreen` 并传 `addingCourses = true` 和 `targetTableId`。管理页第 980 行也进入同一路由。`ImportSheet.kt` 第 308 至 417 行规定方法顺序，手动入口固定在粘贴文本之后、文件导入之前。
+
+位置与返回层级不变量如下：
+
+```text
+日程添加课程 / 管理添加课程
+  从已有课表选择
+  教务直连
+  粘贴课表文本
+  手动添加课程
+  从文件导入
+
+手动表单返回 -> 加课入口 -> 原页面
+选源 / 文件 / 文本 -> 课程组选择 -> 冲突预览 -> 追加到明确目标
+```
+
+| 用户原话 | 实现行为与验证范围 |
+| --- | --- |
+| “先核查Android原始入口确实存在” | 对照上述原始路由和方法行顺序后接线。组件契约检查五个方法行的完整顺序。 |
+| “日程加课页追加入口” | 日程工具栏和无课程状态的加课按钮、管理添加课程卡进入明确目标追加。手动表单单独入栈；页面返回与模拟浏览器返回只弹一层。格子快速加课仍直接进入原表单。 |
+| “保持fixedDate/importSourceJson不丢失” | 已有课表复制到目标后检查固定日期，目标来源原文、默认标记和共享作息绑定保持不变。手动保存显式目标可以不同于默认表；目标不存在时显示错误，不创建替代表。 |
+| “新extra六语文件” | `portableImport.ts` 注册 34 个键，覆盖六种语言；每语检查资源实值与插值参数，并执行选课、全选切换、空选择保护和预览选项。没有修改六份 JSON。 |
+| “别用shell/CDP跑浏览器” | 本轮只执行组件和领域测试、TypeScript 检查。已有浏览器测试中的管理入口定位随新流程更新，本轮未运行浏览器套件；真实浏览器验证交主线 CUA。 |
+
+新扩展文件的全部文本键如下，已包括小组件所需的前后周按钮：
+
+```text
+import_sheet_title
+add_course_title
+add_course_manual
+add_course_from_existing
+add_course_no_source
+import_backup_original
+import_append_conflicts_option
+import_new_period_table
+import_select_courses
+deselect_all
+select_all
+import_selection_empty
+confirm
+import_confirm
+import_add_courses
+manage_export_sub
+copy_failed
+format_wakeup_online_hint
+copy_done
+import_append_hint
+import_target_missing
+import_bound_period_missing
+import_period_summary
+import_conflict_detail
+import_course_group_count
+export_share_subtitle
+export_saved_to
+export_failed
+ics_export_options_title
+ics_recurring_label
+ics_dated_label
+ics_dated_note
+schedule_prev_week
+schedule_next_week
+```
+
+本轮没有新增共享模型需求。没有修改 repository、settings 或 reminders。新表导入先等待名称名单就绪，纯作息预填名称额外查询数据库，避免首帧名单未加载导致漏判重。学校目录中文状态、安卓专属原句和底层解析器原有诊断继续沿用既有实现。
+
+WakeUP 本地已读的协议金标和历史活体验收都是测试数据或假口令握手证据，不能作为真实有效课表口令验收。受限中转部署和有效口令线上成功仍由主线收口，本节不宣称已通过。
+
+本轮最后执行的组件回归命令为 `./node_modules/.bin/vitest run src/views/portableAddEntry.test.tsx src/views/ImportView.portable.test.tsx src/views/ImportView.mixedImport.test.tsx src/views/ImportView.purePeriod.test.tsx src/views/AddCourseView.jumpScroll.test.tsx src/views/AddCourseView.color.test.tsx src/i18n/extra/portableImport.test.tsx --maxWorkers=2 --minWorkers=1`，七个文件、40 项通过，没有未处理错误。另行执行 `./node_modules/.bin/vitest run src/i18n/extra/portableImport.test.tsx src/components/formatHelp.test.ts --maxWorkers=1 --minWorkers=1`，两个文件、36 项通过。`./node_modules/.bin/tsc -b --pretty false` 和 `git diff --check` 通过。最终全量与生产构建由主线冻结后执行。
+
+本轮变更文件为 `src/i18n/extra/portableImport.ts`、`src/i18n/extra/portableImport.test.tsx`、`src/i18n/index.ts`、`src/views/ImportView.tsx`、`src/views/ManageView.tsx`、`src/views/ScheduleView.tsx`、`src/views/AddCourseView.tsx`、`src/views/portableAddEntry.test.tsx`、`src/views/ImportView.portable.test.tsx`、`src/views/ImportView.mixedImport.test.tsx`、`src/views/ImportView.purePeriod.test.tsx`、`src/e2e/import-v1064.e2e.test.ts` 和本文档。`ExportView` 无须修改源码，直接使用本轮注册的导出、复制及 ICS 六语文案。
