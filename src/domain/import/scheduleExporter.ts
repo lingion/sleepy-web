@@ -16,10 +16,12 @@ export interface ExportTable {
   nodesPerDay: number
   timeJson: string
   color: string
+  importSourceJson?: string
 }
 
 export interface ExportCourse {
   id: number
+  fixedDate?: string | null
   groupId: string
   tableId: number
   courseName: string
@@ -52,6 +54,8 @@ function courseJsonArr(courses: ExportCourse[]): string {
     endWeek: c.endWeek,
     type: c.type,
     color: c.color,
+    ...(c.fixedDate ? {fixedDate:c.fixedDate} : {}),
+    ...((c.ownTime || c.isIrregularTime) ? {startTime:c.startTime,endTime:c.endTime} : {}),
   }))
   return JSON.stringify(arr)
 }
@@ -67,6 +71,7 @@ export function exportWakeUpJson(table: ExportTable, courses: ExportCourse[]): s
       maxWeek: table.maxWeek,
       nodesPerDay: table.nodesPerDay,
       time: table.timeJson,
+      ...(table.importSourceJson ? {importSourceJson:table.importSourceJson} : {}),
     },
     courses: courses.map((c) => ({
       name: c.courseName,
@@ -79,6 +84,8 @@ export function exportWakeUpJson(table: ExportTable, courses: ExportCourse[]): s
       endWeek: c.endWeek,
       type: c.type,
       color: c.color,
+    ...(c.fixedDate ? {fixedDate:c.fixedDate} : {}),
+    ...((c.ownTime || c.isIrregularTime) ? {startTime:c.startTime,endTime:c.endTime} : {}),
     })),
   }
   return JSON.stringify(obj, null, 2)
@@ -87,19 +94,14 @@ export function exportWakeUpJson(table: ExportTable, courses: ExportCourse[]): s
 /** WakeUp 分享文本格式 (URL 编码的 courseDetailJson) */
 export function exportWakeUpShareText(table: ExportTable, courses: ExportCourse[]): string {
   // kotlinx prettyPrint 的数组形态, URL 编码 (空格→+ 与 URLEncoder 一致)
-  const courseDetailJson = courseJsonArr(courses)
-    .replace(/,/g, ', ')
-    .replace(/\{/g, '{ ')
-    .replace(/:/g, ': ')
-    .replace(/\}/g, ' }')
-    .replace(/\[/g, '[\n    ')
-    .replace(/\]/g, '\n  ]')
+  const courseDetailJson = JSON.stringify(JSON.parse(courseJsonArr(courses)), null, 2)
   const encoded = encodeURIComponent(courseDetailJson).replace(/%20/g, '+')
 
   const root = {
     name: table.name,
     startDate: table.startDate,
     courseDetailJson: encoded,
+    tableInfo: { time: table.timeJson, nodesPerDay: table.nodesPerDay, maxWeek: table.maxWeek, ...(table.importSourceJson ? {importSourceJson:table.importSourceJson} : {}) },
   }
   return '【来自Sleepy】\n课程分享：\n\n' + JSON.stringify(root, null, 2)
 }
@@ -129,8 +131,9 @@ export function exportIcs(table: ExportTable, courses: ExportCourse[]): string {
     // 起止周奇偶不符无实际发生周 → 跳过
     if (firstWeek > c.endWeek) continue
 
-    const firstDate = addDays(addWeeks(start, firstWeek - 1), c.day - 1)
-    const endDate = addDays(addWeeks(start, c.endWeek - 1), c.day - 1)
+    const firstDate = c.fixedDate ? parseIsoDate(c.fixedDate) : addDays(addWeeks(start, firstWeek - 1), c.day - 1)
+    if (!firstDate) continue
+    const endDate = c.fixedDate ? firstDate : addDays(addWeeks(start, c.endWeek - 1), c.day - 1)
     const ymd = (d: Date) => isoOf(d).replace(/-/g, '')
 
     let startTime: string
@@ -154,11 +157,11 @@ export function exportIcs(table: ExportTable, courses: ExportCourse[]): string {
 
     sb.push('BEGIN:VEVENT')
     // UID: id-javaHashCode(courseName)@sleepy — javaStringHash 保证跨端一致
-    sb.push(`UID:${c.id}-${javaStringHash(c.courseName)}@sleepy`)
+    sb.push(`UID:${c.id}-${javaStringHash(c.courseName)}${c.fixedDate ? `-${c.fixedDate}` : ''}@sleepy`)
     sb.push(`DTSTAMP:${dtstampUtcNow()}`)
     sb.push(`DTSTART:${dtStart}`)
     sb.push(`DTEND:${dtEnd}`)
-    sb.push(byDay !== null ? `RRULE:FREQ=WEEKLY;BYDAY=${byDay}${interval}${until}` : `RRULE:FREQ=WEEKLY${interval}${until}`)
+    if (!c.fixedDate) sb.push(byDay !== null ? `RRULE:FREQ=WEEKLY;BYDAY=${byDay}${interval}${until}` : `RRULE:FREQ=WEEKLY${interval}${until}`)
     sb.push(`SUMMARY:${escapeIcs(c.courseName)}`)
     if (c.room.trim() !== '') sb.push(`LOCATION:${escapeIcs(c.room)}`)
     // 无损闭环: DESCRIPTION 写"第X-Y节"(字面 \n, 与 WakeUp 格式一致)

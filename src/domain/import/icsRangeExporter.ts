@@ -66,7 +66,7 @@ export function buildDatedEvents(
         { ...c, isIrregularNode: false, level: 0, credit: 0, colorMode: 0 } as Course,
         table.timeJson
       )
-      if (norm.day !== classDay || !inWeek(norm, week)) continue
+      if (c.fixedDate ? c.fixedDate !== dayIso : norm.day !== classDay || !inWeek(norm, week)) continue
       const times = courseTimes(norm, nodeTimes)
       if (!times || times[1] <= times[0]) continue // Android invalid++: 非法时段跳过
       const transferred = classDay !== localDow(date)

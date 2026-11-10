@@ -1,5 +1,5 @@
 import { detectVersion, type Clock } from './sleepyNativeFormat'
-import { parseSleepyV1, type ParseResultV1, type ParsedCourse, type ParsedPeriodTable } from './sleepyNativeParser'
+import { parseSleepyV1, validFixedDate, type ParseResultV1, type ParsedCourse, type ParsedPeriodTable } from './sleepyNativeParser'
 
 export type { ParsedPeriodTable }
 
@@ -55,6 +55,8 @@ function parseDispatch(rawText: string, defaultTableId: number, defaultColor: st
   if (raw === '') throw new Error('空内容')
   // 防呆: 先统一全角字符(AI 常输出 １－２ / ～), 再提取标识, 再分派
   const trimmed = extractMarkedBody(normalizeFullWidth(raw))
+  const original = extractMarkedBody(raw)
+  const originalBody = !original.startsWith('{') && original.includes('{') ? original.substring(original.indexOf('{')) : original
 
   // 兼容: 导出端常在 JSON 前加 "【来自Sleepy】\n课程分享：\n\n" 前缀, 剥掉再判别
   const body = !trimmed.startsWith('{') && trimmed.includes('{')
@@ -66,16 +68,16 @@ function parseDispatch(rawText: string, defaultTableId: number, defaultColor: st
     throw new Error(`文件由新版 Sleepy 导出(v${dv})，请升级 Sleepy 后导入`)
   }
   if (dv === 1) {
-    return parseSleepyV1(trimmed, defaultTableId, defaultColor) as ParseResult
+    return parseSleepyV1(trimmed, defaultTableId, defaultColor, original) as ParseResult
   }
   if (isExcelFrameset(trimmed)) {
     throw new Error(excelFramesetError(trimmed))
   }
   if (body.includes('"courseDetailJson"')) {
-    return parseWakeUpShareText(body, defaultTableId)
+    return parseWakeUpShareText(body, defaultTableId, originalBody)
   }
   if (body.startsWith('{') && (body.includes('"courses"') || body.includes('"tableInfo"'))) {
-    return parseWakeUpJson(body, defaultTableId, defaultColor)
+    return parseWakeUpJson(body, defaultTableId, defaultColor, originalBody)
   }
   if (body.startsWith('BEGIN:VCALENDAR') || body.startsWith('BEGIN:VEVENT')) {
     return parseIcs(body, defaultTableId, defaultColor)
@@ -159,6 +161,9 @@ export function normalizeFullWidth(s: string): string {
 // ---- WakeUp 分享文本 / JSON ----
 
 interface WakeupCourseJson {
+  fixedDate?: string
+  startTime?: string
+  endTime?: string
   name?: string
   courseName?: string
   teacher?: string
@@ -180,6 +185,7 @@ function courseFromJson(o: WakeupCourseJson, tableId: number, dfltColor: string,
     tableId,
     courseName: o.name ?? o.courseName ?? '未命名',
     alias: '',
+    fixedDate: validFixedDate(o.fixedDate),
     teacher: o.teacher ?? '',
     room: o.position ?? o.room ?? '',
     note: o.note ?? noteDflt,
@@ -190,13 +196,13 @@ function courseFromJson(o: WakeupCourseJson, tableId: number, dfltColor: string,
     endWeek: o.endWeek ?? 16,
     type: o.type ?? 0,
     color: o.color ?? dfltColor,
-    ownTime: false,
-    startTime: '',
-    endTime: '',
+    ownTime: !!(o.startTime && o.endTime),
+    startTime: o.startTime ?? '',
+    endTime: o.endTime ?? '',
   }
 }
 
-function parseWakeUpShareText(text: string, defaultTableId: number): ParseResult {
+function parseWakeUpShareText(text: string, defaultTableId: number, original = text): ParseResult {
   const jsonStart = text.indexOf('{')
   if (jsonStart < 0) throw new Error('找不到 JSON')
   const jsonStr = text.substring(jsonStart)
@@ -221,10 +227,14 @@ function parseWakeUpShareText(text: string, defaultTableId: number): ParseResult
   }
 
   const harvested = harvestTimeFromTableInfo(root, name)
-  return lossless(name, startDate, courses, harvested.timeJson, harvested.nodesPerDay, false, harvested.periodTable)
+  const sourceRoot = JSON.parse(original) as {tableInfo?: {importSourceJson?: unknown}}
+  return {...lossless(name, startDate, courses, harvested.timeJson, harvested.nodesPerDay, false, harvested.periodTable),
+    importSourceJson: typeof sourceRoot.tableInfo?.importSourceJson === 'string' ? sourceRoot.tableInfo.importSourceJson : '',
+    maxWeek: Number((root.tableInfo as Record<string,unknown> | undefined)?.maxWeek ?? root.maxWeek ?? 0),
+  }
 }
 
-function parseWakeUpJson(text: string, defaultTableId: number, defaultColor: string): ParseResult {
+function parseWakeUpJson(text: string, defaultTableId: number, defaultColor: string, original = text): ParseResult {
   const root = JSON.parse(text) as Record<string, unknown>
   const name = (root['name'] as string) ?? '导入的课表'
   const startDate = (root['startDate'] as string) ?? todayISO()
@@ -239,7 +249,11 @@ function parseWakeUpJson(text: string, defaultTableId: number, defaultColor: str
   if (arr === null) throw new Error('找不到 courses 数组')
   const courses = arr.map((o) => courseFromJson(o, defaultTableId, defaultColor, ''))
   const harvested = harvestTimeFromTableInfo(root, name)
-  return lossless(name, startDate, courses, harvested.timeJson, harvested.nodesPerDay, false, harvested.periodTable)
+  const sourceRoot = JSON.parse(original) as {tableInfo?: {importSourceJson?: unknown}}
+  return {...lossless(name, startDate, courses, harvested.timeJson, harvested.nodesPerDay, false, harvested.periodTable),
+    importSourceJson: typeof sourceRoot.tableInfo?.importSourceJson === 'string' ? sourceRoot.tableInfo.importSourceJson : '',
+    maxWeek: Number((root.tableInfo as Record<string,unknown> | undefined)?.maxWeek ?? root.maxWeek ?? 0),
+  }
 }
 
 /**

@@ -17,6 +17,7 @@ import {
 /** ParseResult — ScheduleParser.ParseResult 1:1 (解析中间产物, 落库由消费方完成) */
 export interface ParsedCourse {
   groupId: string
+  fixedDate?: string | null
   tableId: number
   courseName: string
   alias: string
@@ -48,6 +49,7 @@ export interface ParsedPeriodTable {
 
 export interface ParseResultV1 {
   tableName: string
+  importSourceJson?: string
   startDate: string
   courses: ParsedCourse[]
   /** 稀疏语义: 只写声明过的节; 空=无作息声明 */
@@ -68,12 +70,15 @@ export function parseSleepyV1(
   trimmed: string,
   defaultTableId: number,
   defaultColor: string,
+  original = trimmed,
 ): ParseResultV1 {
   const lines = trimmed.split('\n').map((l) => l.replace(/\r$/, ''))
   const dropped: string[] = []
   const warnings: string[] = []
 
   // ---- pass 1: T 行 ----
+  let importSourceJson = ''
+  const originalLines = original.split('\n')
   let tSeen = false
   let tableName = ''
   let startDateStr = ''
@@ -107,6 +112,7 @@ export function parseSleepyV1(
           const k = kv.substring(0, eq).trim()
           const v = kv.substring(eq + 1).trim()
           if (k === 'n') declaredCount = toIntOrNull(v)
+          if (k === 'source') { const originalCol = splitRespectingEscape((originalLines[idx] ?? line).trim().substring(1)).find(c => c.trim().startsWith('source=')); importSourceJson = unescape((originalCol ?? kv).trim().substring(7)) }
         }
       }
     }
@@ -291,6 +297,7 @@ export function parseSleepyV1(
 
   return {
     tableName,
+    importSourceJson,
     startDate,
     courses: courses.map((c) => finalizeCourse(c, defaultTableId)),
     timeJson,
@@ -630,6 +637,7 @@ function parseCourseLine(
     tableId: defaultTableId,
     courseName: name,
     alias,
+    fixedDate: validFixedDate(text(11)),
     teacher,
     room,
     note,
@@ -680,4 +688,11 @@ function assignFinalGroupIds(courses: ParsedCourseV1[], tableName: string, token
     }
     courses[idx] = { ...c, groupId: gid }
   }
+}
+
+/** ISO calendar date, without Date rollover accepting e.g. February 30. */
+export function validFixedDate(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const date = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0,10) === value ? value : null
 }

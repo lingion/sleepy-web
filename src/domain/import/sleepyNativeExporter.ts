@@ -12,6 +12,7 @@ import { parseNodes } from '../timeTable'
 /** 课程最小输入形状 — Course 的结构子集 (避免循环依赖 data/types) */
 export interface ExportCourse {
   groupId: string
+  fixedDate?: string | null
   courseName: string
   alias: string
   teacher: string
@@ -57,8 +58,9 @@ export function exportSleepyV1File(
   timeJson: string,
   courses: ExportCourse[],
   periodTable?: PeriodTableExport | null,
+  importSourceJson = '',
 ): string {
-  const body = buildBody(tableName, startDate, maxWeek, nodesPerDay, timeJson, courses, periodTable)
+  const body = buildBody(tableName, startDate, maxWeek, nodesPerDay, timeJson, courses, periodTable, importSourceJson)
   return `${body}\nz|chk=crc32:${crc32Utf8(body)}`
 }
 
@@ -71,8 +73,9 @@ export function exportSleepyV1ShareText(
   timeJson: string,
   courses: ExportCourse[],
   periodTable?: PeriodTableExport | null,
+  importSourceJson = '',
 ): string {
-  const body = buildBody(tableName, startDate, maxWeek, nodesPerDay, timeJson, courses, periodTable)
+  const body = buildBody(tableName, startDate, maxWeek, nodesPerDay, timeJson, courses, periodTable, importSourceJson)
   return `【来自Sleepy】\n课程分享：\n\n<<<SLEEPY-BEGIN>>>\n${body}\n<<<SLEEPY-END>>>`
 }
 
@@ -133,13 +136,14 @@ function buildBody(
   timeJson: string,
   courses: ExportCourse[],
   periodTable?: PeriodTableExport | null,
+  importSourceJson = '',
 ): string {
   const sb: string[] = []
   sb.push('#sleepy-v1')
 
   // ---- T 行(§3.5) ----
   // n= 计数(§8.3): 散周 partition v1 简化 = 课程数; partition 实现完备后此处同步改
-  sb.push(`T${escape(tableName === '' ? '导入的课表' : tableName)}|${startDate}|${maxWeek}|${nodesPerDay}|n=${courses.length}`)
+  sb.push(`T${escape(tableName === '' ? '导入的课表' : tableName)}|${startDate}|${maxWeek}|${nodesPerDay}|n=${courses.length}${importSourceJson ? `|source=${escape(importSourceJson)}` : ''}`)
 
   // ---- issue#40: P 行(独立时间节次表, §6 新格式可选区块) ----
   // 携带绑定关系(periodTableId 非空)时输出; 旧版本读到 P 行走"未知行类型→dropped+warning"通道, 不硬拒。
@@ -220,9 +224,10 @@ function buildCourseLine(c: ExportCourse, token: string): string {
   parts.push(token)
   let line = parts.join('|')
   // issue#26: 可选第 11 列 = 课程别名(escape 后写入); 空别名不写列(文件形状与既有 v1 完全一致)
-  if (c.alias.trim() !== '') {
+  if (c.alias.trim() !== '' || c.fixedDate) {
     line += `|${escape(c.alias.trim())}`
   }
+  if (c.fixedDate) line += `|${c.fixedDate}`
   return line
 }
 
