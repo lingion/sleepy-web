@@ -47,6 +47,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
     [defaultTable?.id],
   )
   const [importing, setImporting] = useState(false)
+  const [importTargetId,setImportTargetId] = useState<number | null>(null)
   // 教务导入层 — 深链直达时初始即开 (restoreChain 已建栈);旧 #/我的/教务导入 别名同判
   const [jwImporting, setJwImporting] = useState(() => {
     const chain = chainFromHash(window.location.hash)
@@ -91,6 +92,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
   if (importing) {
     return (
       <ImportView
+        addingCourses={importTargetId !== null} targetTableId={importTargetId ?? 0}
         onDone={() => { leave(); setImporting(false) }}
         // 教务直连 — Android「关 sheet + startActivity」: 导入层原地换成教务层,
         // 历史条目不新增 → 教务页返回直达管理页 (不会退回导入页)。
@@ -99,12 +101,15 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
     )
   }
   if (addingCourse) {
-    return (
+    return <>
+      {defaultTable && <div style={{padding:'16px 16px 0'}}><button type="button" className="m3-btn-regular" onClick={() => {
+        setImportTargetId(defaultTable.id);setAddingCourse(false);setImporting(true)
+      }}>{t('import_add_courses','从课表或文件导入课程')}</button></div>}
       <AddCourseView
         onBack={() => { leave(); setAddingCourse(false) }}
         onSaved={() => { leave(); setAddingCourse(false) }}
       />
-    )
+    </>
   }
   if (exporting) {
     return <ExportView onBack={() => { leave(); setExporting(false) }} />
@@ -209,7 +214,7 @@ export function ManageView({ navExtraBottom = 0 }: { navExtraBottom?: number }) 
           icon={IconFileUpload}
           title={t('manage_import')}
           subtitle={t('manage_import_sub')}
-          onClick={() => open('addCourse', () => setImporting(true))}
+          onClick={() => open('addCourse', () => {setImportTargetId(null);setImporting(true)})}
         />
         <ManageCard
           icon={IconAutoAwesome}

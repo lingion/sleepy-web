@@ -29,3 +29,27 @@ New-table imports and explicit-target appends are separate actions. New imports 
 Append compares actual overlapping weeks and clock times. It leaves a bound shared period table unchanged and rejects missing occupied nodes before writing. Pre-import backups freeze the effective schedule, detach the period binding, clear its old binding snapshot, and disable reminders. Incoming groups receive fresh IDs while their internal partitions remain distinct. Empty accepted imports do not create a backup. The main task still owns general backup settings and repository behavior outside this importer.
 
 Native CRC verification checks original body bytes before full-width normalization. Source JSON retains its original spacing, full-width text, null fields, and unknown fields. Explicit course periods above 30 remain intact; the native header's declared daily count keeps the Android validation rule while actual course reach extends the imported count.
+
+## Import navigation and order invariants
+
+The management import card always opens new-table import. The add-course page has an import action with the current timetable passed explicitly as the append target. This wiring lives in ManageView; shared AddCourseView and global styles are not edited.
+
+```text
+Management import
+  school directory / paste text / choose file
+  preview
+  name + semester date + period binding + manual or automatic timing
+  confirm and save new timetable
+
+Add course > import courses (explicit target)
+  existing timetable / school directory / paste text / choose file
+  select course groups
+  preview + backup enabled + conflicting courses disabled
+  confirm and append
+
+Period-only input
+  name period table
+  confirm and save period table
+```
+
+Selection precedes append preview. An empty selection cannot advance. Back from confirmation returns to preview. Persistence errors stay inside the active dialog and can be retried. Applying disables the primary action and uses a synchronous lock against double clicks. Period-only input writes no timetable and completes its undo batch before leaving the page.
