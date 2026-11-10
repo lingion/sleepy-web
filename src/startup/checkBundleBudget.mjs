@@ -8,7 +8,7 @@ import ts from 'typescript'
 export const budget = { initialGzip: 300_000, lateCriticalChunks: 0 }
 const critical = /^(?:ScheduleView|zh-CN|sampleTable)-.*\.js$/
 const forbiddenChunk = /^(?:AddCourseView|ImportView|ExportView|EditTableView|JwImportView|OccurrenceActionsHost|CourseDetailSheet|scheduleParser|scheduleExporter|icsRangeExporter|sleepyNativeExporter|schools|optics|opticalSvg|opticalMaps|opticalMath|opaqueBackdrop)-/
-const forbiddenSource = /(?:\/views\/(?:AddCourseView|ImportView|ExportView|EditTableView|jw\/JwImportView)\.tsx$|\/domain\/import\/|\/domain\/jw\/|\/components\/(?:CourseDetailSheet|schedule\/useOccurrenceActions)\.tsx$|\/components\/glass\/(?:optics|opticalSvg|opticalMaps|opticalMath|opaqueBackdrop|styles)\.ts$|\/schools[^/]*\.(?:json|ts)$)/
+const forbiddenSource = /(?:\/views\/(?:AddCourseView|ImportView|ExportView|EditTableView|jw\/JwImportView)\.tsx$|\/domain\/import\/|\/domain\/jw\/|\/components\/(?:icons|CourseDetailSheet|schedule\/useOccurrenceActions)\.tsx$|\/components\/glass\/(?:optics|opticalSvg|opticalMaps|opticalMath|opaqueBackdrop|styles)\.ts$|\/schools[^/]*\.(?:json|ts)$)/
 
 function imports(file, code) {
   const source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true)

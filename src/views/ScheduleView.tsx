@@ -18,7 +18,7 @@ import { useShallow } from 'zustand/react/shallow'
 import {
   IconChevronLeft, IconChevronRight,
   IconAdd, IconIosShare, IconCheck, IconClose, IconCalendarMonth,
-} from '../components/icons'
+} from '../components/startupIcons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../data/db'
 import { usePrefsStore } from '../state/prefsStore'

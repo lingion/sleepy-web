@@ -79,3 +79,14 @@ test('checks the independent data bootstrap for an inlined optical dependency', 
   write('src/startup/data.ts', 'export const prepare = () => import("../components/glass/opticalMaps")')
   assert.deepEqual(inspectStartupSources(root), [])
 }))
+
+test('keeps the full icon catalog out of the initial timetable even behind a barrel', () => fixture((root, write) => {
+  write('src/main.tsx', 'import { IconPerson } from "./entryIcons"')
+  write('src/views/ScheduleView.tsx', 'export const ScheduleView = null')
+  write('src/entryIcons.ts', 'export { IconPerson } from "./components/icons"')
+  write('src/components/icons.tsx', 'export const IconPerson = () => null')
+  assert.deepEqual(inspectStartupSources(root), ['src/components/icons.tsx'])
+  write('src/entryIcons.ts', 'export { IconPerson } from "./components/startupIcons"')
+  write('src/components/startupIcons.tsx', 'export const IconPerson = () => null')
+  assert.deepEqual(inspectStartupSources(root), [])
+}))

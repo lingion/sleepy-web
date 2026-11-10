@@ -6,7 +6,7 @@
  * 底栏契约 (App.test.tsx): 页面内 <nav> 数 = 底栏数 → 本组件不用 nav 标签。
  */
 
-import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './icons'
+import { IconCalendarMonth, IconToday, IconSettings, IconPerson } from './startupIcons'
 
 export type RailTab = 'today' | 'manage' | 'mine'
 
