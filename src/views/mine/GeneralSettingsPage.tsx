@@ -1,3 +1,4 @@
+import { sessionPreferences } from '../../storage'
 /**
  * GeneralSettingsPage — 通用设置 (GeneralSettingsScreen.kt 1:1)。从 MineView.tsx 拆出。
  * 分组: ①课表显示 / ②小组件 / ③画面与导航 / ④语言 / ⑤实验室 / ⑥数据迁移。
@@ -66,7 +67,7 @@ const LANGUAGES: Array<[Prefs['lang'], string]> = [
 
 function readExpanded(): Set<string> {
   try {
-    const raw = sessionStorage.getItem(EXPANDED_KEY)
+    const raw = sessionPreferences.getItem(EXPANDED_KEY)
     const arr: unknown = raw ? JSON.parse(raw) : []
     return new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : [])
   } catch {
@@ -153,12 +154,12 @@ export function GeneralSettingsPage({ onBack, onOpenHoliday }: { onBack: () => v
       return next
     })
   useEffect(() => {
-    try { sessionStorage.setItem(EXPANDED_KEY, JSON.stringify([...expanded])) }
+    try { sessionPreferences.setItem(EXPANDED_KEY, JSON.stringify([...expanded])) }
     catch { /* 隐私/配额失败忽略 */ }
   }, [expanded])
   useEffect(() => () => {
     if (keepExpandedRef.current) return
-    try { sessionStorage.removeItem(EXPANDED_KEY) }
+    try { sessionPreferences.removeItem(EXPANDED_KEY) }
     catch { /* 同上 */ }
   }, [])
 
