@@ -14,6 +14,7 @@ import { weekLaneRows } from '../../domain/conflictLayout'
 import { courseTimeParts } from '../../domain/timeTable'
 import { pickCourseColorWithGroupRows, textColorOn, parseHex } from '../../domain/courseColor'
 import { dateOfWeek, isDateToday, localizedDay, shortDateChinese } from './CardsGridView'
+import { estimatePeriodHeaderTextWidth } from './periodHeader'
 
 export interface FullWeekViewProps {
   courses: Course[]
@@ -77,6 +78,7 @@ export function FullWeekView({ courses, timeJson, startDate, currentWeek, greyDa
               useAlias={prefs.weekUseAlias}
               scale={scale}
               cornerRatio={cornerRatio}
+              onCourseClick={onCourseClick}
             />
           ))}
       </div>
@@ -109,6 +111,7 @@ function DaySummaryCell({
   useAlias,
   scale,
   cornerRatio,
+  onCourseClick,
 }: {
   day: number
   courses: Course[]
@@ -117,8 +120,19 @@ function DaySummaryCell({
   useAlias: boolean
   scale: number
   cornerRatio: number
+  onCourseClick?: (c: Course) => void
 }) {
   const { t, i18n } = useTranslation()
+  const ref = useRef<HTMLDivElement>(null)
+  const [availableWidth, setAvailableWidth] = useState(0)
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    const measure = () => setAvailableWidth(element.clientWidth - 12 * scale)
+    const observer = new ResizeObserver(measure)
+    observer.observe(element); measure()
+    return () => observer.disconnect()
+  }, [scale])
   const bg = isToday ? 'var(--md-primary-container)' : 'var(--md-surface-container)'
   const fg = isGrey
     ? 'color-mix(in srgb, var(--md-on-surface-variant) 60%, transparent)'
@@ -128,13 +142,15 @@ function DaySummaryCell({
 
   const countText = courses.length === 0 ? '' : t('course_count_format', { v1: courses.length })
   // 列窄时退化为纯数字 (Android showNumberOnly 同构)
-  const showNumberOnly = countText.length > 6
+  const showNumberOnly = availableWidth > 0 && estimatePeriodHeaderTextWidth(countText, 10 * scale) + 14 * scale > availableWidth
 
   return (
     <div
+      ref={ref}
       style={{
         flex: 1,
-        height: 132 * scale,
+        minWidth: 0,
+        minHeight: 132 * scale,
         borderRadius: 12 * scale * cornerRatio,
         background: bg,
         padding: `${8 * scale}px ${6 * scale}px`,
@@ -155,6 +171,7 @@ function DaySummaryCell({
         {localizedDay(day, i18n.language)}
       </span>
       <div style={{ height: 6 * scale }} />
+      {courses.length === 0 && <span style={{ height: 14 * scale }} />}
       {courses.length > 0 && (
         <span
           style={{
@@ -178,7 +195,13 @@ function DaySummaryCell({
         {courses.slice(0, 5).map((c) => (
           <span
             key={c.id}
+            role="button"
+            tabIndex={0}
+            data-course-id={c.id} data-course-day={c.day} data-course-node={c.startNode} data-course-step={c.step}
+            onClick={() => onCourseClick?.(c)}
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onCourseClick?.(c) } }}
             style={{
+              cursor: 'pointer',
               fontSize: 9 * scale,
               lineHeight: `${11 * scale}px`,
               color: isToday
