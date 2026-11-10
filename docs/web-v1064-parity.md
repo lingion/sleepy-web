@@ -172,8 +172,8 @@ Android依据包括 `ui/screen/imports/ImportSheet.kt`、`ui/nav/SleepyNavHost.k
 | --- | --- | --- |
 | 持久化模型 | `data/entity/`、`data/repository/ScheduleRepository.kt` | `src/data/types.ts`、`src/data/db.ts`；IndexedDB schema5补fixedDate、importSourceJson、reminderOverride及courseColors。原有行保留，缺字段有迁移默认。不是Room文件级互换。 |
 | 原生备份容器 | `data/migration/MigrationBackup.kt`、`MigrationPrefsCodec.kt` | `src/domain/migration/backupExecutor.ts`、`dbCodec.ts`、`prefsCodec.ts`、`zipCodec.ts`；sleepybackup容器、manifest、模块与内容校验，database/preferences导出和覆盖/合并导入，数据库合并重映射引用。 |
-| 备份覆盖范围 | 同上 | database含作息表、课表、课程和导入草稿；preferences含已映射偏好、提醒、假期、调休与自定义主题。原生widgets、persisted_state、credentials没有Web目标，不可称全部Android模块恢复。数据库和偏好分别应用，不宣称跨两类存储的整包事务。 |
-| 隐藏时间与提醒mode往返 | `util/AppPrefs.kt` | period_header_hide_time以BOOL映射，before_class_mode以STRING映射；后者主线 `8ec9bb5` 已补。不能把这两项测试外推为所有偏好均已逐键往返。 |
+| 备份覆盖范围 | 同上及 `data/migration/MigrationDatabaseCodec.kt` | database含作息表、课表、课程和导入草稿，与Android的四类DTO一致；courseColors属于物理缓存，两端该模块均不包含，不列为额外Web移植缺项。preferences含已映射偏好、提醒、假期、调休与自定义主题。原生widgets、persisted_state、credentials没有Web目标，不可称全部Android模块恢复。数据库和偏好分别应用，不宣称跨两类存储的整包事务。 |
+| 节次表头、撤回深度与提醒mode往返 | `util/AppPrefs.kt`、`data/migration/MigrationPrefsCodec.kt` | period_header_hide_time以BOOL映射，period_header_time_alignment以STRING映射，undo_depth以INT映射，before_class_mode以STRING映射；提醒mode由主线 `8ec9bb5` 补齐。新增独立测试验证两项补充键、原生类型信封、实际preferences ZIP的覆盖/合并往返与旧包默认值，同时保留提醒mode和隐藏时间。不能把这些测试外推为所有偏好均已逐键往返。 |
 | 关于、反馈和更新 | `ui/screen/mine/AboutScreen.kt`、`util/FeedbackComposer.kt`、`QqJoin.kt`、`UpdateNotifier.kt` | `src/views/mine/AboutPage.tsx`、`src/domain/feedback.ts`、`src/domain/update/`；版本、更新说明、忽略版本、自动检查、作者、源码、隐私、反馈、QQ及声明入口保留。反馈诊断改用Web平台与UA；更新打开发布页，不能自装APK，QQ使用网页回退。 |
 | 开源声明 | `ui/screen/mine/LicenseScreen.kt` | `src/views/mine/LicensePage.tsx`、`src/data/androidLicense.json`；保留许可信息和来源。主线报告官网已rebase最新main并纳入license页面，新构建13页成功；构建结果不能代替部署验证。 |
 | 官网演示和公开课表 | Android无完全相同模式 | `src/publicSchedule.ts`、`src/App.tsx`；公开文件构建是明确只读用途。官网嵌入和演示隔离策略由主线验证，不以只读界面代替普通应用的管理与保存验收。 |
@@ -192,19 +192,18 @@ Android依据包括 `ui/screen/imports/ImportSheet.kt`、`ui/nav/SleepyNavHost.k
 | 日历 | ICS下载由用户交给日历应用，提醒是否采用由目标客户端决定；没有CalendarProvider写入和删除。 | 已写系统日历、已排首课原生闹钟或可撤销系统日历事件。 |
 | 登录与网络 | 教务目录可浏览，登录与捕获按明确例外关闭；WakeUP是独立在线协议。 | 支持网页教务账号直连，或目录可选等于学校导入可用。 |
 | 文件与权限 | IndexedDB、localStorage、Blob下载、剪贴板及定位由站点权限和浏览器控制；不等价于Android文件目录、设备存储和系统分享。 | 文件必在某个Android路径、已具备跨设备同步或永久存储保证。 |
-| 备份偏好缺项 | 本次静态对账发现 `Prefs` 的 `periodHeaderTimeAlignment`、`undoDepth` 尚未出现在prefsCodec的PrefsFieldMap。它们本机偏好可保存，但不能声称通过sleepybackup原样迁移。 | 所有设置已逐键无损往返。此项是实现缺项，不是浏览器限制。 |
-| 备份额外状态 | courseColors不在database快照的四类记录中；未知偏好键不会自动成为Web可恢复字段；当前覆盖导入对Dexie偏好按已有字段合并。 | 色相缓存、未知键和缺省键重置均与Android全量物理状态相同。 |
+| 未知偏好与覆盖语义 | 未知偏好键不会自动成为Web可恢复字段；当前覆盖导入对Dexie偏好按已有字段合并。物理缓存不属于上述四类备份DTO，不能用缓存范围差异替代偏好语义核验。 | 未知键恢复、缺省键重置和全量物理状态均与Android相同。 |
 | 本地化 | 六语框架和新增导入键有验证；学校状态、安卓专属原句和部分诊断仍中文。 | 全部流程每条提示均有六语人工验收。 |
 | 外部服务与部署 | WakeUP离线金标和模拟加密服务端已验；有效线上口令成功、受限中转线上版本、部署地址和官网上线状态由主线收口。 | 测试响应等于真实口令成功，或本地worker源码等于线上限制已生效。 |
 | 运行平台覆盖 | 历史交互证据来自本机Chromium155和特定视口，未建立本轮Safari、Firefox、真机触觉和Android/Web同屏截图矩阵。 | 所有浏览器、所有设备、所有外部文件已认证等价。 |
 
-本文只按授权记录差距，没有借文档任务修改实现或MEMORY。后续若主线补齐上述缺项，应以实际提交和验证更新对应行，不能删除限制后仅保留“全部移植”的笼统结论。
+本文初始提交只记录对账；其后用户明确授权补齐两项prefsCodec映射和独立测试，变更范围限于该codec、对应测试与本文，未修改其他实现或MEMORY。后续若主线补齐其他差距，应以实际提交和验证更新对应行，不能删除限制后仅保留“全部移植”的笼统结论。
 
 ## 已执行验证及证据归属
 
 ### 主线最终结果
 
-主线在本次交接中报告最终候选全量1429项测试通过。本文档代理没有重复运行该全量，也没有执行本次发布或线上验证；1429是主线报告的最终数字，不与各阶段测试数相加。主线仍独立负责候选构建、最终浏览器验收和部署结果。
+主线最初报告1429项通过，之后收尾批的 `/tmp/sleepy-web-publish-full.log` 实际记录143个文件、1433项通过；本文档代理已读取该日志末尾，未重复运行全量。1433是本次两项codec补充与新增测试之前的候选结果，最终SHA仍须由主线CI完整验证；不能把各阶段测试数相加当作最终全量数。本文未执行发布或线上验证，主线仍独立负责候选构建、最终浏览器验收和部署结果。
 
 ### 真实仓库接入验证
 
@@ -229,6 +228,19 @@ npm test -- --maxWorkers=2 --minWorkers=1 src/data/occurrenceTransactions.test.t
 npm test -- --maxWorkers=2 --minWorkers=1 src/data/periodHeaderPrefs.test.ts src/state/prefsStore.test.ts src/domain/migration/backupExecutor.test.ts src/components/schedule/periodHeader.test.ts
 ```
 
+### 两项偏好迁移补齐的独立验证
+
+固定Android `AppPrefs.kt` 第102、149、305至306及871至880行分别定义键名、Int存取与dash/center字符串存取，`MigrationPrefsCodec.kt` 按运行时类型导出INT/STRING信封。Web提交 `0fb7f5e` 仅向 `src/domain/migration/prefsCodec.ts` 的映射表增加undoDepth与periodHeaderTimeAlignment两项并新增独立测试，保留主线before_class_mode行。
+
+`src/domain/migration/prefsCodec.test.ts` 新增14项，真实调用Dexie、collectPrefsFiles、exportBackup、importBackup和ZIP编解码，不mock保存或备份函数。覆盖-1、0、5、正数深度与两种对齐值，原生显式默认信封，OVERWRITE与MERGE恢复，修改本机值后真实preferences ZIP往返，以及旧包缺键时的新库默认值。补充前14项中12项失败、2项旧包默认值通过；补齐后相关4文件55项全部通过。往返同时验证提醒mode和隐藏时间没有丢失。测试使用隔离fake-indexeddb，不读写用户数据库。
+
+```sh
+npm test -- --maxWorkers=2 --minWorkers=1 src/domain/migration/prefsCodec.test.ts src/domain/migration/backupExecutor.test.ts src/data/periodHeaderPrefs.test.ts src/state/prefsStore.test.ts
+./node_modules/.bin/tsc --noEmit
+```
+
+上述TypeScript命令实际退出0。该批不重复跑全量，也未把其55项与主线1433项相加声称最终SHA全量通过。
+
 ### UI、导入与主线其他证据
 
 | 证据 | 确实验证的内容 | 不能外推的结论 |
@@ -240,6 +252,6 @@ npm test -- --maxWorkers=2 --minWorkers=1 src/data/periodHeaderPrefs.test.ts src
 | 画廊 `b73e311` 与 `src/views/mine/WidgetGalleryPage.test.tsx` | 十四变体、五类手风琴、选择后的原生安装说明；实时预览代码读取当前课表。 | 不证明安装或配置任何Android桌面实例。 |
 | 挂载路径 `2f622e2`、`src/appAssetUrl.test.ts` | 源码和用例覆盖根路径、子目录、bare路径及index.html，图片与service worker共用挂载路径解析；主线报告浏览器五张预览真实加载。 | 文档代理未重跑这次浏览器核验；不证明Android启动器安装或离线缓存已在所有浏览器完成认证。 |
 | ARGB透明度 `f5d975c` | 主线报告相关58项通过；源码已核对GROUP/CUSTOM输出CSS rgba保留alpha，RGB对比和hue计算保持原语义。 | 不证明Android/Web同屏逐像素一致，或所有浏览器的混色与抗锯齿一致。 |
-| 官网许可页面与构建 | 主线报告网站已rebase最新main的license页面，新构建13页成功。 | 文档代理未重跑该网站构建；不等于新官网已部署并完成线上验证。 |
+| 官网许可页面与构建 | 主线报告网站已rebase最新main的license页面，新构建13页、510项测试成功，网站PR49已开。 | 文档代理未重跑该网站构建与测试；PR和构建结果不等于新官网已部署并完成线上验证。 |
 
-UI和导入历史生产构建均记录repository混合静态/动态导入和包体积提示，不能写成零警告。本次仅文档提交执行路径引用检查、内容核对与 `git diff --check`，不冒充重新运行实现测试。发布结论须结合主线最终候选的实际日志、浏览器和部署证据。
+UI和导入历史生产构建均记录repository混合静态/动态导入和包体积提示，不能写成零警告。初始文档提交只执行路径引用检查、内容核对与 `git diff --check`；后续偏好补充测试另列在上节，不冒充重跑全量或浏览器。发布结论须结合主线最终候选的实际日志、浏览器和部署证据。
