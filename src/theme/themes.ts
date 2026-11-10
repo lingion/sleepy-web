@@ -200,6 +200,10 @@ function kebab(s: string): string {
   return s.replace(/([A-Z])/g, '-$1').toLowerCase()
 }
 
+// Theme.kt wakeToM3Scheme does not override surfaceBright. It retains the
+// bundled Material3 ColorLightTokens / ColorDarkTokens values for all palettes.
+const nativeSurfaceBright = (dark:boolean) => dark ? '#3B383E' : '#FEF7FF'
+
 /** 把主题应用到 document — data-theme + 亮暗 CSS 变量; 'custom:<uuid>' 走派生引擎 */
 export function applyTheme(themeKey: string, isDark: boolean): void {
   let scheme: SchemeColors
@@ -226,6 +230,7 @@ export function applyTheme(themeKey: string, isDark: boolean): void {
   for (const [k, v] of Object.entries(scheme)) {
     el.style.setProperty(`--md-${kebab(k)}`, v)
   }
+  el.style.setProperty('--md-surface-bright',nativeSurfaceBright(isDark))
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', scheme.background)
   publishTheme(themeKey, isDark)
@@ -241,7 +246,7 @@ export function resolveThemeScheme(themeKey: string, isDark: boolean): SchemeCol
 }
 
 export function themeSnapshot(themeKey: string, isDark: boolean) {
-  const tokens = (dark: boolean) => Object.fromEntries(Object.entries(resolveThemeScheme(themeKey, dark)).map(([key, color]) => [kebab(key), color]))
+  const tokens = (dark: boolean):Record<string,string> => ({...Object.fromEntries(Object.entries(resolveThemeScheme(themeKey, dark)).map(([key, color]) => [kebab(key), color])),'surface-bright':nativeSurfaceBright(dark)})
   return { type: 'sleepy:theme', version: 1, mode: isDark ? 'dark' : 'light', palette: themeKey,
     schemes: { light: tokens(false), dark: tokens(true) } }
 }
