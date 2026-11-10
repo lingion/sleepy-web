@@ -9,3 +9,5 @@
 .occurrence-primary { background: var(--md-primary); color: var(--md-on-primary); }
 .occurrence-secondary { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
 .occurrence-danger { background: var(--md-error-container); color: var(--md-on-error-container); }
+
+.occurrence-fields { border:0; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; min-width:0; }
