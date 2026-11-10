@@ -67,6 +67,14 @@ jobs:
         env:
           BASE_PATH: /
 
+      - name: Verify portable app
+        run: npm test -- --maxWorkers=2 --minWorkers=1
+
+      - name: Deploy restricted WakeUP relay
+        run: npx wrangler deploy --config worker/wrangler.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Deploy to Cloudflare Worker
         run: npx wrangler deploy
         working-directory: site

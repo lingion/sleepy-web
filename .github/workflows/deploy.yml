@@ -44,7 +44,7 @@ jobs:
           BASE_PATH: /sleepy-web/
 
       - name: Test
-        run: npx vitest run
+        run: npx vitest run --maxWorkers=2 --minWorkers=1
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
