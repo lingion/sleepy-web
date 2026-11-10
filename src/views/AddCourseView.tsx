@@ -36,6 +36,10 @@ import { useOccurrenceDialogs } from '../components/schedule/useOccurrenceDialog
 import { localizedDay } from '../components/schedule/CardsGridView'
 import type { QuickAddSeed } from '../components/schedule/interactionTypes'
 import { IntRangeSlider } from '../components/IntRangeSlider'
+import { ColorPickerDialog } from '../components/ColorPickerDialog'
+import { AlertDialog } from '../components/AlertDialog'
+import { DialogActionButtons } from '../components/DialogActionButtons'
+import { groupSourceColorHex,parseHex,rgbToHex,SENTINEL_COLOR } from '../domain/courseColor'
 import { SegmentedSwitcher } from '../components/SegmentedSwitcher'
 import {
   groupSlotsForEdit,
@@ -110,6 +114,8 @@ export function AddCourseView({
   ])
   const [blocksSynced, setBlocksSynced] = useState(!editingCourse)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [groupColor,setGroupColor]=useState(editingCourse?.colorMode===0 ? editingCourse.color : '')
+  const [showGroupPicker,setShowGroupPicker]=useState(false)
 
   // 用户点开课程胶囊 → 编辑页自动落到那颗胶囊所在时段卡 (ref #144, 安卓 LaunchedEffect :326)
   const blockRefs = useRef(new Map<number, HTMLDivElement>())
@@ -123,6 +129,7 @@ export function AddCourseView({
       // ref #144: 空 groupId 不是组 — 跳过组回填 (安卓 :268 eg.groupId.isNotBlank() 同构)
       const group = editingCourse.groupId === '' ? [] : await getGroupCourses(defaultTable.id, editingCourse.groupId)
       if (group.length > 0) {
+        if(active)setGroupColor(groupSourceColorHex(group))
         const slots = groupSlotsForEdit(group)
         const edgeNodes = new Set(
           parseTimeSlotRows(effectiveTimeJson).filter((r) => r.edgeClass !== null).map((r) => r.node),
@@ -222,7 +229,8 @@ export function AddCourseView({
       const transfers=getHolidayTransfers(table.id)
       const groupId=editingCourse?.groupId ?? cryptoGroupId()
       const drafts=meetingBlocks.flatMap((block)=>block.days.slice().sort((a,b)=>a-b).map((day)=>{
-        const course={...buildCourseEntity(table!.id,groupId,courseName.trim(),block,day,courseAlias.trim(),effectiveTimeJson),id:0} as Course
+        const colorBlock=block.colorMode===0 ? {...block,color:groupColor || block.color} : block
+        const course={...buildCourseEntity(table!.id,groupId,courseName.trim(),colorBlock,day,courseAlias.trim(),effectiveTimeJson),id:0} as Course
         if(block.fixedDate) {
           if(block.startWeek!==block.endWeek || block.days.length!==1) throw new Error('固定日期课程只能选择一天和一周')
           return {...course,fixedDate:dateOfWeekIso(table!.startDate,block.startWeek,day)} as Course
@@ -250,22 +258,41 @@ export function AddCourseView({
     onSaved()
   }
 
+  async function changeGroupColor(hex:string) {
+    setShowGroupPicker(false)
+    if(await ask(t('group_color_confirm_title','确认修改组色'),`${hex}\n${t('group_color_confirm_msg','组色会影响本课程所有跟随组色的节次。')}`)===null)return
+    if(savingRef.current)return
+    savingRef.current=true;setSaving(true);setSaveError('')
+    try {
+      if(editingCourse?.groupId && defaultTable) {
+        const repository=await import('../data/repository') as typeof import('../data/repository') & {setGroupSourceColor:(tableId:number,groupId:string,hex:string)=>Promise<void>}
+        await repository.setGroupSourceColor(defaultTable.id,editingCourse.groupId,hex)
+        const fresh=await getGroupCourses(defaultTable.id,editingCourse.groupId)
+        setGroupColor(groupSourceColorHex(fresh))
+      } else setGroupColor(hex)
+      setMeetingBlocks(blocks=>blocks.map(block=>block.colorMode===0 ? {...block,color:hex} : block))
+    } catch(error) {setSaveError(error instanceof Error ? error.message : '组色保存失败，请重试')}
+    finally {savingRef.current=false;setSaving(false)}
+  }
+
   if (compact && quickAdd) {
     const block=meetingBlocks[0]
     return <div style={{ padding:16,display:'flex',flexDirection:'column',gap:16 }}>
-      <Header title="添加本次课程" onBack={onBack} />
-      <section style={{ padding:16,borderRadius:28,background:'var(--md-surface-container)',display:'flex',flexDirection:'column',gap:12 }}>
+      <Header title="添加本次课程" onBack={()=>{if(!saving)onBack()}} />
+      <fieldset disabled={saving} style={{ margin:0,border:0,minWidth:0,padding:16,borderRadius:28,background:'var(--md-surface-container)',display:'flex',flexDirection:'column',gap:12 }}>
         <div className="m3-body-medium">{quickAdd.date}，{localizedDay(quickAdd.day,i18n.language)}，第 {quickAdd.startNode}–{quickAdd.startNode+quickAdd.step-1} 节</div>
         <Field label={t('course_name_required')} value={courseName} onChange={setCourseName} />
         <Field label={t('course_alias')} value={courseAlias} onChange={setCourseAlias} />
         <Field label={t('course_teacher')} value={block.teacher} onChange={(teacher) => updateBlock(block.id,{ teacher })} />
         <Field label={t('course_room')} value={block.room} onChange={(room) => updateBlock(block.id,{ room })} />
-        <Field label={t('course_note')} value={block.note} onChange={(note) => updateBlock(block.id,{ note })} />
-        <ColorSection block={block} onChange={(patch) => updateBlock(block.id,patch)} />
+        <Field multiline label={t('course_note')} value={block.note} onChange={(note) => updateBlock(block.id,{ note })} />
+        <ColorSection block={block} groupColor={groupColor} onChange={(patch) => updateBlock(block.id,patch)} />
         {validationIssues.map((issue,i) => <div key={i} role="alert" style={{ color:'var(--md-error)' }}>{issue.message}</div>)}
-      </section>
-      <button className="occurrence-primary" disabled={!canSave || saving} onClick={() => void performSave()}>{saving ? '正在保存' : '保存课程'}</button>
+      </fieldset>
+      <div className="quick-add-footer">
+      <button className="occurrence-primary" style={{minHeight:56}} disabled={!canSave || saving} onClick={() => void performSave()}>{saving ? '正在保存' : '保存课程'}</button>
       <button className="occurrence-secondary" disabled={saving} onClick={() => setCompact(false)}>更多设置</button>
+      </div>
       {saveError && <p role="alert" style={{color:'var(--md-error)'}}>{saveError}</p>}
       {saveDialogs}
     </div>
@@ -273,7 +300,7 @@ export function AddCourseView({
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <Header onBack={onBack} title={isEditing ? t('edit_course') : t('create_course')} />
+      <Header onBack={()=>{if(!saving)onBack()}} title={isEditing ? t('edit_course') : t('create_course')} />
 
       {validationIssues.length > 0 && (
         <div
@@ -315,6 +342,13 @@ export function AddCourseView({
         </div>
         <Field label={t('course_name_required')} value={courseName} onChange={setCourseName} />
         <Field label={t('course_alias')} value={courseAlias} onChange={setCourseAlias} />
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <span className="m3-label-large" style={{color:'var(--md-on-surface-variant)'}}>{t('course_group_color','组色')}</span>
+          <div style={{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'center',gap:8}}>
+            <GroupColorValue hex={groupColor}/>
+            <button type="button" className="occurrence-secondary" disabled={saving} onClick={()=>setShowGroupPicker(true)}>{t('change_group_color','改组色')}</button>
+          </div>
+        </div>
       </div>
 
       {/* 周次范围 — 28dp 圆角 + surfaceContainer */}
@@ -352,7 +386,7 @@ export function AddCourseView({
 
       {meetingBlocks.map((block, index) => (
         <div
-          key={block.id}
+          key={`${block.id}:${block.sourceIds?.join(',') ?? 'new'}`}
           ref={(el) => {
             // ref #144: 记录卡 DOM 节点供跳转 scrollIntoView
             if (el) blockRefs.current.set(block.id, el)
@@ -362,7 +396,8 @@ export function AddCourseView({
         <MeetingBlockCard
           title={t('slot_n', { v1: index + 1 })}
           block={block}
-          defaultExpanded={!isEditing || (blocksSynced && findTargetBlockIndex(meetingBlocks, editingCourse ?? null) === index)}
+          groupColor={groupColor}
+          defaultExpanded={!isEditing || !block.sourceIds?.length || (blocksSynced && findTargetBlockIndex(meetingBlocks, editingCourse ?? null) === index)}
           maxWeek={Math.max(defaultTable?.maxWeek ?? 20, block.endWeek)}
           isEditing={isEditing}
           canRemove={meetingBlocks.length > 1}
@@ -468,30 +503,15 @@ export function AddCourseView({
       {saveError && <p role="alert" style={{color:'var(--md-error)'}}>{saveError}</p>}
       {saveDialogs}
 
+      {showGroupPicker && <ColorPickerDialog initialHex={groupColor || SENTINEL_COLOR} onDismiss={()=>setShowGroupPicker(false)} onConfirm={hex=>void changeGroupColor(hex)}/>}
+
       {showDeleteConfirm && (
-        <Overlay onDismiss={() => setShowDeleteConfirm(false)}>
-          <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('confirm_delete')}</h2>
+        <AlertDialog title={t('confirm_delete')} onDismiss={() => setShowDeleteConfirm(false)}>
           <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>
             {t('delete_course_confirm', { v1: editingCourse?.courseName ?? '' })}
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowDeleteConfirm(false)} style={ghostStyle}>
-              {t('cancel')}
-            </button>
-            <button
-              onClick={() => {
-                setShowDeleteConfirm(false)
-                void handleDeleteGroup()
-              }}
-              style={{
-                padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: 'transparent', color: 'var(--md-error)', fontWeight: 600,
-              }}
-            >
-              {t('delete')}
-            </button>
-          </div>
-        </Overlay>
+          <div style={{marginTop:12}}><DialogActionButtons confirmText={t('delete')} destructive onConfirm={()=>{setShowDeleteConfirm(false);void handleDeleteGroup()}} dismissText={t('cancel')} onDismiss={()=>setShowDeleteConfirm(false)}/></div>
+        </AlertDialog>
       )}
     </div>
   )
@@ -500,7 +520,7 @@ export function AddCourseView({
 // ── MeetingBlockCard — 单时段卡 ─────────────────────────────────────────
 
 function MeetingBlockCard({
-  title, block, defaultExpanded, maxWeek, isEditing, canRemove, maxStd, issues, timeJson, onRemove, onChange,
+  title, block, groupColor,defaultExpanded, maxWeek, isEditing, canRemove, maxStd, issues, timeJson, onRemove, onChange,
   onPickExistingEdge, onPickNewEdgeSlot, onEditExistingSlot, onDeselectEdge, onToggleIrregularTime,
 }: {
   title: string
@@ -508,6 +528,7 @@ function MeetingBlockCard({
   maxWeek: number
   isEditing: boolean
   block: MeetingBlockDraft
+  groupColor:string
   canRemove: boolean
   maxStd: number
   issues: string[]
@@ -828,7 +849,7 @@ function MeetingBlockCard({
       </label>
 
       {/* 颜色三态 — 开关 + 32dp 圆点 + Switch 首次开 → AUTO (Android ColorSection §11) */}
-      <ColorSection block={block} onChange={onChange} />
+      <ColorSection block={block} groupColor={groupColor} onChange={onChange} />
 
       {issues.map((issue, i) => (
         <div key={i} className="m3-label-small" style={{ color: 'var(--md-error)' }}>{issue}</div>
@@ -975,10 +996,18 @@ function cryptoGroupId(): string {
 
 // ── 颜色三态 (§11 ColorSection) ─────────────────────────────────────────
 
+function cssCourseColor(hex:string) {const rgb=parseHex(hex);return rgb ? rgbToHex(rgb) : 'var(--md-surface-variant)'}
+function GroupColorValue({hex}:{hex:string}) {
+  const {t}=useTranslation()
+  const custom=hex.trim()!=='' && hex.toUpperCase()!==SENTINEL_COLOR
+  return <div style={{display:'flex',alignItems:'center',gap:8,paddingRight:8}}><span aria-hidden style={{width:20,height:20,flexShrink:0,borderRadius:'50%',background:custom ? cssCourseColor(hex) : 'var(--md-surface-variant)'}}/><span className="m3-label-small" style={{color:'var(--md-on-surface-variant)'}}>{custom ? hex : t('color_group_auto','自动（黄金角色）')}</span></div>
+}
+
 function ColorSection({
-  block, onChange,
+  block, groupColor,onChange,
 }: {
   block: MeetingBlockDraft
+  groupColor:string
   onChange: (patch: Partial<MeetingBlockDraft>) => void
 }) {
   const { t } = useTranslation()
@@ -993,9 +1022,10 @@ function ColorSection({
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
-            {useDifferent ? t('color_use_different') : t('color_follow_group')}
+            {t('color_custom_switch','自定义颜色')}
           </span>
           <Switch
+            label={t('color_custom_switch','自定义颜色')}
             checked={useDifferent}
             onChange={() => {
               if (useDifferent) {
@@ -1008,6 +1038,7 @@ function ColorSection({
           />
         </div>
       </div>
+      {!useDifferent && <GroupColorValue hex={groupColor}/>}
       {useDifferent && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* 自动 — 32dp 圆点, 选中 primaryContainer 底, 内文 t('label_from') 11px */}
@@ -1030,7 +1061,7 @@ function ColorSection({
             aria-label={t('color_custom')}
             style={{
               width: 32, height: 32, borderRadius: 16, border: 'none', cursor: 'pointer',
-              background: block.colorMode === 2 && block.color ? block.color : 'var(--md-surface-variant)',
+              background: block.colorMode === 2 && block.color ? cssCourseColor(block.color) : 'var(--md-surface-variant)',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 14, color: 'var(--md-on-surface-variant)',
             }}
@@ -1058,144 +1089,6 @@ function ColorSection({
   )
 }
 
-/** HSV 取色器弹窗 — SV 面板(白→透明 + 透明→黑 双层渐变) + 色相条(rainbow linear-gradient)
- *  + 预览圆 + hex (web 等价实现, 拖动事件省略, 仅支持点击 — 用户极少数触达路径) */
-function ColorPickerDialog({
-  initialHex, onConfirm, onDismiss,
-}: {
-  initialHex: string
-  onConfirm: (hex: string) => void
-  onDismiss: () => void
-}) {
-  const { t } = useTranslation()
-  const rgb = parseHexRgb(initialHex) ?? [103, 80, 164]
-  const initialHsv = rgbToHsv(rgb)
-  const [hue, setHue] = useState(initialHsv[0])
-  const [sat, setSat] = useState(initialHsv[1])
-  const [val, setVal] = useState(initialHsv[2])
-  const [hex, setHex] = useState(initialHex)
-
-  function commitHSV(h: number, s: number, v: number) {
-    setHue(h); setSat(s); setVal(v)
-    const rgb2 = hsvToRgb(h, s, v)
-    const rh = rgb2.map((x) => x.toString(16).padStart(2, '0')).join('')
-    setHex(`#FF${rh.toUpperCase()}`)
-  }
-
-  return (
-    <Overlay onDismiss={onDismiss}>
-      <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('course_color')}</h2>
-      {/* SV 面板 — 200dp 高 */}
-      <div
-        onClick={(e) => {
-          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-          const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-          const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
-          commitHSV(hue, x, 1 - y)
-        }}
-        style={{
-          position: 'relative', width: '100%', height: 200, borderRadius: 16,
-          background: `hsl(${hue}, 100%, 50%)`,
-          cursor: 'crosshair',
-        }}
-      >
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, white, transparent)', borderRadius: 16 }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, black)', borderRadius: 16 }} />
-        <div
-          style={{
-            position: 'absolute',
-            left: `${sat * 100}%`, top: `${(1 - val) * 100}%`,
-            width: 12, height: 12, borderRadius: 6,
-            transform: 'translate(-50%, -50%)',
-            background: 'white', boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
-          }}
-        />
-      </div>
-      {/* 色相滑条 — 36dp 高, 360° 彩虹 */}
-      <div
-        onClick={(e) => {
-          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-          const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-          commitHSV(x * 360, sat, val)
-        }}
-        style={{
-          position: 'relative', width: '100%', height: 36, borderRadius: 16,
-          background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
-          cursor: 'crosshair',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            left: `${(hue / 360) * 100}%`, top: '50%',
-            width: 12, height: 12, borderRadius: 6,
-            transform: 'translate(-50%, -50%)',
-            background: 'white', boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
-          }}
-        />
-      </div>
-      {/* 预览 + Hex */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div
-          style={{
-            width: 40, height: 40, borderRadius: 20,
-            background: `hsl(${hue}, ${sat * 100}%, ${val * 50}%)`,
-          }}
-        />
-        <span className="m3-label-large" style={{ color: 'var(--md-on-surface-variant)' }}>{hex}</span>
-      </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onDismiss} style={ghostStyle}>{t('cancel')}</button>
-        <button
-          onClick={() => onConfirm(hex)}
-          style={{
-            padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-            background: 'var(--md-primary)', color: 'var(--md-on-primary)', fontWeight: 600,
-          }}
-        >
-          {t('ok')}
-        </button>
-      </div>
-    </Overlay>
-  )
-}
-
-// HSV/RGB 转换 (颜色三态拾色器用, 复用 domain/courseColor.ts 习惯)
-function parseHexRgb(hex: string): [number, number, number] | null {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.slice(0, 7))
-  if (!m) return null
-  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
-}
-function rgbToHsv(rgb: [number, number, number]): [number, number, number] {
-  const r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255
-  const max = Math.max(r, g, b), min = Math.min(r, g, b)
-  const d = max - min
-  let h = 0
-  if (d !== 0) {
-    if (max === r) h = ((g - b) / d) % 6
-    else if (max === g) h = (b - r) / d + 2
-    else h = (r - g) / d + 4
-    h *= 60
-    if (h < 0) h += 360
-  }
-  const s = max === 0 ? 0 : d / max
-  const v = max
-  return [h, s, v]
-}
-function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
-  const c = v * s
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-  const m = v - c
-  let r = 0, g = 0, b = 0
-  if (h < 60) { r = c; g = x }
-  else if (h < 120) { r = x; g = c }
-  else if (h < 180) { g = c; b = x }
-  else if (h < 240) { g = x; b = c }
-  else if (h < 300) { r = x; b = c }
-  else { r = c; b = x }
-  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)]
-}
-
 // ── 通用 UI ─────────────────────────────────────────────────────────────
 
 const fieldStyle: React.CSSProperties = {
@@ -1217,11 +1110,11 @@ const ghostStyle: React.CSSProperties = {
   fontSize: 13,
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Field({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <span className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} style={fieldStyle} />
+      {multiline ? <textarea rows={2} value={value} onChange={(e)=>onChange(e.target.value)} style={{...fieldStyle,resize:'vertical'}} /> : <input value={value} onChange={(e) => onChange(e.target.value)} style={fieldStyle} />}
     </label>
   )
 }
@@ -1342,8 +1235,8 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
         onClick={onBack}
         aria-label={t('back')}
         style={{
-          padding: '8px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
-          background: 'transparent', color: 'var(--md-on-surface)', fontSize: 18,
+          width:48,height:48,padding:0,display:'inline-flex',alignItems:'center',justifyContent:'center', borderRadius:24,border:'none',cursor:'pointer',
+          background:'transparent',color:'var(--md-on-surface)',fontSize:18,flexShrink:0,
         }}
       >
         <IconArrowBack size={20} />
@@ -1368,7 +1261,7 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
         aria-modal="true"
         className="m3-card"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 440, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
+        style={{ maxWidth: 440, width: '100%', minWidth:0,maxHeight:'calc(100dvh - 32px)',overflowY:'auto',boxSizing:'border-box',display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}
       >
         {children}
       </div>
