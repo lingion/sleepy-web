@@ -169,7 +169,7 @@ export function ExportView({ onBack }: { onBack: () => void }) {
       <Header onBack={onBack} title={t('export_title')} />
 
       {/* 表选择卡 — Android clip(shapes.large=16dp) primaryContainer (ExportScreen.kt:153-158) */}
-      <button
+      <button data-glass-plain
         type="button"
         onClick={() => setPickerOpen(true)}
         style={{
@@ -339,7 +339,7 @@ export function ShareScheduleSheetView({
         background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
-      <div
+      <div data-glass-role="menu" data-glass-motion="static"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 480, borderRadius: '16px 16px 0 0',
@@ -423,7 +423,7 @@ function IcsOptionsSheet({
     />
   )
   const optionRow = (selected: boolean, label: string, onClick: () => void) => (
-    <button
+    <button data-glass-plain
       type="button"
       onClick={onClick}
       style={{
@@ -444,7 +444,7 @@ function IcsOptionsSheet({
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
-      <div
+      <div data-glass-plain
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 520, background: 'var(--md-surface-container-low)',
@@ -470,7 +470,7 @@ function IcsOptionsSheet({
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
-          <button
+          <button data-glass-role="regular"
             type="button"
             onClick={onDismiss}
             className="m3-label-large"
@@ -481,7 +481,7 @@ function IcsOptionsSheet({
           >
             {t('cancel')}
           </button>
-          <button
+          <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
             type="button"
             onClick={onExport}
             className="m3-label-large"
@@ -562,12 +562,12 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
   const { t } = useTranslation()
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <button
+      <button data-glass-role="regular" data-glass-icon="true"
         type="button"
         onClick={onBack}
         aria-label={t('back', '返回')}
         style={{
-          padding: '8px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
+          width: 48, height: 48, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 24, border: 'none', cursor: 'pointer',
           background: 'transparent', color: 'var(--md-on-surface)',
         }}
       >
@@ -581,7 +581,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
 /** 条目 — ExportScreen.kt:331-369 ExportItem (44dp 图标容器 primaryContainer + titleSmall/Medium + bodySmall) */
 function ExportItem({ icon, title, subtitle, onClick }: { icon: React.ReactNode; title: string; subtitle: string; onClick: () => void }) {
   return (
-    <button
+    <button data-glass-plain
       type="button"
       onClick={onClick}
       style={{
@@ -640,7 +640,7 @@ function Picker({
         background: 'color-mix(in srgb, var(--md-scrim) 40%, transparent)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
-      <div
+      <div data-glass-role="alert" data-glass-motion="static"
         onClick={(e) => e.stopPropagation()}
         style={{ width: '100%', maxWidth: 480, borderRadius: '16px 16px 0 0', padding: 16, background: 'var(--md-surface)', color: 'var(--md-on-surface)' }}
       >
@@ -652,7 +652,7 @@ function Picker({
             const isSelected = tb.id === selectedTableId
             const isHome = tb.id === homeTableId
             return (
-              <button
+              <button data-glass-plain
                 key={tb.id}
                 type="button"
                 onClick={() => onPickTable(tb.id)}
@@ -693,7 +693,7 @@ function Picker({
           {periodTables.map((pt) => {
             const isSelected = pt.id === selectedPeriodTableId
             return (
-              <button
+              <button data-glass-plain
                 key={pt.id}
                 type="button"
                 onClick={() => onPickPeriodTable(pt.id)}

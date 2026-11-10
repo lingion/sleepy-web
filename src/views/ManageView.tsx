@@ -305,7 +305,7 @@ function ManageCard({
   onClick: () => void
 }) {
   return (
-    <button
+    <button data-glass-plain
       onClick={onClick}
       style={{
         display: 'flex',

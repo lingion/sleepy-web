@@ -93,7 +93,7 @@ export function CityRecommendations({onPick}:{onPick:(s:SchoolInfo)=>void}) {
         <h2 className="m3-title-medium">{t('possible_schools')}</h2>
         <p role="status" className="m3-body-small">{status || t('school_location_hint')}{city ? ` · ${schools.length}` : ''}</p>
       </div>
-      <button type="button" className="m3-button-text" disabled={loading} onClick={locate}>
+      <button data-glass-role="regular" type="button" className="m3-button-text" disabled={loading} onClick={locate}>
         {loading?t('loading'):t(attempted?'school_location_retry':'school_location_locate')}
       </button>
     </div>
@@ -101,6 +101,6 @@ export function CityRecommendations({onPick}:{onPick:(s:SchoolInfo)=>void}) {
     <div className="jw-recommended-list" role="listbox" aria-label={t('possible_schools')} data-expanded={expanded}>
       {(expanded?schools:schools.slice(0,5)).map(s=><div key={s.catalogId||`${s.sortKey}_${s.name}`}><SchoolRow school={s} onPick={()=>onPick(s)} /><SchoolDivider /></div>)}
     </div>
-    {schools.length>5&&<button type="button" className="m3-button-text" onClick={()=>setExpanded(v=>!v)}>{t(expanded?'school_location_collapse':'school_location_show_all')}</button>}
+    {schools.length>5&&<button data-glass-role="regular" type="button" className="m3-button-text" onClick={()=>setExpanded(v=>!v)}>{t(expanded?'school_location_collapse':'school_location_show_all')}</button>}
   </section>
 }

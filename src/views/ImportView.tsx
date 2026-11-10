@@ -154,7 +154,7 @@ export function ImportView({ onDone, onBack, onManualAdd, onJwImport, targetTabl
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{display:'flex',alignItems:'center',gap:8}}>
-        <button type="button" aria-label={t('back')} onClick={onBack ?? onDone} disabled={isLoading} style={{background:'transparent',border:'none',padding:12,color:'var(--md-on-surface)',cursor:'pointer'}}><IconArrowBack size={20}/></button>
+        <button data-glass-role="regular" data-glass-icon="true" type="button" aria-label={t('back')} onClick={onBack ?? onDone} disabled={isLoading} style={{background:'transparent',border:'none',padding:0,width:48,height:48,borderRadius:24,display:'inline-flex',alignItems:'center',justifyContent:'center',color:'var(--md-on-surface)',cursor:'pointer'}}><IconArrowBack size={20}/></button>
         <h1 className="m3-title-large" style={{ margin: 0 }}>{t(addingCourses ? 'add_course_title' : 'import_title')}</h1>
       </div>
       <p className="m3-body-medium" style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>
@@ -193,7 +193,7 @@ export function ImportView({ onDone, onBack, onManualAdd, onJwImport, targetTabl
               fontSize: 13, fontFamily: 'monospace',
             }}
           />
-          <button
+          <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
             onClick={() => { setIsLoading(true); void buildPreview(inputText).finally(() => setIsLoading(false)) }}
             disabled={!canImport || inputText.trim() === ''}
             style={{
@@ -251,7 +251,7 @@ export function ImportView({ onDone, onBack, onManualAdd, onJwImport, targetTabl
               <span className="m3-body-small" style={{ flex: 1, color: 'var(--md-on-surface-variant)' }}>
                 {t(keys.desc)}
               </span>
-              <button
+              <button data-glass-role="regular" data-glass-icon="true"
                 type="button"
                 onClick={() => setDetailFormat(fmt)}
                 aria-label={t('format_detail_content_desc')}
@@ -263,10 +263,10 @@ export function ImportView({ onDone, onBack, onManualAdd, onJwImport, targetTabl
                   justifyContent: 'center',
                   marginLeft: 6,
                   marginTop: 2,
-                  padding: 2,
+                  padding: 0, width: 48, height: 48,
                   border: 'none',
                   background: 'transparent',
-                  borderRadius: 8,
+                  borderRadius: 24,
                   cursor: 'pointer',
                   color: 'var(--md-on-surface-variant)',
                 }}
@@ -325,7 +325,7 @@ export function ImportView({ onDone, onBack, onManualAdd, onJwImport, targetTabl
       {showSources && <Overlay onDismiss={() => setShowSources(false)}>
         <h2>{t('add_course_from_existing', '从已有课表选择')}</h2>
         {errorMsg && <p role="alert">{errorMsg}</p>}
-        {tables.filter(table => table.id !== targetTableId).map(table => <button type="button" key={table.id} disabled={isLoading} className="m3-btn-regular" onClick={() => {
+        {tables.filter(table => table.id !== targetTableId).map(table => <button data-glass-plain type="button" key={table.id} disabled={isLoading} className="m3-btn-regular" onClick={() => {
           setIsLoading(true)
           void (async () => {
             const effective = await effectiveImportTable(table)
@@ -390,7 +390,7 @@ function PurePeriodDialog({
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
       }}
     >
-      <div
+      <div data-glass-role="alert" data-glass-motion="static"
         role="dialog"
         aria-modal="true"
         className="m3-card"
@@ -423,11 +423,11 @@ function PurePeriodDialog({
           )}
         </label>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-          <button onClick={onDismiss} style={{
+          <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" onClick={onDismiss} style={{
             padding: '8px 14px', borderRadius: 12, border: 'none', cursor: 'pointer',
             background: 'var(--md-surface-container-high)', color: 'var(--md-on-surface)', fontSize: 13,
           }}>{t('cancel')}</button>
-          <button
+          <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
             disabled={isApplying || candidate === '' || nameTaken}
             onClick={() => onConfirm(candidate)}
             style={{
@@ -549,7 +549,7 @@ function PreviewDialog({
           <label><input type="checkbox" checked={backupOriginal} disabled={isApplying} onChange={e => setBackupOriginal(e.target.checked)} />{t('import_backup_original','导入前备份原课表')}</label>
           <label><input type="checkbox" checked={appendConflicts} disabled={isApplying} onChange={e => setAppendConflicts(e.target.checked)} />{t('import_append_conflicts_option','同时追加冲突课程')}</label>
         </>}
-        <button type="button" className="m3-btn-regular" disabled={isApplying} onClick={() => onApply(hasTables ? appendConflicts ? 'AppendAll' : 'AppendNonConflict' : 'ImportAsNew',backupOriginal)}>
+        <button data-glass-role="tinted" data-glass-tint="var(--md-primary)" type="button" className="m3-btn-regular" disabled={isApplying} onClick={() => onApply(hasTables ? appendConflicts ? 'AppendAll' : 'AppendNonConflict' : 'ImportAsNew',backupOriginal)}>
           {hasTables ? t('import_confirm') : t('import_as_new')}
         </button>
         <GhostBtn label={t('cancel')} onClick={onDismiss} />
@@ -599,7 +599,7 @@ function ConfirmDialog({startDate,tableName,timeJson,courses,periodTables,bindin
     {bound ? <p>{t('import_period_summary',{v1:bound.name,v2:bound.nodesPerDay})}</p> : <TimeSlotEditor rows={rows} onRowsChange={next => {setRows(next);onTimeJsonChange(buildTimeJsonFromRows(next))}} smartConfig={smart} onSmartConfigChange={config => {setSmart(config);onSmartConfigChange(encodeSmartConfig(config))}} />}
     <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
       <GhostBtn label={t('back')} onClick={onDismiss} />
-      <button type="button" className="m3-btn-regular" disabled={isApplying} onClick={confirm}>{t('import_confirm')}</button>
+      <button data-glass-role="tinted" data-glass-tint="var(--md-primary)" type="button" className="m3-btn-regular" disabled={isApplying} onClick={confirm}>{t('import_confirm')}</button>
     </div>
   </Overlay>
 }
@@ -609,15 +609,15 @@ function CourseSelectionDialog({result,onDismiss,onConfirm}:{result:ParseResult;
   const groups=new Map<string,ParsedCourse[]>()
   for (const course of result.courses) {const key=importCourseGroupKey(course);groups.set(key,[...(groups.get(key) ?? []),course])}
   const [selected,setSelected]=useState(() => new Set(groups.keys()))
-  return <Overlay onDismiss={onDismiss}>
+  return <Overlay glassRole={false} onDismiss={onDismiss}>
     <h2>{t('import_select_courses','选择导入课程')}</h2>
-    <button type="button" className="m3-btn-regular" onClick={() => setSelected(selected.size === groups.size ? new Set() : new Set(groups.keys()))}>{selected.size === groups.size ? t('deselect_all','取消全选') : t('select_all','全选')}</button>
+    <button data-glass-role="regular" type="button" className="m3-btn-regular" onClick={() => setSelected(selected.size === groups.size ? new Set() : new Set(groups.keys()))}>{selected.size === groups.size ? t('deselect_all','取消全选') : t('select_all','全选')}</button>
     {[...groups].map(([key,cs]) => <label key={key} style={{display:'flex',gap:12,padding:12}}>
       <input type="checkbox" checked={selected.has(key)} onChange={e => setSelected(old => {const next=new Set(old);if(e.target.checked)next.add(key);else next.delete(key);return next})} />
       <span>{t('import_course_group_count',{v1:cs[0].courseName,v2:cs.length})}</span>
     </label>)}
     {!selected.size && <p role="alert">{t('import_selection_empty','请至少选择一门课程')}</p>}
-    <button type="button" className="m3-btn-regular" disabled={!selected.size} onClick={() => onConfirm(result.courses.filter(c => selected.has(importCourseGroupKey(c))))}>{t('confirm','确定')}</button>
+    <button data-glass-role="regular" type="button" className="m3-btn-regular" disabled={!selected.size} onClick={() => onConfirm(result.courses.filter(c => selected.has(importCourseGroupKey(c))))}>{t('confirm','确定')}</button>
     <GhostBtn label={t('cancel')} onClick={onDismiss} />
   </Overlay>
 }
@@ -642,7 +642,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   )
 }
 
-function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
+function Overlay({ children, onDismiss, glassRole = 'alert' }: { children: React.ReactNode; onDismiss: () => void; glassRole?: 'alert' | 'menu' | false }) {
   return (
     <div
       style={{
@@ -653,6 +653,9 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
       onClick={onDismiss}
     >
       <div
+        data-glass-role={glassRole || undefined}
+        data-glass-motion={glassRole ? "static" : undefined}
+        data-glass-plain={glassRole === false ? true : undefined}
         role="dialog"
         aria-modal="true"
         className="m3-card"
@@ -698,7 +701,7 @@ function WarnBox({
 
 function GhostBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
+    <button data-glass-role="regular"
       onClick={onClick}
       style={{
         padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
@@ -727,7 +730,7 @@ function ImportMethodRow({
   onClick: () => void
 }) {
   return (
-    <button
+    <button data-glass-plain
       type="button"
       onClick={onClick}
       disabled={disabled}

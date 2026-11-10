@@ -121,10 +121,10 @@ export function JwCourseConfirmPage({
             {t('jw_course_count', { v1: courses.length })}
           </span>
         </span>
-        <button type="button" className="m3-btn-regular" onClick={() => setExcluded(new Set())} style={{ marginRight: 6 }}>
+        <button data-glass-role="regular" type="button" className="m3-btn-regular" onClick={() => setExcluded(new Set())} style={{ marginRight: 6 }}>
           {t('jw_select_all')}
         </button>
-        <button type="button" className="m3-btn-regular" onClick={() => setExcluded(new Set(groups.map((g) => g.key)))}>
+        <button data-glass-role="regular" type="button" className="m3-btn-regular" onClick={() => setExcluded(new Set(groups.map((g) => g.key)))}>
           {t('jw_select_none')}
         </button>
       </div>
@@ -216,10 +216,10 @@ export function JwCourseConfirmPage({
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" className="m3-btn-regular" style={{ flex: 1 }} onClick={onBack}>
+        <button data-glass-role="regular" type="button" className="m3-btn-regular" style={{ flex: 1 }} onClick={onBack}>
           {t('back')}
         </button>
-        <button type="button" className="m3-btn-cta" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={submit}>
+        <button data-glass-role="tinted" data-glass-tint="var(--md-primary)" type="button" className="m3-btn-cta" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={submit}>
           <IconCheckCircle size={16} />
           {t('jw_config_confirm')}
         </button>
