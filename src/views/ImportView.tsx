@@ -17,6 +17,7 @@ import { suggestUniqueName } from './mine/periodTableNames'
 import { parseTimeSlotRows, buildTimeJsonFromRows, mergeMostComplete } from '../domain/timeTable'
 import { inferSmartConfig, encodeSmartConfig } from '../domain/smartPeriod'
 import { TimeSlotEditor } from './jw/TimeSlotEditor'
+import { JwImportView } from './jw/JwImportView'
 import type { Course, PeriodTable } from '../data/types'
 
 type ApplyMode = 'ImportAsNew' | 'AppendNonConflict' | 'AppendAll'
@@ -54,6 +55,7 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
   const [pendingMode, setPendingMode] = useState<ApplyMode | null>(null)
   const [selection, setSelection] = useState<ParseResult | null>(null)
   const [showSources, setShowSources] = useState(false)
+  const [showSchoolDirectory, setShowSchoolDirectory] = useState(false)
   const [confirmedTableName, setConfirmedTableName] = useState('')
   const [confirmedStartDate, setConfirmedStartDate] = useState('')
   const [confirmedTimeJson, setConfirmedTimeJson] = useState('')
@@ -139,6 +141,8 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
 
   const hasTables = addingCourses && tables.some(t => t.id === targetTableId)
 
+  if (showSchoolDirectory) return <JwImportView onBack={() => setShowSchoolDirectory(false)} />
+
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <h1 className="m3-title-large" style={{ margin: 0 }}>{t('import_title')}</h1>
@@ -152,7 +156,7 @@ export function ImportView({ onDone, onJwImport, targetTableId = 0, addingCourse
       <ImportMethodRow
         icon={IconQrCode2}
         label={t('import_jw')}
-        onClick={() => onJwImport?.()} disabled={isLoading}
+        onClick={() => onJwImport ? onJwImport() : setShowSchoolDirectory(true)} disabled={isLoading}
       />
 
       {/* 行 2：从文本导入 (可折叠) — ImportSheet.kt:232-287, 展开内容 padding-start 56 */}

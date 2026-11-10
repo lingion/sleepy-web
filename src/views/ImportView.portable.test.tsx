@@ -53,3 +53,14 @@ it('failed persistence remains in the confirmation dialog, displays its error, a
   fireEvent.click(screen.getByRole('button',{name:'确认导入'}))
   await waitFor(()=>expect(done).toHaveBeenCalledTimes(1))
 })
+
+it('callers without a school navigation callback still open the complete guarded directory',async()=>{
+  const done=vi.fn();render(<ImportView onDone={done}/>)
+  fireEvent.click(screen.getByRole('button',{name:'教务直连'}))
+  const search=await screen.findByRole('searchbox')
+  fireEvent.change(search,{target:{value:'哈尔滨工程大学'}})
+  fireEvent.click(screen.getAllByRole('option',{name:'哈尔滨工程大学'})[0])
+  expect((await screen.findByRole('alertdialog')).textContent).toContain('网页暂不支持教务导入，请使用安卓版导入')
+  expect(await db.timetables.count()).toBe(0)
+  expect(done).not.toHaveBeenCalled()
+})
