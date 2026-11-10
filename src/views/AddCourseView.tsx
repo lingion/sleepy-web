@@ -293,12 +293,12 @@ export function AddCourseView({
         <Field label={t('course_teacher')} value={block.teacher} onChange={(teacher) => updateBlock(block.id,{ teacher })} />
         <Field label={t('course_room')} value={block.room} onChange={(room) => updateBlock(block.id,{ room })} />
         <Field multiline label={t('course_note')} value={block.note} onChange={(note) => updateBlock(block.id,{ note })} />
-        <ColorSection block={block} groupColor={groupColor} onChange={(patch) => updateBlock(block.id,patch)} />
+        <ColorSection compact block={block} groupColor={groupColor} onChange={(patch) => updateBlock(block.id,patch)} />
         {validationIssues.map((issue,i) => <div key={i} role="alert" style={{ color:'var(--md-error)' }}>{issue.message}</div>)}
       </fieldset>
       <div className="quick-add-footer">
-      <button className="occurrence-primary" style={{minHeight:56}} disabled={!canSave || saving} onClick={() => void performSave()}>{saving ? '正在保存' : '保存课程'}</button>
-      <button className="occurrence-secondary" disabled={saving} onClick={() => setCompact(false)}>更多设置</button>
+      <button data-glass-role="tinted" data-glass-tint="var(--md-primary)" className="occurrence-primary" style={{minHeight:56}} disabled={!canSave || saving} onClick={() => void performSave()}>{saving ? '正在保存' : '保存课程'}</button>
+      <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" className="occurrence-secondary" disabled={saving} onClick={() => setCompact(false)}>更多设置</button>
       </div>
       {saveError && <p role="alert" style={{color:'var(--md-error)'}}>{saveError}</p>}
       {saveDialogs}
@@ -353,7 +353,7 @@ export function AddCourseView({
           <span className="m3-label-large" style={{color:'var(--md-on-surface-variant)'}}>{t('course_group_color','组色')}</span>
           <div style={{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'center',gap:8}}>
             <GroupColorValue hex={groupColor}/>
-            <button type="button" className="occurrence-secondary" disabled={saving} onClick={()=>setShowGroupPicker(true)}>{t('change_group_color','改组色')}</button>
+            <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" type="button" className="occurrence-secondary" disabled={saving} onClick={()=>setShowGroupPicker(true)}>{t('change_group_color','改组色')}</button>
           </div>
         </div>
       </div>
@@ -373,7 +373,7 @@ export function AddCourseView({
           <div className="m3-body-small" style={{ color: 'var(--md-on-surface-variant)' }}>{t('week_range_sub')}</div>
         </div>
         <IntRangeSlider label={`${t('week_range')} ${startWeek}–${endWeek}`} max={Math.max(defaultTable?.maxWeek ?? 20, endWeek)} start={startWeek} end={endWeek} initialStart={editingCourse?.startWeek} initialEnd={editingCourse?.endWeek} onChange={(s,e) => { setStartWeek(s); setEndWeek(e) }} />
-        <button
+        <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)"
           onClick={() => setMeetingBlocks((bs) => bs.map((b) => ({ ...b, startWeek, endWeek })))}
           style={{
             height: 48, borderRadius: 16, padding: '0 16px', border: 'none', cursor: 'pointer',
@@ -454,7 +454,7 @@ export function AddCourseView({
         </div>
       ))}
 
-      <button
+      <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)"
         onClick={() =>
           setMeetingBlocks((bs) => [
             ...bs,
@@ -478,7 +478,7 @@ export function AddCourseView({
         {t('add_slot')}
       </button>
 
-      <button
+      <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
         onClick={() => void performSave()}
         disabled={!canSave || saving}
         style={{
@@ -493,7 +493,7 @@ export function AddCourseView({
       </button>
 
       {isEditing && (
-        <button
+        <button data-glass-role="tinted" data-glass-tint="var(--md-error-container)"
           onClick={() => setShowDeleteConfirm(true)}
           style={{
             height: 48, borderRadius: 16, padding: '0 16px', border: 'none', cursor: 'pointer',
@@ -622,7 +622,7 @@ function MeetingBlockCard({
         </div>
       )}
       <div data-slot-header style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div role="button" tabIndex={0} aria-label={title} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded) } }} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
+        <div data-glass-plain role="button" tabIndex={0} aria-label={title} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded) } }} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
           <div className="m3-title-small" style={{ fontWeight: 600 }}>{title}</div>
           <div className="m3-label-small" style={{ color: 'var(--md-on-surface-variant)' }}>
             {block.days.length === 0
@@ -632,7 +632,7 @@ function MeetingBlockCard({
           <div className="m3-label-small">第 {block.startWeek}–{block.endWeek} 周，{block.isIrregularTime ? `${block.startTime}–${block.endTime}` : `第 ${block.startNode}–${block.startNode + block.step - 1} 节`}{block.room ? `，${block.room}` : ''}{block.teacher ? `，${block.teacher}` : ''}</div>
         </div>
         {canRemove && (
-          <button
+          <button data-glass-role="regular" data-glass-icon="true"
             onClick={onRemove}
             aria-label={t('delete_slot')}
             style={{
@@ -644,7 +644,7 @@ function MeetingBlockCard({
             <IconClose size={18} />
           </button>
         )}
-        <button type="button" aria-label={expanded ? '收起时段' : '展开时段'} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} style={{ width: 48, height: 48, flexShrink:0, border: 'none', background: 'transparent', borderRadius: 18, cursor: 'pointer', transform: expanded ? 'rotate(90deg)' : 'none', color: 'var(--md-on-surface-variant)' }}><IconChevronRight size={20} /></button>
+        <button data-glass-role="regular" data-glass-icon="true" type="button" aria-label={expanded ? '收起时段' : '展开时段'} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} style={{ width: 48, height: 48, flexShrink:0, border: 'none', background: 'transparent', borderRadius: 18, cursor: 'pointer', transform: expanded ? 'rotate(90deg)' : 'none', color: 'var(--md-on-surface-variant)' }}><IconChevronRight size={20} /></button>
       </div>
 
       {expanded && <>
@@ -654,7 +654,7 @@ function MeetingBlockCard({
           {[1, 2, 3, 4].map((d) => {
             const on = block.days.includes(d)
             return (
-              <button
+              <button data-glass-role="regular" data-glass-selected={on ? "true" : undefined} data-glass-tint={on ? "var(--md-primary)" : undefined}
                 key={d}
                 onClick={() => toggleDay(d)}
                 aria-pressed={on}
@@ -674,7 +674,7 @@ function MeetingBlockCard({
           {[5, 6, 7].map((d) => {
             const on = block.days.includes(d)
             return (
-              <button
+              <button data-glass-role="regular" data-glass-selected={on ? "true" : undefined} data-glass-tint={on ? "var(--md-primary)" : undefined}
                 key={d}
                 onClick={() => toggleDay(d)}
                 aria-pressed={on}
@@ -705,7 +705,7 @@ function MeetingBlockCard({
           borderRadius: 12,
         }}
       >
-        <div
+        <div data-glass-plain
           role="button"
           aria-expanded={irregularOpen}
           onClick={() => setIrregularOpen((v) => !v)}
@@ -784,7 +784,7 @@ function MeetingBlockCard({
                     : t('edge_node_label', { v1: selectedCandidate.node })}
                 </span>
                 {selectedCandidate.exists && (
-                  <button
+                  <button data-glass-role="regular" data-glass-icon="true"
                     onClick={() =>
                       setSlotEditDraft({
                         node: selectedCandidate.node,
@@ -795,8 +795,8 @@ function MeetingBlockCard({
                     aria-label={t('irregular_slot_edit_title', { v1: selectedCandidate.node })}
                     style={{
                       border: 'none', background: 'transparent', cursor: 'pointer',
-                      padding: 4, color: 'var(--md-on-surface-variant)',
-                      display: 'inline-flex', alignItems: 'center',
+                      padding: 0, width: 48, height: 48, borderRadius: 24, flexShrink: 0, color: 'var(--md-on-surface-variant)',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
                     <IconEdit size={18} />
@@ -870,7 +870,7 @@ function MeetingBlockCard({
           <h2 className="m3-title-medium" style={{ margin: 0 }}>{t('irregular_node_pick')}</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {edgeCandidates(timeJson).map((c) => (
-              <button
+              <button data-glass-plain
                 key={`${c.edgeClass}-${c.node}`}
                 onClick={() => {
                   if (c.exists) {
@@ -1011,8 +1011,9 @@ function GroupColorValue({hex}:{hex:string}) {
 }
 
 function ColorSection({
-  block, groupColor,onChange,
+  block, groupColor,onChange,compact = false,
 }: {
+  compact?: boolean
   block: MeetingBlockDraft
   groupColor:string
   onChange: (patch: Partial<MeetingBlockDraft>) => void
@@ -1023,6 +1024,11 @@ function ColorSection({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {compact ? <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <span className="m3-label-large" style={{ flex: 1 }}>{t('course_color')}</span>
+        <button type="button" data-glass-role="regular" data-glass-selected={block.colorMode !== 2 ? 'true' : undefined} data-glass-tint={block.colorMode !== 2 ? 'var(--md-primary)' : undefined} aria-pressed={block.colorMode !== 2} onClick={() => onChange({ colorMode: 0, color: '' })} style={{ minHeight: 40, padding: '8px 16px', border: 'none', borderRadius: 12, cursor: 'pointer', background: block.colorMode !== 2 ? 'var(--md-primary-container)' : 'var(--md-surface-container-high)', color: 'var(--md-on-surface)' }}>{t('color_auto')}</button>
+        <button type="button" className="m3-button-tonal" data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" onClick={() => setShowPicker(true)}>{t('color_custom')}</button>
+      </div> : <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span className="m3-label-large" style={{ color: 'var(--md-on-surface-variant)' }}>
           {t('course_color')}
@@ -1049,7 +1055,7 @@ function ColorSection({
       {useDifferent && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* 自动 — 32dp 圆点, 选中 primaryContainer 底, 内文 t('label_from') 11px */}
-          <button
+          <button data-glass-plain
             onClick={() => onChange({ colorMode: 1, color: '' })}
             aria-label={t('color_auto')}
             style={{
@@ -1063,7 +1069,7 @@ function ColorSection({
             {t('label_from')}
           </button>
           {/* 自定义 — 32dp 圆点, 有色显该色, 无色 surfaceVariant + 「＋」 */}
-          <button
+          <button data-glass-plain
             onClick={() => setShowPicker(true)}
             aria-label={t('color_custom')}
             style={{
@@ -1082,6 +1088,7 @@ function ColorSection({
           )}
         </div>
       )}
+      </>}
       {showPicker && (
         <ColorPickerDialog
           initialHex={block.color || '#FF6750A4'}
@@ -1216,8 +1223,8 @@ function NewEdgeSlotDialog({
         <TimeField label={t('edge_insert_end_label')} value={end} onChange={onChangeEnd} />
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onDismiss} style={ghostStyle}>{t('cancel')}</button>
-        <button
+        <button data-glass-role="tinted" data-glass-tint="var(--md-secondary-container)" onClick={onDismiss} style={ghostStyle}>{t('cancel')}</button>
+        <button data-glass-role="tinted" data-glass-tint="var(--md-primary)"
           disabled={!valid}
           onClick={onConfirm}
           style={{
@@ -1237,7 +1244,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
   const { t } = useTranslation()
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <button
+      <button data-glass-role="regular" data-glass-icon="true"
         type="button"
         onClick={onBack}
         aria-label={t('back')}
@@ -1253,7 +1260,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
   )
 }
 
-function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
+function Overlay({ children, onDismiss, glassRole = 'alert' }: { children: React.ReactNode; onDismiss: () => void; glassRole?: 'alert' | 'menu' | false }) {
   return (
     <div
       onClick={onDismiss}
@@ -1264,6 +1271,9 @@ function Overlay({ children, onDismiss }: { children: React.ReactNode; onDismiss
       }}
     >
       <div
+        data-glass-role={glassRole || undefined}
+        data-glass-motion={glassRole ? "static" : undefined}
+        data-glass-plain={glassRole === false ? true : undefined}
         role="dialog"
         aria-modal="true"
         className="m3-card"
