@@ -18,7 +18,9 @@ export class Spring {
   constructor(initial = 0, private rest = .001) { this.value = initial; this.target = initial }
   tick(dt: number, stiffness = this.stiffness, damping = this.damping) {
     this.stiffness = stiffness; this.damping = damping
-    const t = Math.min(Math.max(dt, 0), .05), x = this.value - this.target, v = this.velocity
+    // The analytic solution is stable across a missed frame. Capping elapsed
+    // time makes the animation lag behind the finger and stretches its release.
+    const t = Math.max(dt, 0), x = this.value - this.target, v = this.velocity
     const discriminant = damping * damping - 4 * stiffness, r = -damping / 2
     let next: number, velocity: number
     if (Math.abs(discriminant) < 1e-5) {

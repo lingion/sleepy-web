@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GlassPressMotion, GlassControlMotion } from './physics'
+import { GlassPressMotion, GlassControlMotion, Spring, springs } from './physics'
 
 describe('Android glass press springs', () => {
   it('follows all quadrants and springs back after a short tap completes its rise', () => {
@@ -59,5 +59,18 @@ describe('selection lens lifecycle', () => {
     expect(braking).toBe(true)
     expect(motion.stretch).toBe(0)
     expect(motion.running).toBe(false)
+  })
+})
+
+
+describe('elapsed spring time', () => {
+  it.each(Object.entries(springs))('keeps %s at the same physical position after one long frame or several short frames', (_name, [stiffness, damping]) => {
+    const delayed = new Spring(.4, 1e-12), regular = new Spring(.4, 1e-12)
+    delayed.target = regular.target = 2
+    delayed.velocity = regular.velocity = -.2
+    delayed.tick(.24, stiffness, damping)
+    for (let frame = 0; frame < 24; frame++) regular.tick(.01, stiffness, damping)
+    expect(delayed.value).toBeCloseTo(regular.value, 11)
+    expect(delayed.velocity).toBeCloseTo(regular.velocity, 11)
   })
 })
