@@ -532,6 +532,18 @@ export async function updateCourse(course: Course): Promise<void> {
   await db.courses.put(course)
 }
 
+/** Android setGroupSourceColor: only GROUP rows follow the immediate source color. */
+export async function setGroupSourceColor(tableId: number, groupId: string, hex: string): Promise<void> {
+  if (!groupId.trim()) return
+  // Capture reads all three stores; include them so the update and undo share one boundary.
+  await db.transaction('rw', db.courses, db.timetables, db.periodTables, async () => {
+    const changed = (await getGroupCourses(tableId, groupId)).filter(row => row.colorMode === 0 && row.color !== hex)
+    if (!changed.length) return
+    await undoManager.capture('setGroupSourceColor')
+    await db.courses.bulkPut(changed.map(row => ({ ...row, color: hex })))
+  })
+}
+
 /** 11. updateCourseGroup — 整组覆盖 (编辑页保存路径)。
  *  ref #144 防呆 (Android ScheduleRepository 1:1): 空 groupId 禁止走组替换 —
  *  否则 DELETE WHERE groupId='' 把该表全部空组课一起删掉; 退化为逐条插入。 */
