@@ -86,7 +86,7 @@ export function App() {
   const navigationStarted = useRef(false)
   // Lazy children must see the destination from the very first render, before
   // the history-restoration effect runs (including notification deep links).
-  const activeStack = navigationRestored ? stack : chainFromHash(initialHash)
+  const activeStack = publicSchedule ? [] : navigationRestored ? stack : chainFromHash(initialHash)
   const fullOverlay = activeStack.some((k) => !PANE_DIALOG_KEYS.has(k))
   const tabletSplit = tablet && !publicSchedule && !fullOverlay
 
